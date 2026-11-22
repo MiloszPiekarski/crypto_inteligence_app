@@ -16,6 +16,10 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 
 ## Otwarte sprawy
 
+- `doctor.sh` (naprawione w domknięciu E1): w katalogu projektu `uv python find 3.12` zwraca
+  ścieżkę `.venv` bez numeru wersji, więc test „Python (uv)” dawał FAIL; raport bramki
+  zapisuje teraz wszystkie wiersze z FAIL, nie tylko 25 ostatnich linii.
+
 - ⚠️ E0: potwierdzić włączenie Cloudflare R2, konto Resend i bota Telegram (brak dowodu w repo).
 - Sentry na koncie prywatnym: przepiąć na konto projektu w E3/E6.
 - PR-y Dependabota sprzed nowych reguł (Python 3.15, TypeScript 7, @types/node 26): zamknąć bez scalania.

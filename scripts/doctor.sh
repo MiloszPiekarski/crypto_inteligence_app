@@ -44,7 +44,10 @@ check_tool "macOS"          "15.0"  sw_vers -productVersion
 check_tool "git"            "2.40"  git --version
 check_tool "gh"             "2.40"  gh --version
 check_tool "uv"             "0.5"   uv --version
-check_tool "Python (uv)"    "3.12"  uv python find 3.12
+# `uv python find` w katalogu projektu zwraca ścieżkę do .venv (bez numeru wersji),
+# więc pytamy sam interpreter o wersję.
+python_uv_version() { "$(uv python find 3.12)" --version; }
+check_tool "Python (uv)"    "3.12"  python_uv_version
 check_tool "Node.js"        "24.0"  node --version
 node_major="$(node --version 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/')"
 if [ "${node_major:-0}" = "24" ]; then ok "Node.js is the 24 LTS line"; else bad "Node.js major is ${node_major:-none}, expected 24 (LTS)"; fi

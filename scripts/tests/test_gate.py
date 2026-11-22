@@ -138,3 +138,18 @@ def test_all_skipped_is_red(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert "FAIL żadne sprawdzenie nie zostało uruchomione (ci)" in log
     assert "CZERWONE" in log
     assert run(tmp_path, monkeypatch, "local") == 0
+
+
+def test_fail_line_far_before_end_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Uwaga z G0: wiersz FAIL sprzed ostatnich 25 linii znikał z raportu."""
+    script = (
+        "echo '  FAIL Python (uv): cannot read version'; "
+        "for i in $(seq 1 40); do echo ok $i; done; exit 1"
+    )
+    write_gate(tmp_path, BASE + f'checks:\n  - id: d\n    name: doctor\n    run: "{script}"\n')
+    assert run(tmp_path, monkeypatch, "local") == 1
+    log = last_log(tmp_path)
+    assert "! " in log
+    assert "FAIL Python (uv): cannot read version" in log
