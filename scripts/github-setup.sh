@@ -38,6 +38,7 @@ done
 gh label create task --repo "$REPO" --color 0e8a16 --description "Zadanie z roadmapy" --force >/dev/null
 gh label create bug --repo "$REPO" --color d73a4a --description "Błąd" --force >/dev/null
 gh label create dependencies --repo "$REPO" --color 0366d6 --description "Aktualizacje zależności" --force >/dev/null
+gh label create tech-debt --repo "$REPO" --color fbca04 --description "Drobna poprawka odłożona z przeglądu" --force >/dev/null
 
 say "Ochrona main (ruleset): PR, zielone ci-ok, podpisy, liniowa historia, zakaz force-push i usunięcia"
 existing=$(gh api "repos/$REPO/rulesets" --jq '.[] | select(.name=="main-protection") | .id' || true)

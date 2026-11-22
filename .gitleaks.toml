@@ -12,6 +12,6 @@ description = "Klucz prywatny age"
 regex = '''AGE-SECRET-KEY-1[0-9A-Z]{58}'''
 keywords = ["age-secret-key-1"]
 
-[allowlist]
-description = "Zaszyfrowane pliki SOPS zawierają tylko szyfrogramy"
-paths = ['''infra/secrets/.*\.enc\.yaml''']
+# Bez wyjątków dla infra/secrets/*.enc.yaml: szyfrogramy SOPS nie dają fałszywych alarmów
+# (sprawdzone na prawdziwych plikach z `sops -e`), a skanowanie ich wykrywa sekret wpisany
+# jako nazwa klucza, komentarz czy metadane. Budowę tych plików sprawdza scripts/sops_check.py.
