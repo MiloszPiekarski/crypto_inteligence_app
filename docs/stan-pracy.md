@@ -53,6 +53,11 @@ Decyzje właściciela do planu (22.11.2026):
 - Graphify przy PR #12 zgłosił 18 „możliwych problemów”; przejrzane tylko 3 widoczne
   (panel Graphify jest dla właściciela niedostępny).
 - Atrybucja „Data by CoinGecko” w interfejsie: w E12.
+- ⚠️ Luka w `gate-guard` (istniejąca od #13): przy zdarzeniu `pull_request` GitHub używa pliku
+  workflow z PR, więc PR zmieniający `.github/workflows/gate-guard.yml` może sam ominąć kontrolę
+  (skrypt jest brany z `main`, ale komenda w workflow już nie). Do decyzji osobnym PR
+  (bezpieczeństwo): `pull_request_target` bez kodu z PR albo wymagany przegląd właściciela
+  dla zmian w `.github/` (CODEOWNERS + reguła w rulesecie).
 
 ## Jak pracujemy (skrót; pełne zasady: `CLAUDE.md`, sekcja „Zasady współpracy”, i `CONTRIBUTING.md`)
 
