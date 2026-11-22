@@ -1,14 +1,17 @@
 """Testy scripts/sops_check.py na prawdziwym wyniku `sops -e` i jego zmodyfikowanych wersjach.
 
 fixtures/sops_real.yaml to wynik `sops -e --age` (sops 3.13.3) dla pliku z kluczem
-DATABASE_URL, pustą wartością, null, listą z komentarzem, pustą mapą, liczbą i komentarzem.
+DATABASE_URL, pustą wartością, null, listą z komentarzem, pustą mapą, liczbą, komentarzem
+w osobnym wierszu i komentarzami po wartości (w mapie i w liście map).
 Klucz prywatny użyty do zaszyfrowania został od razu skasowany.
 """
 
+import base64
 from pathlib import Path
 
 import pytest
 import sops_check
+import yaml
 
 REAL = (Path(__file__).parent / "fixtures" / "sops_real.yaml").read_text(encoding="utf-8")
 IV = "e9KIjXG2YeRmNKQbjb78v1eBzwrUd03g+C0ofz2Bloo="  # 32 bajty
@@ -126,3 +129,19 @@ def test_main_returns_error_for_plaintext(tmp_path: Path) -> None:
     ok = tmp_path / "local.enc.yaml"
     ok.write_text(REAL, encoding="utf-8")
     assert sops_check.main(["sops_check.py", str(ok)]) == 0
+
+
+def test_fake_age_armor_detected() -> None:
+    """Uwaga z niezależnego przeglądu: pancerz age z base64 jawnego tekstu przechodził."""
+    fake = base64.b64encode(b"haslo: hunter2\n" * 4).decode()
+    lines = [fake[i : i + 64] for i in range(0, len(fake), 64)]
+    body = "".join(f"            {line}\n" for line in lines)
+    start = REAL.index("-----BEGIN AGE ENCRYPTED FILE-----\n") + len(
+        "-----BEGIN AGE ENCRYPTED FILE-----\n"
+    )
+    end = REAL.index("            -----END AGE ENCRYPTED FILE-----")
+    forged = REAL[:start] + body + REAL[end:]
+    meta = yaml.safe_load(forged)["sops"]["age"][0]["enc"]
+    assert sops_check.AGE_ARMOR_RE.fullmatch(meta), "fałszywka musi mieć poprawną budowę pancerza"
+    assert not sops_check.is_age_armor(meta)
+    assert "sops.age[0].enc nie jest zaszyfrowanym blokiem age" in sops_check.problems(forged)

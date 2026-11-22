@@ -10,11 +10,14 @@ Dwie warstwy ochrony plików z sekretami:
 Plik przechodzi, gdy:
 - każda wartość to szyfrogram SOPS o poprawnej budowie (AES256_GCM, dane w base64, iv 32 B,
   tag 16 B, typ danych) albo wartość, której SOPS nie szyfruje: "", null, {} lub [],
-- typ `comment` występuje tylko w komentarzu (`#ENC[...]` albo element listy), a każdy `#`
-  w pliku zaczyna zaszyfrowany komentarz,
+- typ `comment` występuje tylko w komentarzu (`#ENC[...]` w osobnym wierszu albo po wartości,
+  albo element listy), a każdy `#` w pliku zaczyna zaszyfrowany komentarz,
 - nazwy kluczy to identyfikatory (litery, cyfry, `_`, `.`, `-`, do 64 znaków),
 - nie ma zduplikowanych kluczy, kotwic, aliasów, tagów ani dyrektyw YAML,
-- blok `sops` ma dokładnie pola zapisywane przez `sops -e` z kluczem age, w poprawnym formacie.
+- blok `sops` ma dokładnie pola zapisywane przez `sops -e` z kluczem age, w poprawnym formacie
+  (pancerz age po zdekodowaniu zaczyna się nagłówkiem `age-encryption.org/v1`).
+
+Nazwy kluczy ze spacją są odrzucane (SOPS je dopuszcza, ale w projekcie ich nie używamy).
 
 Ograniczenie (zapisane w docs/gates/G1.md): bez klucza prywatnego nie da się sprawdzić
 podpisu MAC, więc celowo spreparowany szyfrogram o poprawnej budowie przejdzie tę kontrolę.
@@ -51,6 +54,7 @@ AGE_ARMOR_RE = re.compile(
     r"(?:[A-Za-z0-9+/=]{1,64}\n)+"
     r"-----END AGE ENCRYPTED FILE-----\n?"
 )
+AGE_HEADER = b"age-encryption.org/v1\n"
 LASTMODIFIED_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 VERSION_RE = re.compile(r"\d+\.\d+\.\d+")
 SOPS_REQUIRED = frozenset({"age", "lastmodified", "mac", "version"})
@@ -101,6 +105,18 @@ def is_sops_ciphertext(value: str, *, comment: bool = False) -> bool:
     )
 
 
+def is_age_armor(value: str) -> bool:
+    """Pancerz age o poprawnej budowie, którego treść zaczyna się nagłówkiem formatu age
+    (a nie np. zakodowanym w base64 jawnym tekstem)."""
+    if not AGE_ARMOR_RE.fullmatch(value):
+        return False
+    body = "".join(value.strip().splitlines()[1:-1])
+    try:
+        return base64.b64decode(body, validate=True).startswith(AGE_HEADER)
+    except (binascii.Error, ValueError):
+        return False
+
+
 def syntax_problems(text: str) -> list[str]:
     """Kotwice, aliasy, tagi i dyrektywy YAML mogą nieść jawny tekst; SOPS ich nie zapisuje."""
     found: list[str] = []
@@ -124,13 +140,19 @@ def syntax_problems(text: str) -> list[str]:
 
 
 def comment_problems(text: str) -> list[str]:
-    """Każdy `#` w pliku musi zaczynać zaszyfrowany komentarz SOPS w osobnym wierszu."""
+    """Każdy `#` w pliku musi zaczynać zaszyfrowany komentarz SOPS: w osobnym wierszu
+    (`#ENC[...]`) albo na końcu wiersza po wartości (`klucz: ENC[...] #ENC[...]`)."""
     found: list[str] = []
     for line_no, line in enumerate(text.splitlines(), start=1):
         if "#" not in line:
             continue
-        stripped = line.strip()
-        if not (stripped.startswith("#") and is_sops_ciphertext(stripped[1:], comment=True)):
+        before, _, comment = line.partition("#")
+        ok = (
+            line.count("#") == 1
+            and (not before.strip() or before.endswith(" "))
+            and is_sops_ciphertext(comment.strip(), comment=True)
+        )
+        if not ok:
             found.append(f"jawny komentarz albo znak # w wierszu {line_no}")
     return found
 
@@ -192,7 +214,7 @@ def sops_block_problems(meta: dict[str, object]) -> list[str]:
             continue
         if not AGE_RECIPIENT_RE.fullmatch(str(entry["recipient"])):
             found.append(f"sops.age[{i}].recipient nie jest kluczem publicznym age")
-        if not AGE_ARMOR_RE.fullmatch(str(entry["enc"])):
+        if not is_age_armor(str(entry["enc"])):
             found.append(f"sops.age[{i}].enc nie jest zaszyfrowanym blokiem age")
     return found
 
