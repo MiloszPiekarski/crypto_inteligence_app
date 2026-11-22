@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 G ?=
 
-.PHONY: help install dev lint fmt typecheck imports test build secrets-scan doctor gate
+.PHONY: help install tools dev lint audit fmt typecheck imports test build secrets-scan doctor gate
 
 help: ## Lista komend
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -20,6 +20,12 @@ lint: ## Lint i format (ruff, Biome)
 	uv run ruff check .
 	uv run ruff format --check .
 	pnpm lint
+
+tools: ## Narzędzia bramek w wersjach z CI (przypięte, sumy SHA-256) do .tools/bin
+	./scripts/ci/install-tools.sh .tools
+
+audit: ## Statyczna kontrola: shellcheck, hadolint, actionlint, zizmor
+	./scripts/audit.sh
 
 fmt: ## Automatyczne formatowanie
 	uv run ruff check --fix .

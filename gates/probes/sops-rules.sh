@@ -7,26 +7,34 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 1
 cfg="infra/secrets/.sops.yaml"
 dir="$(mktemp -d)"
 trap 'rm -rf "$dir"' EXIT
-# Bez tablic asocjacyjnych: /bin/bash na macOS to wersja 3.2.
 recipients() { grep -E '^[[:space:]]+recipient:' "$1" | awk '{print $2}' | sort -u; }
-for env in local staging production; do
-  printf 'probe: "1"\n' > "$dir/$env.enc.yaml"
-  if ! sops --config "$cfg" -e -i "$dir/$env.enc.yaml" 2>"$dir/err"; then
-    echo "sops nie zaszyfrował pliku $env.enc.yaml według reguł:"; cat "$dir/err"; exit 1
+
+# recipient_for ŚRODOWISKO -> jedyny odbiorca pliku tego środowiska według reguł
+recipient_for() {
+  local env="$1" file r
+  file="$dir/$1.enc.yaml"
+  printf 'probe: "1"\n' > "$file"
+  if ! sops --config "$cfg" -e -i "$file" 2>"$dir/err"; then
+    echo "sops nie zaszyfrował pliku $env.enc.yaml według reguł:" >&2; cat "$dir/err" >&2; return 1
   fi
-  r="$(recipients "$dir/$env.enc.yaml")"
-  if [ "$(wc -l <<<"$r")" -ne 1 ] || [ -z "$r" ]; then
-    echo "$env: oczekiwano dokładnie jednego odbiorcy, jest: $r"; exit 1
+  r="$(recipients "$file")"
+  if [ -z "$r" ] || [ "$(printf '%s\n' "$r" | wc -l | tr -d ' ')" -ne 1 ]; then
+    echo "$env: oczekiwano dokładnie jednego odbiorcy, jest: '$r'" >&2; return 1
   fi
-  eval "got_$env=\"\$r\""
-  echo "$env -> $r"
-done
-if [ "$got_local" = "$got_staging" ] || [ "$got_local" = "$got_production" ] \
-  || [ "$got_staging" = "$got_production" ]; then
+  printf '%s' "$r"
+}
+
+r_local="$(recipient_for local)" || exit 1
+r_staging="$(recipient_for staging)" || exit 1
+r_production="$(recipient_for production)" || exit 1
+echo "local -> $r_local"
+echo "staging -> $r_staging"
+echo "production -> $r_production"
+if [ "$r_local" = "$r_staging" ] || [ "$r_local" = "$r_production" ] || [ "$r_staging" = "$r_production" ]; then
   echo "BŁĄD: dwa środowiska mają ten sam klucz"; exit 1
 fi
 real="$(recipients infra/secrets/local.enc.yaml)"
-if [ "$real" != "$got_local" ]; then
-  echo "BŁĄD: local.enc.yaml ma odbiorców '$real', oczekiwano '$got_local'"; exit 1
+if [ "$real" != "$r_local" ]; then
+  echo "BŁĄD: local.enc.yaml ma odbiorców '$real', oczekiwano '$r_local'"; exit 1
 fi
 echo "każde środowisko ma własny klucz; local.enc.yaml zaszyfrowany tylko kluczem local"

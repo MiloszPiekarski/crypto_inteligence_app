@@ -14,9 +14,9 @@ ok()      { printf '  \033[32mPASS\033[0m %s\n' "$1"; PASS=$((PASS+1)); }
 bad()     { printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=$((FAIL+1)); }
 section() { printf '\n== %s ==\n' "$1"; }
 
-# version_ge CURRENT MIN -> true if CURRENT >= MIN
-version_ge() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -1)" = "$2" ]; }
-first_version() { grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1; }
+# version_ge, first_version, file_mode (testowane w bramce G1, także na macOS)
+# shellcheck source=scripts/lib/common.sh
+. "${ROOT}/scripts/lib/common.sh"
 
 # check_tool NAME MIN_VERSION COMMAND...
 check_tool() {
@@ -64,8 +64,7 @@ check_tool "Claude Code"    "2.0"   claude --version
 # ---------------------------------------------------------------------------
 section "2. Local secrets file (.env.local)"
 if [ -f "$ENV_FILE" ]; then
-  # GNU stat (Linux) rozumie -f inaczej (system plików), więc wybieramy wariant po systemie.
-  if [ "$(uname -s)" = "Darwin" ]; then perms="$(stat -f '%Lp' "$ENV_FILE")"; else perms="$(stat -c '%a' "$ENV_FILE")"; fi
+  perms="$(file_mode "$ENV_FILE")"
   if [ "$perms" = "600" ]; then ok ".env.local permissions 600"; else bad ".env.local permissions $perms (fix: chmod 600 .env.local)"; fi
   if git -C "$ROOT" check-ignore -q .env.local 2>/dev/null; then ok ".env.local is ignored by git"; else bad ".env.local is NOT ignored by git (add it to .gitignore)"; fi
   set -a; # shellcheck disable=SC1090

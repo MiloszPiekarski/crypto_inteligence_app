@@ -145,6 +145,16 @@ def git_commit() -> str:
     return proc.stdout.strip() or "brak"
 
 
+def check_env() -> dict[str, str]:
+    """Środowisko sprawdzeń: narzędzia z `make tools` (.tools/bin) mają pierwszeństwo,
+    żeby lokalnie działały te same przypięte wersje co w CI."""
+    env = dict(os.environ)
+    tools = ROOT / ".tools" / "bin"
+    if tools.is_dir():
+        env["PATH"] = f"{tools}{os.pathsep}{env.get('PATH', '')}"
+    return env
+
+
 def run_check(report: Report, check: Check) -> None:
     if check.only is not None and check.only != WHERE:
         report.out(f"  SKIP {check.name} [tylko {check.only}: {check.reason}]")
@@ -155,6 +165,7 @@ def run_check(report: Report, check: Check) -> None:
     proc = subprocess.run(  # noqa: S603
         ["bash", "-o", "pipefail", "-c", check.run],  # noqa: S607
         cwd=ROOT,
+        env=check_env(),
         capture_output=True,
         text=True,
         check=False,

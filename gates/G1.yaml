@@ -9,6 +9,12 @@ checks:
   - id: lint
     name: lint (ruff + Biome)
     run: make -s lint
+  - id: audit
+    name: statyczna kontrola (shellcheck, hadolint, actionlint, zizmor)
+    run: make -s audit
+  - id: shell-portability
+    name: funkcje powłoki działają w tym środowisku (macOS bash 3.2 / Linux)
+    run: gates/probes/shell-portability.sh
   - id: types
     name: typy (pyright strict + tsc)
     run: make -s typecheck

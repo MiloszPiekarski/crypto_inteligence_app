@@ -55,3 +55,13 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Narzędzia bramek instalowane przez `make tools`
+.tools/
+
+# Katalog sekretów: w repo tylko szyfrogramy SOPS, reguły i opis. Kopie zapasowe
+# (*.bak, *~), pliki odszyfrowane i wszystko inne są ignorowane.
+infra/secrets/*
+!infra/secrets/*.enc.yaml
+!infra/secrets/.sops.yaml
+!infra/secrets/README.md
