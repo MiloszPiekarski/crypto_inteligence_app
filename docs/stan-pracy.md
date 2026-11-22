@@ -17,21 +17,21 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 
 ## Plan E2 (PR-y z etykietą `E2`, jedna rzecz na PR)
 
-| #   | Gałąź                      | Zakres                                                                                       | Stan |
-| --- | -------------------------- | -------------------------------------------------------------------------------------------- | ---- |
-| 0   | `docs/E2-spojnosc-g1`      | nagłówek `G1.md` (zaliczona), tytuł roadmapy E0–E18, ten plan (PR #18)                       | ✅   |
-| 0a  | `ci/E2-gate-guard-wyscig`  | `gate-guard`: etykiety z API, bez `opened` i bez anulowania przebiegów (PR #20)              | ✅   |
-| 1   | `ci/E2-bramka-g2`          | `gates/G2.yaml` + szkic `docs/gates/G2.md`; bramka czerwona, dopóki nie ma treści            | ⏳   |
-| 2   | `docs/E2-adr`              | ADR-002 model danych, 003 Valkey Streams, 004 uwierzytelnianie, 005 bramka LLM, 006 executor | ⬜   |
-| 3   | `feat/E2-migracja-0001`    | Alembic, migracja 0001, test `upgrade head` / `downgrade base` (testcontainers)              | ⬜   |
-| 4   | `feat/E2-schematy-zdarzen` | JSON Schema 8 zdarzeń z `schema_version`, testy poprawnych i błędnych przykładów             | ⬜   |
-| 5   | `feat/E2-evidence-v1`      | kontrakt `Evidence` v1 + testy                                                               | ⬜   |
-| 6   | `feat/E2-openapi`          | szkic OpenAPI 3.1 z FastAPI `/v1`, Spectral w CI, klient TS w `packages/contracts`           | ⬜   |
-| 7   | `docs/E2-wymagania`        | F-xx i NF-xx w `docs/wymagania.yaml` + skrypt kompletności                                   | ⬜   |
-| 8   | `docs/E2-stride`           | model zagrożeń STRIDE: API, executor, panel administratora                                   | ⬜   |
-| 9   | `docs/E2-c4`               | diagram C4 (kontekst, kontenery) w Mermaid                                                   | ⬜   |
-| 10a | `ci/E2-gate-guard-target`  | luka: PR może podmienić `gate-guard.yml`; naprawa przed zaliczeniem G2                       | ⬜   |
-| 10  | `docs/E2-g2`               | bramka na `main`, raport `G2.md`, `G2.passed.json`                                           | ⬜   |
+| #   | Gałąź                      | Zakres                                                                                       | Stan        |
+| --- | -------------------------- | -------------------------------------------------------------------------------------------- | ----------- |
+| 0   | `docs/E2-spojnosc-g1`      | nagłówek `G1.md` (zaliczona), tytuł roadmapy E0–E18, ten plan (PR #18)                       | ✅          |
+| 0a  | `ci/E2-gate-guard-wyscig`  | `gate-guard`: etykiety z API, bez `opened` i bez anulowania przebiegów (PR #20)              | ✅          |
+| 1   | `ci/E2-bramka-g2`          | `gates/G2.yaml` + szkic `docs/gates/G2.md`; bramka czerwona, dopóki nie ma treści            | ✅ (PR #22) |
+| 2   | `docs/E2-adr`              | ADR-002 model danych, 003 Valkey Streams, 004 uwierzytelnianie, 005 bramka LLM, 006 executor | ⏳          |
+| 3   | `feat/E2-migracja-0001`    | Alembic, migracja 0001, test `upgrade head` / `downgrade base` (testcontainers)              | ⬜          |
+| 4   | `feat/E2-schematy-zdarzen` | JSON Schema 8 zdarzeń z `schema_version`, testy poprawnych i błędnych przykładów             | ⬜          |
+| 5   | `feat/E2-evidence-v1`      | kontrakt `Evidence` v1 + testy                                                               | ⬜          |
+| 6   | `feat/E2-openapi`          | szkic OpenAPI 3.1 z FastAPI `/v1`, Spectral w CI, klient TS w `packages/contracts`           | ⬜          |
+| 7   | `docs/E2-wymagania`        | F-xx i NF-xx w `docs/wymagania.yaml` + skrypt kompletności                                   | ⬜          |
+| 8   | `docs/E2-stride`           | model zagrożeń STRIDE: API, executor, panel administratora                                   | ⬜          |
+| 9   | `docs/E2-c4`               | diagram C4 (kontekst, kontenery) w Mermaid                                                   | ⬜          |
+| 10a | `ci/E2-gate-guard-target`  | luka: PR może podmienić `gate-guard.yml`; naprawa przed zaliczeniem G2                       | ⬜          |
+| 10  | `docs/E2-g2`               | bramka na `main`, raport `G2.md`, `G2.passed.json`                                           | ⬜          |
 
 Decyzje właściciela do planu (22.11.2026):
 
@@ -57,6 +57,9 @@ Decyzje właściciela do planu (22.11.2026):
 - Atrybucja „Data by CoinGecko” w interfejsie: w E12.
 - Bramka G2 działa w CI jako job „8 bramka G2” poza `ci-ok` (czerwona do końca E2); każdy PR
   z elementem E2 dodaje swój cel Makefile z `gates/G2.yaml`.
+- Do decyzji (ADR-0004): sprawdzenie `auth-schema-drift` w G2 wymaga minimalnej konfiguracji
+  Better Auth w `apps/web` już w E2 (bez ekranów logowania); alternatywa: przenieść to kryterium
+  do G6.
 - ⚠️ Luka w `gate-guard` (istniejąca od #13): przy zdarzeniu `pull_request` GitHub używa pliku
   workflow z PR, więc PR zmieniający `.github/workflows/gate-guard.yml` może sam ominąć kontrolę
   (skrypt jest brany z `main`, ale komenda w workflow już nie). Decyzja (właściciel zostawił wybór asystentowi): naprawa
