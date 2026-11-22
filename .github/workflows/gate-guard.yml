@@ -1,0 +1,42 @@
+# gate-guard (zakładka Testy, sekcja 3): PR etapu jest czerwony, dopóki bramki wymagane do
+# tego etapu (gates/requirements.yaml) nie mają na main sprawdzonego dowodu
+# docs/gates/G<nr>.passed.json. Logika i testy: scripts/gate_guard.py.
+name: gate-guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gate-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate-guard:
+    name: gate-guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - name: bramki wymagane przez etykietę etapu
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Skrypt i reguły bramek z main (git worktree), nie z PR: PR nie może osłabić
+        # kontroli, której sam podlega. Wyjątek startowy: zanim skrypt trafi na main.
+        run: |
+          git fetch --no-tags origin main
+          guard_root="$RUNNER_TEMP/main"
+          git worktree add --detach "$guard_root" origin/main
+          if [ ! -f "$guard_root/scripts/gate_guard.py" ]; then
+            echo "Na main nie ma jeszcze scripts/gate_guard.py: używam wersji z PR (start)."
+            guard_root="$PWD"
+          fi
+          uv run --frozen python "$guard_root/scripts/gate_guard.py" --ref origin/main
