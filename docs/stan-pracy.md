@@ -11,6 +11,7 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 - **E1:** zakończony i domknięty, G1 zaliczona (`docs/gates/G1.passed.json`, przebieg 45027155138).
   - PR #1 (E1), #12 (dokumentacja w repo, dowody bramek), #13 (`gate-guard`) scalone.
   - Wymagane checki `main`: `ci-ok` i `gate-guard`.
+- **Zasady współpracy z asystentem** zapisane w `CLAUDE.md` (PR z etykietą `E2`).
 - **Następny etap: E2** (architektura szczegółowa, model danych, kontrakty; wymaga G1).
   Zaczynamy w nowej rozmowie, od zakresu E2 w `docs/dokumentacja/roadmapa.md`,
   w kilku mniejszych PR z etykietą `E2`.
@@ -21,8 +22,13 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 - Sentry na koncie prywatnym: przepiąć na konto projektu w E3/E6.
 - Opcjonalnie: usunąć stary ruleset „Protect main” (zastąpiony przez `main-protection`).
 - Nowy klucz Anthropic przed 19.02.2027.
+- Graphify przy PR #12 zgłosił 18 „możliwych problemów”; przejrzane tylko 3 widoczne
+  (panel Graphify jest dla właściciela niedostępny).
+- Atrybucja „Data by CoinGecko” w interfejsie: w E12.
+- Niespójności w dokumentacji do poprawy osobnym PR: nagłówek `docs/gates/G1.md` nadal
+  „W TOKU” (G1 jest zaliczona), tytuł `roadmapa.md` „E0–E17”, choć jest karta E18.
 
-## Jak pracujemy (skrót, pełne zasady w `CONTRIBUTING.md`)
+## Jak pracujemy (skrót; pełne zasady: `CLAUDE.md`, sekcja „Zasady współpracy”, i `CONTRIBUTING.md`)
 
 - Asystent przygotowuje zmiany jako łatki (`git apply`), wcześniej testuje je na gałęzi
   `claude/…` w szkicu PR (CI na Linuksie i macOS); właściciel nakłada, commituje (podpis SSH),
