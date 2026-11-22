@@ -1,6 +1,6 @@
 # ADR-0005: Bramka modeli językowych
 
-- **Status:** proponowana (zatwierdzenie: scalenie PR `docs/E2-adr`)
+- **Status:** zatwierdzona 2026-11-22 (scalenie PR #24, commit `2e4cb62`)
 - **Data:** 2026-11-22
 - **Etap:** E2
 - **Źródło:** Fundamenty sekcja 5 („Zarządzanie wieloma modelami”), ADR-0001
