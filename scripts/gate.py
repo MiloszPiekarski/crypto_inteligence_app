@@ -26,6 +26,12 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 WHERE = "ci" if os.environ.get("CI") == "true" else "local"
+# System runnera GitHub Actions (Linux, macOS, Windows); lokalnie puste.
+RUNNER_OS = os.environ.get("RUNNER_OS", "") if WHERE == "ci" else ""
+# `skip_on_ci_os` dopuszcza tylko macOS: runnery macOS w GitHub Actions nie mają Dockera.
+# Linux jest zakazany celowo: dowód bramki (`gate_pass.py`) pochodzi z joba na ubuntu,
+# więc tam każde sprawdzenie musi się wykonać, a nie przejść jako SKIP.
+SKIPPABLE_CI_OS = {"macOS"}
 
 
 @dataclass(frozen=True)
@@ -35,6 +41,7 @@ class Check:
     run: str
     only: str | None
     reason: str | None
+    skip_on_ci_os: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -54,34 +61,42 @@ def _str(data: dict[str, object], key: str) -> str:
     return value
 
 
+def load_check(path: Path, item: object) -> Check:
+    if not isinstance(item, dict):
+        raise ValueError(f"{path}: każdy element 'checks' musi być mapą")
+    c = cast(dict[str, object], item)
+    only = c.get("only")
+    if only not in (None, "local", "ci"):
+        raise ValueError(f"{path}: 'only' może mieć wartość local albo ci")
+    reason = c.get("reason")
+    if only is not None and not isinstance(reason, str):
+        raise ValueError(f"{path}: sprawdzenie z 'only' wymaga pola 'reason'")
+    skip_os = cast(object, c.get("skip_on_ci_os") or [])
+    if not isinstance(skip_os, list) or not set(cast(list[object], skip_os)) <= SKIPPABLE_CI_OS:
+        raise ValueError(f"{path}: 'skip_on_ci_os' może zawierać tylko macOS")
+    if skip_os and not isinstance(reason, str):
+        raise ValueError(f"{path}: sprawdzenie z 'skip_on_ci_os' wymaga pola 'reason'")
+    if skip_os and only == "local":
+        raise ValueError(f"{path}: 'skip_on_ci_os' nie ma sensu przy only: local")
+    return Check(
+        id=_str(c, "id"),
+        name=_str(c, "name"),
+        run=_str(c, "run"),
+        only=cast(str | None, only),
+        reason=cast(str | None, reason),
+        skip_on_ci_os=tuple(cast(list[str], skip_os)),
+    )
+
+
 def load_gate(path: Path) -> Gate:
     raw = cast(object, yaml.safe_load(path.read_text(encoding="utf-8")))
     if not isinstance(raw, dict):
         raise ValueError(f"{path}: oczekiwano mapy YAML")
     data = cast(dict[str, object], raw)
-    checks: list[Check] = []
     raw_checks = data.get("checks")
     if not isinstance(raw_checks, list) or not raw_checks:
         raise ValueError(f"{path}: 'checks' musi być niepustą listą")
-    for item in cast(list[object], raw_checks):
-        if not isinstance(item, dict):
-            raise ValueError(f"{path}: każdy element 'checks' musi być mapą")
-        c = cast(dict[str, object], item)
-        only = c.get("only")
-        if only not in (None, "local", "ci"):
-            raise ValueError(f"{path}: 'only' może mieć wartość local albo ci")
-        reason = c.get("reason")
-        if only is not None and not isinstance(reason, str):
-            raise ValueError(f"{path}: sprawdzenie z 'only' wymaga pola 'reason'")
-        checks.append(
-            Check(
-                id=_str(c, "id"),
-                name=_str(c, "name"),
-                run=_str(c, "run"),
-                only=cast(str | None, only),
-                reason=cast(str | None, reason),
-            )
-        )
+    checks = [load_check(path, item) for item in cast(list[object], raw_checks)]
     ids = [c.id for c in checks]
     if len(ids) != len(set(ids)):
         raise ValueError(f"{path}: identyfikatory sprawdzeń muszą być unikalne")
@@ -163,6 +178,10 @@ def check_env() -> dict[str, str]:
 def run_check(report: Report, check: Check) -> None:
     if check.only is not None and check.only != WHERE:
         report.out(f"  SKIP {check.name} [tylko {check.only}: {check.reason}]")
+        report.skipped += 1
+        return
+    if RUNNER_OS and RUNNER_OS in check.skip_on_ci_os:
+        report.out(f"  SKIP {check.name} [nie w CI na {RUNNER_OS}: {check.reason}]")
         report.skipped += 1
         return
     start = time.monotonic()

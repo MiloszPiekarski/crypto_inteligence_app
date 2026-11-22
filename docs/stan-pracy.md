@@ -19,8 +19,9 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 
 | #   | Gałąź                      | Zakres                                                                                       | Stan |
 | --- | -------------------------- | -------------------------------------------------------------------------------------------- | ---- |
-| 0   | `docs/E2-spojnosc-g1`      | nagłówek `G1.md` (zaliczona), tytuł roadmapy E0–E18, ten plan                                | ⏳   |
-| 1   | `ci/E2-bramka-g2`          | `gates/G2.yaml` + szkic `docs/gates/G2.md`; bramka czerwona, dopóki nie ma treści            | ⬜   |
+| 0   | `docs/E2-spojnosc-g1`      | nagłówek `G1.md` (zaliczona), tytuł roadmapy E0–E18, ten plan (PR #18)                       | ✅   |
+| 0a  | `ci/E2-gate-guard-wyscig`  | `gate-guard`: etykiety z API, bez `opened` i bez anulowania przebiegów (PR #20)              | ✅   |
+| 1   | `ci/E2-bramka-g2`          | `gates/G2.yaml` + szkic `docs/gates/G2.md`; bramka czerwona, dopóki nie ma treści            | ⏳   |
 | 2   | `docs/E2-adr`              | ADR-002 model danych, 003 Valkey Streams, 004 uwierzytelnianie, 005 bramka LLM, 006 executor | ⬜   |
 | 3   | `feat/E2-migracja-0001`    | Alembic, migracja 0001, test `upgrade head` / `downgrade base` (testcontainers)              | ⬜   |
 | 4   | `feat/E2-schematy-zdarzen` | JSON Schema 8 zdarzeń z `schema_version`, testy poprawnych i błędnych przykładów             | ⬜   |
@@ -29,6 +30,7 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 | 7   | `docs/E2-wymagania`        | F-xx i NF-xx w `docs/wymagania.yaml` + skrypt kompletności                                   | ⬜   |
 | 8   | `docs/E2-stride`           | model zagrożeń STRIDE: API, executor, panel administratora                                   | ⬜   |
 | 9   | `docs/E2-c4`               | diagram C4 (kontekst, kontenery) w Mermaid                                                   | ⬜   |
+| 10a | `ci/E2-gate-guard-target`  | luka: PR może podmienić `gate-guard.yml`; naprawa przed zaliczeniem G2                       | ⬜   |
 | 10  | `docs/E2-g2`               | bramka na `main`, raport `G2.md`, `G2.passed.json`                                           | ⬜   |
 
 Decyzje właściciela do planu (22.11.2026):
@@ -53,11 +55,13 @@ Decyzje właściciela do planu (22.11.2026):
 - Graphify przy PR #12 zgłosił 18 „możliwych problemów”; przejrzane tylko 3 widoczne
   (panel Graphify jest dla właściciela niedostępny).
 - Atrybucja „Data by CoinGecko” w interfejsie: w E12.
+- Bramka G2 działa w CI jako job „8 bramka G2” poza `ci-ok` (czerwona do końca E2); każdy PR
+  z elementem E2 dodaje swój cel Makefile z `gates/G2.yaml`.
 - ⚠️ Luka w `gate-guard` (istniejąca od #13): przy zdarzeniu `pull_request` GitHub używa pliku
   workflow z PR, więc PR zmieniający `.github/workflows/gate-guard.yml` może sam ominąć kontrolę
-  (skrypt jest brany z `main`, ale komenda w workflow już nie). Do decyzji osobnym PR
-  (bezpieczeństwo): `pull_request_target` bez kodu z PR albo wymagany przegląd właściciela
-  dla zmian w `.github/` (CODEOWNERS + reguła w rulesecie).
+  (skrypt jest brany z `main`, ale komenda w workflow już nie). Decyzja (właściciel zostawił wybór asystentowi): naprawa
+  PR-em 10a przed zaliczeniem G2, bez osobnego recenzenta (wariant: `pull_request_target`
+  bez kodu z PR).
 
 ## Jak pracujemy (skrót; pełne zasady: `CLAUDE.md`, sekcja „Zasady współpracy”, i `CONTRIBUTING.md`)
 
