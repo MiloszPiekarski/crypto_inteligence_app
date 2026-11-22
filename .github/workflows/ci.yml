@@ -1,5 +1,6 @@
 # CI (E1.7): lint → typy → testy → gitleaks → build obrazów → skan Trivy → raport pokrycia.
-# Równolegle od lintu: bramka G1 (make gate G=1, gates/G1.yaml) na Linuksie i macOS.
+# Równolegle od lintu: bramka G1 (make gate G=1, gates/G1.yaml) na Linuksie i macOS (w ci-ok)
+# oraz bramka etapu w toku (G2, poza ci-ok, continue-on-error).
 # Kolejność wymuszona przez `needs`: każdy etap startuje dopiero po zielonym poprzednim.
 name: ci
 
@@ -251,6 +252,66 @@ jobs:
         if: always()
         with:
           name: gate-G1-${{ matrix.os }}
+          path: reports/gates/
+          retention-days: 90
+
+  gate-next:
+    # Bramka etapu w toku (E2 → G2), kroki jak w jobie `gate`. Czerwona, dopóki etap nie jest
+    # zrobiony, więc jest POZA ci-ok i ma continue-on-error (nie blokuje scalania PR-ów E2).
+    # Dowód G2 (gate_pass.py) wymaga zielonego joba „8 bramka G2 (ubuntu-latest)”; API jobów
+    # podaje jego prawdziwy wynik niezależnie od continue-on-error. Po zaliczeniu G2 job
+    # przechodzi do ci-ok (np. jako G=2 w jobie `gate`), a tu trafia następna bramka.
+    # Kopia kroków zamiast akcji złożonej: pinned actionlint nie zna składni `uses: $/…`,
+    # a zizmor (self-repository) odrzuca `uses: ./…`; bez wyjątków w skanerach.
+    name: 8 bramka G2 (${{ matrix.os }})
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: narzędzia (make tools, jak u właściciela; przypięte wersje, sumy SHA-256)
+        run: |
+          make tools
+          echo "$PWD/.tools/bin" >> "$GITHUB_PATH"
+      - run: uv sync --frozen
+      - run: pnpm install --frozen-lockfile
+      - name: make gate G=2
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            # Systemowe narzędzia macOS przed narzędziami runnera (Homebrew bash 5, GNU coreutils).
+            export PATH="/bin:/usr/bin:$PATH"
+          fi
+          echo "bash: $(bash -c 'echo $BASH_VERSION'), make: $(make --version | head -1), sort: $(command -v sort)"
+          make gate G=2
+      - name: raport bramki w zakładce Summary
+        if: always()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for f in reports/gates/G2-*.log; do
+            { echo "## Bramka G2 (${RUNNER_OS})"; echo '```'; cat "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: gate-G2-${{ matrix.os }}
           path: reports/gates/
           retention-days: 90
 

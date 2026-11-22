@@ -153,3 +153,42 @@ def test_fail_line_far_before_end_is_reported(
     log = last_log(tmp_path)
     assert "! " in log
     assert "FAIL Python (uv): cannot read version" in log
+
+
+SKIP_MAC = (
+    "checks:\n  - id: db\n    name: potrzebuje Dockera\n    run: 'exit 1'\n"
+    "    skip_on_ci_os: [macOS]\n    reason: brak Dockera na macOS w CI\n"
+    "  - id: ok\n    name: zawsze ok\n    run: 'true'\n"
+)
+
+
+def test_skip_on_ci_os_only_on_ci_macos(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    write_gate(tmp_path, BASE + SKIP_MAC)
+    monkeypatch.setattr(gate, "RUNNER_OS", "macOS")
+    assert run(tmp_path, monkeypatch, "ci") == 0
+    assert "1 PASS, 0 FAIL, 1 SKIP" in last_log(tmp_path)
+
+
+@pytest.mark.parametrize(("where", "runner_os"), [("ci", "Linux"), ("local", "")])
+def test_skip_on_ci_os_still_runs_on_linux_ci_and_locally(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, where: str, runner_os: str
+) -> None:
+    # Na ubuntu (źródło dowodu bramki) i u właściciela sprawdzenie musi się wykonać.
+    write_gate(tmp_path, BASE + SKIP_MAC)
+    monkeypatch.setattr(gate, "RUNNER_OS", runner_os)
+    assert run(tmp_path, monkeypatch, where) == 1
+    assert "0 SKIP" in last_log(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("extra", "error"),
+    [
+        ("    skip_on_ci_os: [Linux]\n    reason: x\n", "tylko macOS"),
+        ("    skip_on_ci_os: [macOS]\n", "wymaga pola 'reason'"),
+        ("    skip_on_ci_os: [macOS]\n    only: local\n    reason: x\n", "only: local"),
+    ],
+)
+def test_skip_on_ci_os_validation(tmp_path: Path, extra: str, error: str) -> None:
+    write_gate(tmp_path, BASE + "checks:\n  - id: a\n    name: a\n    run: 'true'\n" + extra)
+    with pytest.raises(ValueError, match=error):
+        gate.load_gate(tmp_path / "gates" / "G9.yaml")
