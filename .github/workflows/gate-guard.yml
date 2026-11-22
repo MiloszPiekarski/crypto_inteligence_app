@@ -3,17 +3,19 @@
 # docs/gates/G<nr>.passed.json. Logika i testy: scripts/gate_guard.py.
 name: gate-guard
 
+# Bez `opened` i bez anulowania przebiegów (concurrency): `gh pr create --label` wysyła
+# `opened` i `labeled` naraz, a anulowany przebieg mógł zostać uznany za wynik wymaganego
+# checka i zablokować scalenie (PR #18). PR otwarty bez etykiety nie ma checka gate-guard,
+# więc ruleset i tak blokuje scalenie („Expected”) do czasu dodania etykiety. Każdy przebieg
+# czyta etykiety z API w chwili uruchomienia, więc równoległe przebiegi dają ten sam wynik.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [synchronize, reopened, labeled, unlabeled]
 
 permissions:
-  contents: read
-  actions: read
-
-concurrency:
-  group: gate-guard-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  contents: read # checkout i odczyt dowodów z main
+  actions: read # weryfikacja przebiegu CI podanego w dowodzie
+  pull-requests: read # bieżące etykiety PR (scripts/gate_guard.py, current_pr_labels)
 
 jobs:
   gate-guard:

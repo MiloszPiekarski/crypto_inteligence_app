@@ -100,6 +100,7 @@ Bramka to zestaw automatycznych sprawdzeń zapisany w pliku `gates/G<nr>.yaml` (
 - `main` jest chroniony (tylko PR, podpisane commity), więc workflow nie może sam zapisać pliku na `main`. Plik `.passed.json` tworzy właściciel skryptem `scripts/gate_pass.py` i scala go przez PR. Pliku nie da się podrobić: `gate-guard` (`scripts/gate_guard.py`) przy każdym PR pobiera z GitHuba przebieg o podanym ID i odrzuca dowód, jeśli to nie jest zielony `push` na `main` z `ci.yml`, inny commit albo job bramki nie jest zielony. `CODEOWNERS` przypisuje pliki dowodów właścicielowi.
 - Bramka, której wszystkie sprawdzenia działają wyłącznie u właściciela (G0: komputer i klucze z `.env.local`), ma dowód **lokalny**: raport `make gate G=0` z `main` bez FAIL i SKIP. `gate-guard` przyjmuje dowód lokalny tylko dla takiej bramki.
 - Wymagane bramki etapów: `gates/requirements.yaml` (z wiersza „Zależności” każdego etapu). PR bez etykiety etapu przechodzi tylko z etykietą `dependencies`.
+- `gate-guard` czyta etykiety PR z API w chwili uruchomienia (nie z ładunku zdarzenia), nie reaguje na `opened` i nie anuluje przebiegów: anulowany przebieg mógł zostać uznany za wynik wymaganego checka i zablokować scalenie (PR #18, 22.11.2026). PR otwarty bez etykiety nie ma checka `gate-guard`, więc ruleset blokuje scalenie do czasu dodania etykiety.
 
 ## 4. Pipeline CI/CD
 

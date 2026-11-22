@@ -11,7 +11,8 @@ wierzony na słowo:
 
 PR bez etykiety etapu przechodzi tylko z etykietą `dependencies` (aktualizacje Dependabota).
 Użycie w CI: python scripts/gate_guard.py (zmienne GITHUB_EVENT_PATH, GITHUB_REPOSITORY,
-GH_TOKEN). Lokalnie: python scripts/gate_guard.py --labels E2 [--ref origin/main].
+GH_TOKEN); etykiety są czytane z API w chwili uruchomienia (`current_pr_labels`).
+Lokalnie: python scripts/gate_guard.py --labels E2 [--ref origin/main].
 """
 
 from __future__ import annotations
@@ -66,6 +67,27 @@ def github_get(path: str) -> dict[str, object]:
     )
     with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - stały host https
         return cast(dict[str, object], json.load(resp))
+
+
+def current_pr_labels(repo: str) -> list[str]:
+    """Etykiety PR w chwili uruchomienia (z API), nie z ładunku zdarzenia.
+
+    Ładunek zdarzenia jest migawką: `gh pr create --label` wysyła `opened` (jeszcze bez
+    etykiety) i `labeled`. Przebieg ze starszą migawką dawałby inny wynik niż ten z nowszą,
+    a GitHub może uznać za wynik checka dowolny z nich. Odczyt z API sprawia, że każdy
+    przebieg ocenia ten sam, bieżący stan PR. Błąd API przerywa skrypt (wynik czerwony).
+    """
+    event = cast(
+        dict[str, object], json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text("utf-8"))
+    )
+    number = cast(dict[str, object], event.get("pull_request") or {}).get("number")
+    if not isinstance(number, int):
+        raise ValueError("GITHUB_EVENT_PATH: brak numeru PR (pull_request.number)")
+    pr = github_get(f"repos/{repo}/pulls/{number}")
+    return [
+        str(cast(dict[str, object], label).get("name"))
+        for label in cast(list[object], pr.get("labels") or [])
+    ]
 
 
 def verify_ci(gate: str, proof: Mapping[str, object], repo: str, ref: str) -> list[str]:
@@ -140,16 +162,9 @@ def main(argv: list[str]) -> int:
     )
     args = parser.parse_args(argv[1:])
     labels = cast(list[str] | None, args.labels)
-    if labels is None:
-        event = cast(
-            dict[str, object], json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text("utf-8"))
-        )
-        pr = cast(dict[str, object], event.get("pull_request") or {})
-        labels = [
-            str(cast(dict[str, object], label).get("name"))
-            for label in cast(list[object], pr.get("labels") or [])
-        ]
     repo = os.environ.get("GITHUB_REPOSITORY", "MiloszPiekarski/crypto_inteligence_app")
+    if labels is None:
+        labels = current_pr_labels(repo)
     ref = cast(str, args.ref)
     stages = [label for label in labels if STAGE_RE.fullmatch(label)]
     if not stages:

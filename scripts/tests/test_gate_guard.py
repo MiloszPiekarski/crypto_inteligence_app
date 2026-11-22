@@ -108,6 +108,53 @@ def test_labels_rules(monkeypatch: pytest.MonkeyPatch) -> None:
     assert gate_guard.main(["g", "--labels", "E99"]) == 1
 
 
+def test_labels_read_from_api_not_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Zdarzenie `opened` z `gh pr create --label` ma jeszcze puste etykiety; liczy się stan z API.
+    event = tmp_path / "event.json"
+    event.write_text(json.dumps({"pull_request": {"number": 18, "labels": []}}), "utf-8")
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+    monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
+    asked: list[str] = []
+
+    def api(path: str) -> dict[str, object]:
+        asked.append(path)
+        return {"labels": [{"name": "E2"}]}
+
+    def passed(*_args: str) -> list[str]:
+        return []
+
+    monkeypatch.setattr(gate_guard, "github_get", api)
+    monkeypatch.setattr(gate_guard, "check_gate", passed)
+    assert gate_guard.main(["g"]) == 0
+    assert asked == ["repos/o/r/pulls/18"]
+
+
+def test_labels_removed_in_api_make_guard_red(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Odwrotnie: zdarzenie ma etykietę, ale w chwili uruchomienia już jej nie ma.
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps({"pull_request": {"number": 7, "labels": [{"name": "E2"}]}}), "utf-8"
+    )
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+
+    def api(_path: str) -> dict[str, object]:
+        return {"labels": []}
+
+    monkeypatch.setattr(gate_guard, "github_get", api)
+    assert gate_guard.main(["g"]) == 1
+
+
+def test_workflow_has_no_opened_trigger_and_no_cancellation() -> None:
+    wf = yaml.safe_load((gate_guard.ROOT / ".github/workflows/gate-guard.yml").read_text("utf-8"))
+    triggers = wf[True]["pull_request"]["types"]  # PyYAML czyta klucz `on` jako True
+    assert "opened" not in triggers
+    assert {"synchronize", "labeled", "unlabeled", "reopened"} <= set(triggers)
+    assert "concurrency" not in wf
+    assert wf["permissions"].get("pull-requests") == "read"
+
+
 def test_requirements_cover_every_stage_label() -> None:
     reqs = gate_guard.requirements()
     setup = (gate_guard.ROOT / "scripts" / "github-setup.sh").read_text(encoding="utf-8")
