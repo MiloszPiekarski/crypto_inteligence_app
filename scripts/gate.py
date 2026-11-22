@@ -121,6 +121,7 @@ class Report:
         self.passed = 0
         self.failed = 0
         self.skipped = 0
+        self.executed = 0  # uruchomione sprawdzenia z `checks` (bez progów i raportów)
 
     def out(self, line: str = "") -> None:
         print(line, flush=True)
@@ -171,6 +172,7 @@ def run_check(report: Report, check: Check) -> None:
         check=False,
     )
     took = time.monotonic() - start
+    report.executed += 1
     if proc.returncode == 0:
         report.result(True, f"{check.name} ({took:.0f} s)")
         return
@@ -226,6 +228,9 @@ def main(argv: list[str]) -> int:
         report.out("-" * 60)
         for check in gate.checks:
             run_check(report, check)
+        if report.executed == 0:
+            # Bramka, w której wszystko pominięto, niczego nie sprawdziła: to nie jest zielone.
+            report.result(False, f"żadne sprawdzenie nie zostało uruchomione ({WHERE})")
         if gate.coverage_line_min is not None:
             check_coverage(report, gate.coverage_line_min)
         for path in gate.required_reports:

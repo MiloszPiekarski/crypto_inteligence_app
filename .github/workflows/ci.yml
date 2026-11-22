@@ -224,10 +224,10 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: narzędzia (przypięte wersje, sumy SHA-256)
+      - name: narzędzia (make tools, jak u właściciela; przypięte wersje, sumy SHA-256)
         run: |
-          ./scripts/ci/install-tools.sh "$RUNNER_TEMP/tools"
-          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
+          make tools
+          echo "$PWD/.tools/bin" >> "$GITHUB_PATH"
       - run: uv sync --frozen
       - run: pnpm install --frozen-lockfile
       - name: make gate G=1

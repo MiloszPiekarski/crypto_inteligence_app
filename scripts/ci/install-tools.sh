@@ -5,8 +5,9 @@
 # dla age, shellcheck i zizmor (bez pliku sum; age ma tylko dowody .proof) z pierwszego
 # pobrania 22.11.2026. Każda suma musi mieć 64 znaki i być sprawdzona w trybie --strict.
 set -euo pipefail
-dest="${1:?Użycie: install-tools.sh KATALOG}"
-mkdir -p "$dest/bin"
+# Ścieżka bezwzględna: skrypt robi `cd` do KATALOG, więc ścieżka względna (np. `.tools`
+# z `make tools`) wskazywałaby potem w złe miejsce.
+dest="$(mkdir -p "${1:?Użycie: install-tools.sh KATALOG}/bin" && cd "$1" && pwd)"
 cd "$dest"
 case "$(uname -s)-$(uname -m)" in
   Linux-x86_64)

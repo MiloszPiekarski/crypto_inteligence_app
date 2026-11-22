@@ -124,3 +124,17 @@ def test_runs_in_same_second_keep_separate_reports(
     texts = {p.name: p.read_text(encoding="utf-8") for p in logs}
     assert "ZIELONE" in texts["G9-20261122T030000Z.log"]
     assert "CZERWONE" in texts["G9-20261122T030000Z-2.log"]
+
+
+def test_all_skipped_is_red(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Uwaga z przeglądu PR #1: bramka bez żadnego uruchomionego sprawdzenia była zielona."""
+    write_gate(
+        tmp_path,
+        BASE + "checks:\n  - id: loc\n    name: tylko lokalnie\n    run: 'true'\n"
+        "    only: local\n    reason: klucz tylko u właściciela\n",
+    )
+    assert run(tmp_path, monkeypatch, "ci") == 1
+    log = last_log(tmp_path)
+    assert "FAIL żadne sprawdzenie nie zostało uruchomione (ci)" in log
+    assert "CZERWONE" in log
+    assert run(tmp_path, monkeypatch, "local") == 0
