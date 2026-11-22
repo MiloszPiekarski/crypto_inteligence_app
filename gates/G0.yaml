@@ -1,0 +1,13 @@
+# Bramka G0 (E0): gotowość komputera i dostęp do usług.
+# Format bramek: zakładka „Testy i quality gates”, sekcja 8. Uruchomienie: make gate G=0.
+gate: G0
+stage: E0
+criteria: Konta z 2FA, klucze w menedżerze haseł, doctor zielony, testy połączeń
+checks:
+  - id: doctor
+    name: doctor (narzędzia, klucze w .env.local, połączenia z usługami)
+    run: ./scripts/doctor.sh
+    only: local
+    reason: sprawdza komputer właściciela i klucze z .env.local, których w CI nie ma
+reports:
+  - docs/gates/G0.md

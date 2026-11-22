@@ -1,0 +1,267 @@
+# CI (E1.7): lint → typy → testy → gitleaks → build obrazów → skan Trivy → raport pokrycia.
+# Równolegle od lintu: bramka G1 (make gate G=1, gates/G1.yaml) na Linuksie i macOS.
+# Kolejność wymuszona przez `needs`: każdy etap startuje dopiero po zielonym poprzednim.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Na main każdy commit musi mieć pełny przebieg (dowód bramki), więc anulujemy tylko w PR.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  UV_PYTHON: "3.12"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  lint:
+    name: 1 lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: uv sync --frozen
+      - run: pnpm install --frozen-lockfile
+      - name: narzędzia (przypięte wersje, sumy SHA-256)
+        run: |
+          ./scripts/ci/install-tools.sh "$RUNNER_TEMP/tools"
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
+      - name: statyczna kontrola (make audit, zizmor także online)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: make audit
+      - name: pre-commit (ruff, Biome, YAML, duże pliki, klucze prywatne)
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+        env:
+          SKIP: no-commit-to-branch,gitleaks-system
+
+  types:
+    name: 2 typy
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: uv sync --frozen
+      - run: pnpm install --frozen-lockfile
+      - name: pyright (strict)
+        run: uv run pyright
+      - name: granice modułów (import-linter)
+        run: uv run lint-imports
+      - name: tsc --noEmit
+        run: pnpm typecheck
+
+  test:
+    name: 3 testy
+    needs: types
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: uv sync --frozen
+      - run: pnpm install --frozen-lockfile
+      - name: pytest + pokrycie
+        run: uv run pytest --cov --cov-report=xml --cov-report=term
+      - name: vitest
+        run: pnpm test
+      - name: next build
+        run: pnpm build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-python
+          path: coverage.xml
+          retention-days: 14
+
+  gitleaks:
+    name: 4 gitleaks (pełna historia)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: gitleaks (przypięta wersja, suma SHA-256)
+        run: |
+          ./scripts/ci/install-tools.sh "$RUNNER_TEMP/tools"
+          "$RUNNER_TEMP/tools/bin/gitleaks" git --config .gitleaks.toml --redact --verbose .
+
+  images:
+    name: 5-6 obraz ${{ matrix.service }} (build + Trivy)
+    needs: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [platform, executor]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: nazwa obrazu małymi literami (wymóg GHCR)
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/goatcash-${{ matrix.service }}" >> "$GITHUB_ENV"
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: build linux/amd64 (do skanu)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: goatcash-${{ matrix.service }}:scan
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - name: Trivy (0 podatności krytycznych)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: goatcash-${{ matrix.service }}:scan
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+      - name: logowanie do GHCR (tylko main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: build linux/arm64 + linux/amd64 (push do GHCR tylko z main)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ env.IMAGE }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+
+  coverage:
+    name: 7 raport pokrycia
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage-python
+      - name: podsumowanie pokrycia w zakładce Summary
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          root = ET.parse("coverage.xml").getroot()
+          line = float(root.get("line-rate", 0)) * 100
+          branch = float(root.get("branch-rate", 0)) * 100
+          print("## Pokrycie testami (Python)")
+          print(f"| Linie | Gałęzie |\n|---|---|\n| {line:.1f}% | {branch:.1f}% |")
+          PY
+
+  gate:
+    # Bramka na Linuksie (jak serwer i CI) oraz na macOS arm64 z systemowym /bin/bash 3.2
+    # oraz systemowymi sort/stat (BSD) i make (GNU 3.81) na początku PATH, jak u właściciela.
+    name: 8 bramka G1 (${{ matrix.os }})
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: narzędzia (make tools, jak u właściciela; przypięte wersje, sumy SHA-256)
+        run: |
+          make tools
+          echo "$PWD/.tools/bin" >> "$GITHUB_PATH"
+      - run: uv sync --frozen
+      - run: pnpm install --frozen-lockfile
+      - name: make gate G=1
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            # Systemowe narzędzia macOS przed narzędziami runnera (Homebrew bash 5, GNU coreutils).
+            export PATH="/bin:/usr/bin:$PATH"
+          fi
+          echo "bash: $(bash -c 'echo $BASH_VERSION'), make: $(make --version | head -1), sort: $(command -v sort)"
+          make gate G=1
+      - name: raport bramki w zakładce Summary
+        if: always()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for f in reports/gates/G1-*.log; do
+            { echo "## Bramka G1 (${RUNNER_OS})"; echo '```'; cat "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: gate-G1-${{ matrix.os }}
+          path: reports/gates/
+          retention-days: 90
+
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [lint, types, test, gitleaks, images, coverage, gate]
+    runs-on: ubuntu-latest
+    steps:
+      - name: wszystkie etapy zielone
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          printf '%s' "$NEEDS" | python3 -c 'import json,sys; d=json.load(sys.stdin); bad=[k for k,v in d.items() if v["result"]!="success"]; print("czerwone:", bad) if bad else print("OK"); sys.exit(1 if bad else 0)'

@@ -1,0 +1,57 @@
+# Bramka G1 (E1): repozytorium, standardy, CI i sekrety.
+# Format bramek: zakładka „Testy i quality gates”, sekcja 8. Uruchomienie: make gate G=1.
+# Testy wymagające GitHuba (Push Protection, ochrona main, PR z zakazanym importem,
+# czas CI) nie dają się uruchomić z wnętrza CI; ich dowody są w docs/gates/G1.md.
+gate: G1
+stage: E1
+criteria: CI zielone na main; test wycieku sekretu zablokowany; ADR-001 zatwierdzony
+checks:
+  - id: lint
+    name: lint (ruff + Biome)
+    run: make -s lint
+  - id: audit
+    name: statyczna kontrola (shellcheck, hadolint, actionlint, zizmor)
+    run: make -s audit
+  - id: shell-portability
+    name: funkcje powłoki działają w tym środowisku (macOS bash 3.2 / Linux)
+    run: gates/probes/shell-portability.sh
+  - id: types
+    name: typy (pyright strict + tsc)
+    run: make -s typecheck
+  - id: imports
+    name: granice modułów (import-linter)
+    run: make -s imports
+  - id: tests
+    name: testy jednostkowe (pytest + Vitest)
+    run: make -s test
+  - id: forbidden-import
+    name: import-linter wykrywa celowo zakazany import
+    run: gates/probes/forbidden-import.sh
+  - id: executor-indirect
+    name: executor nie dostaje modułu domenowego pośrednio (np. przez common.api)
+    run: gates/probes/executor-indirect.sh
+  - id: gitleaks-history
+    name: "gitleaks: historia repozytorium czysta"
+    run: gitleaks git --config .gitleaks.toml --redact --no-banner .
+  - id: gitleaks-fake-key
+    name: gitleaks wykrywa fałszywy klucz AWS
+    run: gates/probes/gitleaks-fake-key.sh
+  - id: sops-files-encrypted
+    name: "SOPS: każdy plik *.enc.yaml ma budowę wyniku sops -e (nic jawnego)"
+    run: uv run --frozen python scripts/sops_check.py
+  - id: sops-rules
+    name: "SOPS: każde środowisko ma własny klucz, local.enc.yaml tylko kluczem local"
+    run: gates/probes/sops-rules.sh
+  - id: sops-local-key
+    name: "SOPS: prawdziwy klucz local odszyfrowuje local.enc.yaml"
+    run: gates/probes/sops-local-key.sh
+    only: local
+    reason: klucz prywatny local jest tylko u właściciela (Bitwarden), nigdy w CI
+  - id: sops-wrong-key
+    name: "SOPS: obcy klucz odrzucony"
+    run: gates/probes/sops-wrong-key.sh
+thresholds:
+  coverage_line_min: 80
+reports:
+  - docs/gates/G1.md
+  - docs/adr/0001-wybor-stosu.md

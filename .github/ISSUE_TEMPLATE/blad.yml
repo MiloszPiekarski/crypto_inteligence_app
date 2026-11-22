@@ -1,0 +1,15 @@
+name: Błąd
+description: Coś działa inaczej niż w dokumentacji
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: Co się dzieje }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: Czego oczekiwano }
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes: { label: Jak odtworzyć }

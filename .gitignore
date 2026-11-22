@@ -1,0 +1,67 @@
+# --- Sekrety: NIGDY w repo (sekcja 8 Fundamentów) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+age-*.txt
+keys.txt
+# odszyfrowane pliki SOPS
+infra/secrets/*.dec.yaml
+infra/secrets/*.plain.yaml
+
+# --- Brak danych w repo (warstwa 4) ---
+data/
+*.parquet
+*.csv
+*.sqlite
+*.db
+*.dump
+*.log
+logs/
+reports/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+coverage/
+
+# --- Terraform / Ansible ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# --- System / edytory ---
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Narzędzia bramek instalowane przez `make tools`
+.tools/
+
+# Katalog sekretów: w repo tylko szyfrogramy SOPS, reguły i opis. Kopie zapasowe
+# (*.bak, *~), pliki odszyfrowane i wszystko inne są ignorowane.
+infra/secrets/*
+!infra/secrets/*.enc.yaml
+!infra/secrets/.sops.yaml
+!infra/secrets/README.md
