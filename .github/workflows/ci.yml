@@ -1,0 +1,190 @@
+# CI (E1.7): lint → typy → testy → gitleaks → build obrazów → skan Trivy → raport pokrycia.
+# Kolejność wymuszona przez `needs`: każdy etap startuje dopiero po zielonym poprzednim.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_PYTHON: "3.12"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  lint:
+    name: 1 lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: uv sync --frozen
+      - run: pnpm install --frozen-lockfile
+      - name: pre-commit (ruff, Biome, YAML, duże pliki, klucze prywatne)
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+        env:
+          SKIP: no-commit-to-branch,gitleaks-system
+
+  types:
+    name: 2 typy
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: uv sync --frozen
+      - run: pnpm install --frozen-lockfile
+      - name: pyright (strict)
+        run: uv run pyright
+      - name: granice modułów (import-linter)
+        run: uv run lint-imports
+      - name: tsc --noEmit
+        run: pnpm typecheck
+
+  test:
+    name: 3 testy
+    needs: types
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: uv sync --frozen
+      - run: pnpm install --frozen-lockfile
+      - name: pytest + pokrycie
+        run: uv run pytest --cov --cov-report=xml --cov-report=term
+      - name: vitest
+        run: pnpm test
+      - name: next build
+        run: pnpm build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage-python
+          path: coverage.xml
+          retention-days: 14
+
+  gitleaks:
+    name: 4 gitleaks (pełna historia)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            git --config .gitleaks.toml --redact --verbose /repo
+
+  images:
+    name: 5-6 obraz ${{ matrix.service }} (build + Trivy)
+    needs: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [platform, executor]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - name: build linux/amd64 (do skanu)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: goatcash-${{ matrix.service }}:scan
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - name: Trivy (0 podatności krytycznych)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: goatcash-${{ matrix.service }}:scan
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+      - name: logowanie do GHCR (tylko main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: build linux/arm64 + linux/amd64 (push do GHCR tylko z main)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ghcr.io/${{ github.repository_owner }}/goatcash-${{ matrix.service }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+
+  coverage:
+    name: 7 raport pokrycia
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-python
+      - name: podsumowanie pokrycia w zakładce Summary
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          root = ET.parse("coverage.xml").getroot()
+          line = float(root.get("line-rate", 0)) * 100
+          branch = float(root.get("branch-rate", 0)) * 100
+          print("## Pokrycie testami (Python)")
+          print(f"| Linie | Gałęzie |\n|---|---|\n| {line:.1f}% | {branch:.1f}% |")
+          PY
+
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [lint, types, test, gitleaks, images, coverage]
+    runs-on: ubuntu-latest
+    steps:
+      - name: wszystkie etapy zielone
+        run: |
+          echo '${{ toJSON(needs) }}' | python3 -c 'import json,sys; d=json.load(sys.stdin); bad=[k for k,v in d.items() if v["result"]!="success"]; print("czerwone:", bad) if bad else print("OK"); sys.exit(1 if bad else 0)'

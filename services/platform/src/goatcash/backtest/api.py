@@ -1,0 +1,3 @@
+"""Publiczny interfejs modułu backtest (wypełniany w kolejnych etapach roadmapy)."""
+
+__all__: list[str] = []

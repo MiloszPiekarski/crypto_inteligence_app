@@ -1,0 +1,170 @@
+# Katalog główny monorepo: wirtualny workspace uv (sam nie jest pakietem).
+[project]
+name = "goatcash-monorepo"
+version = "0.0.0"
+requires-python = ">=3.12,<3.13"
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["services/platform", "services/executor"]
+
+[tool.uv.sources]
+goatcash-platform = { workspace = true }
+goatcash-executor = { workspace = true }
+
+[dependency-groups]
+dev = [
+  "goatcash-platform",
+  "goatcash-executor",
+  "ruff>=0.17,<0.18",
+  "pyright>=1.1.400",
+  "pytest>=8.4",
+  "pytest-cov>=7.0",
+  "hypothesis>=6.140",
+  "import-linter>=2.4",
+  "pre-commit>=4.3",
+]
+
+# ---------------- ruff (lint + format) ----------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["services/platform/src", "services/executor/src"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "N", "S", "SIM", "RUF", "PT", "C4", "PL"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "PLR2004"]
+
+# ---------------- pyright (strict dla nowych modułów) ----------------
+[tool.pyright]
+pythonVersion = "3.12"
+include = ["services/platform/src", "services/executor/src", "services/platform/tests", "services/executor/tests"]
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
+
+# ---------------- pytest + pokrycie ----------------
+[tool.pytest.ini_options]
+testpaths = ["services/platform/tests", "services/executor/tests"]
+addopts = "--strict-markers --strict-config -ra"
+xfail_strict = true
+
+[tool.coverage.run]
+branch = true
+source = ["goatcash", "goatcash_executor"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = false
+
+# ---------------- import-linter: granice modułów ----------------
+# Zasada (sekcja 2 Fundamentów): moduły komunikują się wyłącznie przez publiczny
+# interfejs goatcash.<moduł>.api. Implementacja modułu leży w goatcash.<moduł>._impl
+# i nikt spoza modułu nie może jej importować. Executor bota może używać tylko
+# goatcash.bot_core.api i goatcash.common.api.
+[tool.importlinter]
+root_packages = ["goatcash", "goatcash_executor"]
+include_external_packages = false
+
+[[tool.importlinter.contracts]]
+name = "marketdata: tylko przez goatcash.marketdata.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.features", "goatcash.agents", "goatcash.fusion", "goatcash.ledger", "goatcash.ml", "goatcash.llm", "goatcash.backtest", "goatcash.alerts", "goatcash.users", "goatcash.bot_core", "goatcash.common", "goatcash_executor"]
+forbidden_modules = ["goatcash.marketdata._impl"]
+
+[[tool.importlinter.contracts]]
+name = "features: tylko przez goatcash.features.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.marketdata", "goatcash.agents", "goatcash.fusion", "goatcash.ledger", "goatcash.ml", "goatcash.llm", "goatcash.backtest", "goatcash.alerts", "goatcash.users", "goatcash.bot_core", "goatcash.common", "goatcash_executor"]
+forbidden_modules = ["goatcash.features._impl"]
+
+[[tool.importlinter.contracts]]
+name = "agents: tylko przez goatcash.agents.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.fusion", "goatcash.ledger", "goatcash.ml", "goatcash.llm", "goatcash.backtest", "goatcash.alerts", "goatcash.users", "goatcash.bot_core", "goatcash.common", "goatcash_executor"]
+forbidden_modules = ["goatcash.agents._impl"]
+
+[[tool.importlinter.contracts]]
+name = "fusion: tylko przez goatcash.fusion.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.agents", "goatcash.ledger", "goatcash.ml", "goatcash.llm", "goatcash.backtest", "goatcash.alerts", "goatcash.users", "goatcash.bot_core", "goatcash.common", "goatcash_executor"]
+forbidden_modules = ["goatcash.fusion._impl"]
+
+[[tool.importlinter.contracts]]
+name = "ledger: tylko przez goatcash.ledger.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.agents", "goatcash.fusion", "goatcash.ml", "goatcash.llm", "goatcash.backtest", "goatcash.alerts", "goatcash.users", "goatcash.bot_core", "goatcash.common", "goatcash_executor"]
+forbidden_modules = ["goatcash.ledger._impl"]
+
+[[tool.importlinter.contracts]]
+name = "ml: tylko przez goatcash.ml.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.agents", "goatcash.fusion", "goatcash.ledger", "goatcash.llm", "goatcash.backtest", "goatcash.alerts", "goatcash.users", "goatcash.bot_core", "goatcash.common", "goatcash_executor"]
+forbidden_modules = ["goatcash.ml._impl"]
+
+[[tool.importlinter.contracts]]
+name = "llm: tylko przez goatcash.llm.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.agents", "goatcash.fusion", "goatcash.ledger", "goatcash.ml", "goatcash.backtest", "goatcash.alerts", "goatcash.users", "goatcash.bot_core", "goatcash.common", "goatcash_executor"]
+forbidden_modules = ["goatcash.llm._impl"]
+
+[[tool.importlinter.contracts]]
+name = "backtest: tylko przez goatcash.backtest.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.agents", "goatcash.fusion", "goatcash.ledger", "goatcash.ml", "goatcash.llm", "goatcash.alerts", "goatcash.users", "goatcash.bot_core", "goatcash.common", "goatcash_executor"]
+forbidden_modules = ["goatcash.backtest._impl"]
+
+[[tool.importlinter.contracts]]
+name = "alerts: tylko przez goatcash.alerts.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.agents", "goatcash.fusion", "goatcash.ledger", "goatcash.ml", "goatcash.llm", "goatcash.backtest", "goatcash.users", "goatcash.bot_core", "goatcash.common", "goatcash_executor"]
+forbidden_modules = ["goatcash.alerts._impl"]
+
+[[tool.importlinter.contracts]]
+name = "users: tylko przez goatcash.users.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.agents", "goatcash.fusion", "goatcash.ledger", "goatcash.ml", "goatcash.llm", "goatcash.backtest", "goatcash.alerts", "goatcash.bot_core", "goatcash.common", "goatcash_executor"]
+forbidden_modules = ["goatcash.users._impl"]
+
+[[tool.importlinter.contracts]]
+name = "bot_core: tylko przez goatcash.bot_core.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.agents", "goatcash.fusion", "goatcash.ledger", "goatcash.ml", "goatcash.llm", "goatcash.backtest", "goatcash.alerts", "goatcash.users", "goatcash.common", "goatcash_executor"]
+forbidden_modules = ["goatcash.bot_core._impl"]
+
+[[tool.importlinter.contracts]]
+name = "common: tylko przez goatcash.common.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.agents", "goatcash.fusion", "goatcash.ledger", "goatcash.ml", "goatcash.llm", "goatcash.backtest", "goatcash.alerts", "goatcash.users", "goatcash.bot_core", "goatcash_executor"]
+forbidden_modules = ["goatcash.common._impl"]
+
+[[tool.importlinter.contracts]]
+name = "executor: tylko bot_core.api i common.api"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash_executor"]
+forbidden_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.agents", "goatcash.fusion", "goatcash.ledger", "goatcash.ml", "goatcash.llm", "goatcash.backtest", "goatcash.alerts", "goatcash.users"]
+
+[[tool.importlinter.contracts]]
+name = "platforma nie importuje executora"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["goatcash"]
+forbidden_modules = ["goatcash_executor"]

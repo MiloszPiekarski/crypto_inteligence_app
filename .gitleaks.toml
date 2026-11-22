@@ -1,0 +1,17 @@
+# Konfiguracja gitleaks: domyślne reguły + nasze dodatki. Używana lokalnie (pre-commit),
+# w CI (pełna historia) i w teście bramki G1.
+title = "GoatCash gitleaks"
+
+[extend]
+useDefault = true
+
+# Klucze prywatne age (SOPS). Publiczne klucze age1... nie są sekretem.
+[[rules]]
+id = "age-secret-key"
+description = "Klucz prywatny age"
+regex = '''AGE-SECRET-KEY-1[0-9A-Z]{58}'''
+keywords = ["age-secret-key-1"]
+
+[allowlist]
+description = "Zaszyfrowane pliki SOPS zawierają tylko szyfrogramy"
+paths = ['''infra/secrets/.*\.enc\.yaml''']

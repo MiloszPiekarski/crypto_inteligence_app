@@ -1,0 +1,16 @@
+name: Zadanie z roadmapy
+description: Punkt zakresu prac z etapu roadmapy
+labels: [task]
+body:
+  - type: input
+    id: stage
+    attributes: { label: Etap i punkt, placeholder: "E1.6" }
+    validations: { required: true }
+  - type: textarea
+    id: scope
+    attributes: { label: Zakres (z roadmapy) }
+    validations: { required: true }
+  - type: textarea
+    id: done
+    attributes: { label: Kryterium ukończenia (test z tabeli etapu) }
+    validations: { required: true }
