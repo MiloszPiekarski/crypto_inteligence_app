@@ -1,0 +1,45 @@
+# Bramka G2 (E2): architektura szczegółowa, model danych i kontrakty.
+# Format bramek: docs/dokumentacja/testy.md, sekcja 3. Uruchomienie: make gate G=2.
+# Każde sprawdzenie to cel Makefile dodawany przez PR, który dostarcza dany element E2
+# (plan w docs/stan-pracy.md). Dopóki celu nie ma, sprawdzenie jest FAIL („No rule to make
+# target”), więc bramka jest czerwona, a nie pusta.
+gate: G2
+stage: E2
+criteria: >-
+  Migracja 0001 działa na czystej bazie w obie strony; schematy zdarzeń, Evidence v1 i OpenAPI
+  przechodzą walidację; wymagania mają identyfikatory, etapy i mierzalne kryteria
+checks:
+  - id: migration
+    name: "migracja 0001: alembic upgrade head i downgrade base na czystym Postgresie z Timescale"
+    run: make -s db-migration-test
+    # Runnery macOS w GitHub Actions nie mają Dockera (testcontainers). Na ubuntu (źródło
+    # dowodu bramki) i u właściciela sprawdzenie zawsze się wykonuje (scripts/gate.py).
+    skip_on_ci_os: [macOS]
+    reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026)
+  - id: auth-schema-drift
+    name: "schemat Better Auth z migracji = schemat wymagany przez przypiętą wersję Better Auth"
+    run: make -s auth-schema-drift
+    skip_on_ci_os: [macOS]
+    reason: porównanie na bazie w kontenerze; brak Dockera na runnerach macOS w GitHub Actions
+  - id: event-schemas
+    name: "schematy zdarzeń: poprawne przykłady przechodzą, błędne są odrzucane (jsonschema)"
+    run: make -s event-schemas-test
+  - id: evidence-v1
+    name: "kontrakt Evidence v1: poprawne przykłady przechodzą, błędne są odrzucane"
+    run: make -s evidence-test
+  - id: openapi-lint
+    name: "OpenAPI: Spectral bez błędów, klient TypeScript zgodny ze specyfikacją"
+    run: make -s openapi-lint
+  - id: requirements
+    name: "wymagania F-xx i NF-xx: każde ma ID, etap i mierzalne kryterium (100%)"
+    run: make -s requirements-check
+reports:
+  - docs/gates/G2.md
+  - docs/adr/0002-model-danych.md
+  - docs/adr/0003-magistrala-zdarzen.md
+  - docs/adr/0004-uwierzytelnianie.md
+  - docs/adr/0005-bramka-llm.md
+  - docs/adr/0006-izolacja-executora.md
+  - docs/wymagania.yaml
+  - docs/architektura/stride.md
+  - docs/architektura/c4.md
