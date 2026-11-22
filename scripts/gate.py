@@ -178,6 +178,21 @@ def check_coverage(report: Report, minimum: float) -> None:
     report.result(rate >= minimum, f"próg pokrycia linii {rate:.1f}% {sign} {minimum:.0f}%")
 
 
+def open_new_report(log_dir: Path, base: str) -> tuple[Path, TextIO]:
+    """Tworzy NOWY plik raportu; nigdy nie nadpisuje raportu innego przebiegu.
+
+    Dwa przebiegi w tej samej sekundzie dostają osobne pliki (sufiks -2, -3, ...).
+    Tryb "x" zakłada plik atomowo, więc równoległe przebiegi nie mogą trafić w ten sam.
+    """
+    for n in range(1, 1000):
+        path = log_dir / (f"{base}.log" if n == 1 else f"{base}-{n}.log")
+        try:
+            return path, path.open("x", encoding="utf-8")
+        except FileExistsError:
+            continue
+    raise RuntimeError(f"nie udało się utworzyć unikalnego raportu {base}")
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != USAGE_ARGC:
         print("Użycie: scripts/gate.py <nr>, np. scripts/gate.py 1")
@@ -191,9 +206,9 @@ def main(argv: list[str]) -> int:
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     log_dir = ROOT / "reports" / "gates"
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"{gate.gate}-{stamp}.log"
+    log_path, log = open_new_report(log_dir, f"{gate.gate}-{stamp}")
 
-    with log_path.open("w", encoding="utf-8") as log:
+    with log:
         report = Report(log)
         report.out(f"Bramka {gate.gate} ({gate.stage}) | commit {git_commit()} | {stamp} | {WHERE}")
         report.out(f"Kryteria: {gate.criteria}")

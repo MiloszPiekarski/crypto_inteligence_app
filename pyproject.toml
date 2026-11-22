@@ -40,7 +40,9 @@ select = ["E", "W", "F", "I", "B", "UP", "N", "S", "SIM", "RUF", "PT", "C4", "PL
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "PLR2004"]
 
-# ---------------- pyright (strict dla nowych modułów) ----------------
+# ---------------- pyright ----------------
+# Roadmapa E1: „strict dla nowych modułów”. Cały kod repozytorium powstaje od E1,
+# więc strict obejmuje wszystko, co jest w `include` (źródła, testy, skrypty).
 [tool.pyright]
 pythonVersion = "3.12"
 include = ["scripts", "services/platform/src", "services/executor/src", "services/platform/tests", "services/executor/tests"]
@@ -161,7 +163,9 @@ forbidden_modules = ["goatcash.common._impl"]
 [[tool.importlinter.contracts]]
 name = "executor: tylko bot_core.api i common.api"
 type = "forbidden"
-allow_indirect_imports = true
+# Tu import pośredni też jest zakazany: executor (osobna mikro-VM) nie może dostać
+# modułu domenowego „przy okazji”, np. przez bot_core.api, które by go importowało.
+allow_indirect_imports = false
 source_modules = ["goatcash_executor"]
 forbidden_modules = ["goatcash.marketdata", "goatcash.features", "goatcash.agents", "goatcash.fusion", "goatcash.ledger", "goatcash.ml", "goatcash.llm", "goatcash.backtest", "goatcash.alerts", "goatcash.users"]
 

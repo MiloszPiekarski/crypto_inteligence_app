@@ -1,5 +1,6 @@
 """Testy runnera bramek (scripts/gate.py): format YAML, SKIP nie liczy się jako PASS."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import gate
@@ -21,7 +22,7 @@ def run(root: Path, monkeypatch: pytest.MonkeyPatch, where: str) -> int:
 
 
 def last_log(root: Path) -> str:
-    logs = sorted((root / "reports" / "gates").glob("G9-*.log"))
+    logs = sorted((root / "reports" / "gates").glob("G9-*.log"), key=lambda p: p.stat().st_mtime_ns)
     return logs[-1].read_text(encoding="utf-8")
 
 
@@ -101,3 +102,25 @@ def test_repo_gates_are_valid() -> None:
     for path in sorted((gate.ROOT / "gates").glob("G*.yaml")):
         loaded = gate.load_gate(path)
         assert loaded.gate == path.stem
+
+
+class _FrozenDatetime:
+    @staticmethod
+    def now(tz: object = None) -> datetime:
+        return datetime(2026, 11, 22, 3, 0, 0, tzinfo=UTC)
+
+
+def test_runs_in_same_second_keep_separate_reports(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Uwaga z przeglądu PR #1: dwa przebiegi w tej samej sekundzie nadpisywały raport."""
+    monkeypatch.setattr(gate, "datetime", _FrozenDatetime)
+    write_gate(tmp_path, BASE + "checks:\n  - id: ok\n    name: ok\n    run: 'true'\n")
+    assert run(tmp_path, monkeypatch, "local") == 0
+    write_gate(tmp_path, BASE + "checks:\n  - id: bad\n    name: pada\n    run: 'exit 1'\n")
+    assert run(tmp_path, monkeypatch, "local") == 1
+    logs = sorted((tmp_path / "reports" / "gates").glob("G9-*.log"))
+    assert [p.name for p in logs] == ["G9-20261122T030000Z-2.log", "G9-20261122T030000Z.log"]
+    texts = {p.name: p.read_text(encoding="utf-8") for p in logs}
+    assert "ZIELONE" in texts["G9-20261122T030000Z.log"]
+    assert "CZERWONE" in texts["G9-20261122T030000Z-2.log"]

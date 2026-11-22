@@ -28,7 +28,14 @@ check_tool() {
 }
 
 # http ARGS... -> prints HTTP status, body saved to $TMP/body
-http() { curl -sS -A "$UA" -o "$TMP/body" -w '%{http_code}' --max-time 30 "$@" 2>/dev/null || echo 000; }
+# curl sam wypisuje 000 przy błędzie sieci; stare body jest usuwane, żeby komunikat
+# błędu nie pochodził z odpowiedzi poprzedniego dostawcy.
+http() {
+  local code
+  rm -f "$TMP/body"
+  code="$(curl -sS -A "$UA" -o "$TMP/body" -w '%{http_code}' --max-time 30 "$@" 2>/dev/null)" || true
+  printf '%s' "${code:-000}"
+}
 api_error() { jq -r '(.error.message // .error // .message // empty) | tostring' "$TMP/body" 2>/dev/null | head -c 200; }
 
 # ---------------------------------------------------------------------------
@@ -57,7 +64,8 @@ check_tool "Claude Code"    "2.0"   claude --version
 # ---------------------------------------------------------------------------
 section "2. Local secrets file (.env.local)"
 if [ -f "$ENV_FILE" ]; then
-  perms="$(stat -f '%Lp' "$ENV_FILE" 2>/dev/null || stat -c '%a' "$ENV_FILE")"
+  # GNU stat (Linux) rozumie -f inaczej (system plików), więc wybieramy wariant po systemie.
+  if [ "$(uname -s)" = "Darwin" ]; then perms="$(stat -f '%Lp' "$ENV_FILE")"; else perms="$(stat -c '%a' "$ENV_FILE")"; fi
   if [ "$perms" = "600" ]; then ok ".env.local permissions 600"; else bad ".env.local permissions $perms (fix: chmod 600 .env.local)"; fi
   if git -C "$ROOT" check-ignore -q .env.local 2>/dev/null; then ok ".env.local is ignored by git"; else bad ".env.local is NOT ignored by git (add it to .gitignore)"; fi
   set -a; # shellcheck disable=SC1090

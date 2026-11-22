@@ -21,6 +21,9 @@ checks:
   - id: forbidden-import
     name: import-linter wykrywa celowo zakazany import
     run: gates/probes/forbidden-import.sh
+  - id: executor-indirect
+    name: executor nie dostaje modułu domenowego pośrednio (np. przez common.api)
+    run: gates/probes/executor-indirect.sh
   - id: gitleaks-history
     name: "gitleaks: historia repozytorium czysta"
     run: gitleaks git --config .gitleaks.toml --redact --no-banner .
