@@ -7,29 +7,30 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 
 ## Gdzie jesteśmy
 
-- **E0:** zakończony, G0 zaliczona (dowód lokalny).
-- **E1:** zakończony, G1 zaliczona (CI na `main`, przebieg 45027155138; `make gate G=1` u właściciela 17/17).
-- **Teraz:** domknięcie E1 przed E2:
-  1. PR „domknięcie E1”: dokumentacja w repo, `G0/G1.passed.json`, ADR-001 zatwierdzony, reguły Dependabota, skrypty `gate_pass.py` i `gate_guard.py`.
-  2. PR „gate-guard”: workflow `gate-guard.yml`, potem `./scripts/github-setup.sh` (wymagany check `gate-guard`).
-- **Następnie:** E2 (architektura szczegółowa, model danych, kontrakty), w kilku mniejszych PR.
+- **E0:** zakończony, G0 zaliczona (`docs/gates/G0.passed.json`, dowód lokalny).
+- **E1:** zakończony i domknięty, G1 zaliczona (`docs/gates/G1.passed.json`, przebieg 45027155138).
+  - PR #1 (E1), #12 (dokumentacja w repo, dowody bramek), #13 (`gate-guard`) scalone.
+  - Wymagane checki `main`: `ci-ok` i `gate-guard`.
+- **Następny etap: E2** (architektura szczegółowa, model danych, kontrakty; wymaga G1).
+  Zaczynamy w nowej rozmowie, od zakresu E2 w `docs/dokumentacja/roadmapa.md`,
+  w kilku mniejszych PR z etykietą `E2`.
 
 ## Otwarte sprawy
 
-- `doctor.sh` (naprawione w domknięciu E1): w katalogu projektu `uv python find 3.12` zwraca
-  ścieżkę `.venv` bez numeru wersji, więc test „Python (uv)” dawał FAIL; raport bramki
-  zapisuje teraz wszystkie wiersze z FAIL, nie tylko 25 ostatnich linii.
-
 - ⚠️ E0: potwierdzić włączenie Cloudflare R2, konto Resend i bota Telegram (brak dowodu w repo).
 - Sentry na koncie prywatnym: przepiąć na konto projektu w E3/E6.
-- PR-y Dependabota sprzed nowych reguł (Python 3.15, TypeScript 7, @types/node 26): zamknąć bez scalania.
 - Opcjonalnie: usunąć stary ruleset „Protect main” (zastąpiony przez `main-protection`).
 - Nowy klucz Anthropic przed 19.02.2027.
 
 ## Jak pracujemy (skrót, pełne zasady w `CONTRIBUTING.md`)
 
 - Asystent przygotowuje zmiany jako łatki (`git apply`), wcześniej testuje je na gałęzi
-  `claude/…` w szkicu PR (CI na Linuksie i macOS), właściciel nakłada, commituje (podpis SSH) i scala.
+  `claude/…` w szkicu PR (CI na Linuksie i macOS); właściciel nakłada, commituje (podpis SSH),
+  otwiera PR z etykietą etapu i scala.
 - Niezależny recenzent (osobny agent) tylko wtedy, gdy zmiana tego wymaga (sekrety,
   bezpieczeństwo) i po zgodzie właściciela: jest drogi i trwa długo.
-- Uwagi Graphify i Copilota: triaż według tabeli w `CONTRIBUTING.md`.
+- Uwagi Graphify i Copilota: asystent robi triaż (naprawiamy / odpowiadamy / ignorujemy)
+  i daje gotowe odpowiedzi; kod zmieniamy tylko przy problemach bezpieczeństwa,
+  poprawności albo bramki.
+- PR-y Dependabota mają etykietę `dependencies` (gate-guard je przepuszcza); duże wersje
+  są wyłączone regułami w `.github/dependabot.yml`.
