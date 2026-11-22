@@ -1,0 +1,8 @@
+{
+  "gate": "G0",
+  "type": "local",
+  "commit": "c7e95c1c2c97cb0f5ebe4d1343438f2694df66b9",
+  "report_time": "20261122T140111Z",
+  "summary": "== G0 (local): 2 PASS, 0 FAIL, 0 SKIP ==",
+  "recorded_at": "2026-11-22T14:02:15Z"
+}

@@ -12,6 +12,7 @@ jako PASS.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import time
@@ -111,6 +112,9 @@ def coverage_line_rate(path: Path) -> float:
 
 
 USAGE_ARGC = 2
+TAIL_LINES = 25
+MAX_FAIL_LINES = 40
+FAIL_RE = re.compile(r"\bFAIL\b|BŁĄD|\berror\b", re.IGNORECASE)
 
 
 class Report:
@@ -177,7 +181,14 @@ def run_check(report: Report, check: Check) -> None:
         report.result(True, f"{check.name} ({took:.0f} s)")
         return
     report.result(False, f"{check.name} ({took:.0f} s, kod {proc.returncode})")
-    for line in (proc.stdout + proc.stderr).strip().splitlines()[-25:]:
+    lines = (proc.stdout + proc.stderr).strip().splitlines()
+    # Najpierw wszystkie wiersze z błędem (mogą być daleko przed końcem wyjścia), potem koniec.
+    failures = [line for line in lines if FAIL_RE.search(line)][:MAX_FAIL_LINES]
+    tail = lines[-TAIL_LINES:]
+    for line in failures:
+        if line not in tail:
+            report.out(f"     ! {line}")
+    for line in tail:
         report.out(f"       {line}")
 
 
