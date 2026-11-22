@@ -1,6 +1,6 @@
 # ADR-0001: Wybór stosu technologicznego
 
-- **Status:** proponowana (zatwierdzenie = scalenie PR etapu E1 przez właściciela)
+- **Status:** zatwierdzona 2026-11-22 (scalenie PR #1, commit `c7e95c1`)
 - **Data:** 2026-11-22
 - **Etap:** E1
 - **Źródło:** „Fundamenty i decyzje”, sekcja 1

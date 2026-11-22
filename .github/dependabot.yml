@@ -1,4 +1,6 @@
 # cooldown: nowa wersja zależności musi mieć co najmniej 7 dni (ochrona przed przejętymi wydaniami).
+# ignore: duże wersje (semver-major) wymagają decyzji (ADR), więc Dependabot ich nie proponuje.
+# Python zostaje na 3.12 (ADR-0001), Node na linii 24 LTS (typy @types/node 24.x).
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -11,13 +13,23 @@ updates:
     schedule: { interval: weekly }
     cooldown: { default-days: 7 }
     labels: [dependencies]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: /
     schedule: { interval: weekly }
     cooldown: { default-days: 7 }
     labels: [dependencies]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directories: ["/services/platform", "/services/executor"]
     schedule: { interval: weekly }
     cooldown: { default-days: 7 }
     labels: [dependencies]
+    ignore:
+      # Obraz python:3.12-slim: tylko poprawki 3.12.x, bez przejścia na 3.13+ (ADR-0001).
+      - dependency-name: "python"
+        versions: [">=3.13"]
