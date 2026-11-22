@@ -1,4 +1,4 @@
-# Roadmapa etapów E0–E17
+# Roadmapa etapów E0–E18
 
 Każdy etap ma tę samą kartę: cel, zależności, czas, koszty, rezultat i bramkę, a pod nią zakres prac, konfigurację z architekturą i przepływem danych oraz tabelę testów. Czasy zakładają pracę jednej osoby równolegle ze studiami.
 
@@ -125,7 +125,7 @@ Bramka **G1: zaliczona** · dowód: `docs/gates/G1.md`, `docs/gates/G1.passed.js
 
 ## E2. Architektura szczegółowa, model danych i kontrakty
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⏳ w toku (od 22.11.2026; plan PR-ów i decyzje w `docs/stan-pracy.md`)
 
 Etap kończy się, gdy model danych, kontrakty API i zdarzeń oraz wymagania niefunkcjonalne są zapisane jako pliki w repo i przechodzą automatyczną walidację. Od tego momentu kod musi być z nimi zgodny.
 
