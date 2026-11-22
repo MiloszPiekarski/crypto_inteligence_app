@@ -2,13 +2,22 @@
 
 gitleaks pomija pliki infra/secrets/*.enc.yaml (zawierają tylko szyfrogramy), więc bez tej
 kontroli jawny sekret w pliku nazwanym *.enc.yaml przeszedłby niezauważony. Plik jest
-poprawny, gdy ma blok `sops` z `mac`, a każda wartość poza nim ma postać ENC[...].
+poprawny, gdy ma blok `sops` z `mac` i odbiorcami age, a każda wartość poza nim jest
+szyfrogramem SOPS o poprawnej budowie: AES256_GCM, dane w base64, iv 32 bajty, tag
+16 bajtów, znany typ. Tekst jawny „opakowany” w ENC[...] jest odrzucany.
+
+Ograniczenie (zapisane w docs/gates/G1.md): bez klucza prywatnego nie da się sprawdzić
+podpisu MAC, więc celowo spreparowany szyfrogram o poprawnej budowie przejdzie tę kontrolę.
+MAC sprawdza `sops -d` przy odszyfrowaniu (lokalnie w bramce G1 dla local.enc.yaml).
 
 Użycie: python scripts/sops_check.py [PLIK ...]   (bez argumentów: pliki śledzone przez git)
 """
 
 from __future__ import annotations
 
+import base64
+import binascii
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -17,6 +26,33 @@ from typing import cast
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
+
+ENC_RE = re.compile(
+    r"ENC\[AES256_GCM,data:(?P<data>[A-Za-z0-9+/]*={0,2}),"
+    r"iv:(?P<iv>[A-Za-z0-9+/]+={0,2}),tag:(?P<tag>[A-Za-z0-9+/]+={0,2}),"
+    r"type:(?P<type>str|int|float|bool|bytes|comment)\]"
+)
+IV_BYTES = 32
+TAG_BYTES = 16
+
+
+def _b64len(value: str) -> int | None:
+    try:
+        return len(base64.b64decode(value, validate=True))
+    except (binascii.Error, ValueError):
+        return None
+
+
+def is_sops_ciphertext(value: str) -> bool:
+    """True tylko dla szyfrogramu SOPS o poprawnej budowie (nie dla ENC[tekst jawny])."""
+    match = ENC_RE.fullmatch(value)
+    if match is None:
+        return False
+    return (
+        _b64len(match["data"]) is not None
+        and _b64len(match["iv"]) == IV_BYTES
+        and _b64len(match["tag"]) == TAG_BYTES
+    )
 
 
 def plaintext_paths(node: object, prefix: str = "") -> list[str]:
@@ -31,7 +67,7 @@ def plaintext_paths(node: object, prefix: str = "") -> list[str]:
         for i, value in enumerate(cast(list[object], node)):
             found += plaintext_paths(value, f"{prefix}[{i}]")
         return found
-    if isinstance(node, str) and node.startswith("ENC[") and node.endswith("]"):
+    if isinstance(node, str) and is_sops_ciphertext(node):
         return []
     return [prefix or "<root>"]
 
@@ -45,10 +81,14 @@ def problems(text: str) -> list[str]:
         return ["brak mapy YAML z blokiem sops"]
     doc = cast(dict[str, object], data)
     meta = doc.get("sops")
-    if not isinstance(meta, dict) or not str(
-        cast(dict[str, object], meta).get("mac", "")
-    ).startswith("ENC["):
-        return ["brak bloku sops z podpisem mac (plik nie jest zaszyfrowany przez SOPS)"]
+    if not isinstance(meta, dict):
+        return ["brak bloku sops (plik nie jest zaszyfrowany przez SOPS)"]
+    sops_meta = cast(dict[str, object], meta)
+    if not is_sops_ciphertext(str(sops_meta.get("mac", ""))):
+        return ["brak poprawnego podpisu mac w bloku sops (plik nie jest zaszyfrowany przez SOPS)"]
+    recipients = sops_meta.get("age")
+    if not isinstance(recipients, list) or not recipients:
+        return ["blok sops nie ma odbiorców age"]
     content = {k: v for k, v in doc.items() if k != "sops"}
     return [f"jawna wartość: {p}" for p in plaintext_paths(content)]
 
