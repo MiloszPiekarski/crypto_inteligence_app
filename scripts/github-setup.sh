@@ -67,7 +67,10 @@ gh api -X "$method" "$path" --silent --input - <<'JSON'
     {"type": "required_status_checks", "parameters": {
       "strict_required_status_checks_policy": true,
       "do_not_enforce_on_create": false,
-      "required_status_checks": [{"context": "ci-ok", "integration_id": 15368}]
+      "required_status_checks": [
+        {"context": "ci-ok", "integration_id": 15368},
+        {"context": "gate-guard", "integration_id": 15368}
+      ]
     }}
   ]
 }
