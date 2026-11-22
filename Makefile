@@ -46,6 +46,6 @@ secrets-scan: ## gitleaks na całej historii repozytorium
 doctor: ## Gotowość komputera i dostęp do usług (bramka G0)
 	./scripts/doctor.sh
 
-gate: ## Bramka jakości: make gate G=<nr>, wynik zapisany w reports/gates/
+gate: ## Bramka jakości z gates/G<nr>.yaml: make gate G=<nr>, raport w reports/gates/
 	@test -n "$(G)" || (echo "Użycie: make gate G=<nr>, np. make gate G=1" && exit 2)
-	./scripts/gate.sh $(G)
+	uv run --frozen python scripts/gate.py $(G)

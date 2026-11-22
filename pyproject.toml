@@ -25,6 +25,7 @@ dev = [
   "hypothesis>=6.140",
   "import-linter>=2.4",
   "pre-commit>=4.3",
+  "pyyaml>=6.0",
 ]
 
 # ---------------- ruff (lint + format) ----------------
@@ -42,14 +43,16 @@ select = ["E", "W", "F", "I", "B", "UP", "N", "S", "SIM", "RUF", "PT", "C4", "PL
 # ---------------- pyright (strict dla nowych modułów) ----------------
 [tool.pyright]
 pythonVersion = "3.12"
-include = ["services/platform/src", "services/executor/src", "services/platform/tests", "services/executor/tests"]
+include = ["scripts", "services/platform/src", "services/executor/src", "services/platform/tests", "services/executor/tests"]
 typeCheckingMode = "strict"
+extraPaths = ["scripts"]
 venvPath = "."
 venv = ".venv"
 
 # ---------------- pytest + pokrycie ----------------
 [tool.pytest.ini_options]
-testpaths = ["services/platform/tests", "services/executor/tests"]
+testpaths = ["services/platform/tests", "services/executor/tests", "scripts/tests"]
+pythonpath = ["scripts"]
 addopts = "--strict-markers --strict-config -ra"
 xfail_strict = true
 

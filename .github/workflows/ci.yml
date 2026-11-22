@@ -1,4 +1,5 @@
 # CI (E1.7): lint → typy → testy → gitleaks → build obrazów → skan Trivy → raport pokrycia.
+# Równolegle od lintu: bramka G1 (make gate G=1, definicja w gates/G1.yaml).
 # Kolejność wymuszona przez `needs`: każdy etap startuje dopiero po zielonym poprzednim.
 name: ci
 
@@ -181,10 +182,65 @@ jobs:
           print(f"| Linie | Gałęzie |\n|---|---|\n| {line:.1f}% | {branch:.1f}% |")
           PY
 
+  gate:
+    name: 8 bramka G1 (make gate G=1)
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+      SOPS_VERSION: 3.13.3
+      SOPS_SHA256: e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b
+      AGE_VERSION: 1.3.2
+      AGE_SHA256: cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: gitleaks, sops, age (przypięte wersje, sprawdzone sumy SHA-256)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl -sSfLo gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLo sops "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64"
+          curl -sSfLo age.tgz "https://github.com/FiloSottile/age/releases/download/v${AGE_VERSION}/age-v${AGE_VERSION}-linux-amd64.tar.gz"
+          printf '%s  gitleaks.tgz\n%s  sops\n%s  age.tgz\n' "$GITLEAKS_SHA256" "$SOPS_SHA256" "$AGE_SHA256" | sha256sum -c -
+          mkdir -p bin
+          tar -xzf gitleaks.tgz -C bin gitleaks
+          tar -xzf age.tgz --strip-components=1 -C bin age/age age/age-keygen
+          install -m 0755 sops bin/sops
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - run: uv sync --frozen
+      - run: pnpm install --frozen-lockfile
+      - name: make gate G=1
+        run: make gate G=1
+      - name: raport bramki w zakładce Summary
+        if: always()
+        run: |
+          shopt -s nullglob
+          for f in reports/gates/G1-*.log; do
+            { echo '## Bramka G1'; echo '```'; cat "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: gate-G1
+          path: reports/gates/
+          retention-days: 90
+
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [lint, types, test, gitleaks, images, coverage]
+    needs: [lint, types, test, gitleaks, images, coverage, gate]
     runs-on: ubuntu-latest
     steps:
       - name: wszystkie etapy zielone
