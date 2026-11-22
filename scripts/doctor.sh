@@ -107,7 +107,8 @@ else bad "Gemini: cannot list models (HTTP $code) $(api_error)"; fi
 code=$(http https://openrouter.ai/api/v1/key -H "Authorization: Bearer ${OPENROUTER_API_KEY:-}")
 if [ "$code" = 200 ]; then
   limit=$(jq -r '.data.limit // "none"' "$TMP/body")
-  if [ "$limit" != "none" ] && [ "$limit" != "null" ] && version_ge 5 "$limit"; then ok "OpenRouter: key valid, credit limit $limit USD (max 5)"
+  # Porównanie liczbowe (np. 5.0 <= 5), nie wersji.
+  if [ "$limit" != "none" ] && [ "$limit" != "null" ] && awk -v l="$limit" 'BEGIN { exit !(l + 0 <= 5) }'; then ok "OpenRouter: key valid, credit limit $limit USD (max 5)"
   else bad "OpenRouter: key credit limit is '$limit', expected 5 USD or less"; fi
 else bad "OpenRouter: key check HTTP $code $(api_error)"; fi
 code=$(http https://openrouter.ai/api/v1/models)

@@ -31,3 +31,10 @@ repos:
     hooks:
       - id: gitleaks-system
         pass_filenames: false
+  - repo: local
+    hooks:
+      - id: sops-encrypted
+        name: pliki *.enc.yaml zaszyfrowane przez SOPS
+        entry: uv run --frozen python scripts/sops_check.py
+        language: system
+        files: '\.enc\.yaml$'

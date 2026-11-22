@@ -30,6 +30,9 @@ checks:
   - id: gitleaks-fake-key
     name: gitleaks wykrywa fałszywy klucz AWS
     run: gates/probes/gitleaks-fake-key.sh
+  - id: sops-files-encrypted
+    name: "SOPS: każdy plik *.enc.yaml jest naprawdę zaszyfrowany (gitleaks go pomija)"
+    run: uv run --frozen python scripts/sops_check.py
   - id: sops-rules
     name: "SOPS: każde środowisko ma własny klucz, local.enc.yaml tylko kluczem local"
     run: gates/probes/sops-rules.sh
