@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goatcash.app/schemas/events/alert.triggered.v1.schema.json",
+  "title": "Zdarzenie alert.triggered (schema_version 1)",
+  "description": "Spełniony warunek alertu użytkownika (worker).",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "alert.triggered"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alert_rule_id", "user_id", "dedup_key", "asset", "triggered_at", "reason"],
+      "properties": {
+        "alert_rule_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "user_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "publiczny identyfikator użytkownika (bez e-maila i innych danych osobowych)"
+        },
+        "dedup_key": {
+          "type": "string",
+          "minLength": 8
+        },
+        "asset": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]{2,15}$"
+        },
+        "triggered_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

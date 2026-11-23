@@ -27,6 +27,8 @@ dev = [
   "pre-commit>=4.3",
   "pyyaml>=6.0",
   "testcontainers>=4.10",
+  "jsonschema>=4.25",
+  "rfc3339-validator>=0.1.4",
 ]
 
 # ---------------- ruff (lint + format) ----------------
@@ -46,7 +48,7 @@ select = ["E", "W", "F", "I", "B", "UP", "N", "S", "SIM", "RUF", "PT", "C4", "PL
 # więc strict obejmuje wszystko, co jest w `include` (źródła, testy, skrypty).
 [tool.pyright]
 pythonVersion = "3.12"
-include = ["scripts", "services/platform/src", "services/executor/src", "services/platform/tests", "services/executor/tests"]
+include = ["scripts", "services/platform/src", "services/executor/src", "services/platform/tests", "services/executor/tests", "packages/contracts/tests"]
 typeCheckingMode = "strict"
 extraPaths = ["scripts"]
 venvPath = "."
@@ -54,7 +56,7 @@ venv = ".venv"
 
 # ---------------- pytest + pokrycie ----------------
 [tool.pytest.ini_options]
-testpaths = ["services/platform/tests", "services/executor/tests", "scripts/tests"]
+testpaths = ["services/platform/tests", "services/executor/tests", "scripts/tests", "packages/contracts/tests"]
 pythonpath = ["scripts"]
 # Testy z markerem `migration` wymagają Dockera (testcontainers): `make db-migration-test`
 # (bramka G2). W `make test` są wyłączone, bo runnery macOS w CI nie mają Dockera.

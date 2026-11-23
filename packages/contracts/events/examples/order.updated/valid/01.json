@@ -1,0 +1,15 @@
+{
+  "event_id": "0193a4f2-7c1e-7a3b-9d2e-4f5a6b7c8d9e",
+  "type": "order.updated",
+  "schema_version": 1,
+  "occurred_at": "2026-11-23T10:00:05Z",
+  "producer": "worker@0.1.0",
+  "correlation_id": "0193a4f2-7c1e-7a3b-9d2e-000000000001",
+  "payload": {
+    "intent_id": "0193a4f2-7c1e-7a3b-9d2e-000000000050",
+    "client_order_id": "gc-0193a4f2-50",
+    "status": "partially_filled",
+    "filled_quantity": "0.004",
+    "updated_at": "2026-11-23T10:00:06Z"
+  }
+}
