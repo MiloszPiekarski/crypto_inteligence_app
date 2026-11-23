@@ -1,0 +1,21 @@
+{
+  "evidence_id": "0193a4f2-7c1e-7a3b-9d2e-000000000011",
+  "schema_version": 1,
+  "agent": {
+    "name": "dq_guard",
+    "version": "0.3.0"
+  },
+  "model_version": null,
+  "asset": "BTC",
+  "horizon": "1d",
+  "as_of": "2026-11-23T10:00:00Z",
+  "data_cutoff": "2026-11-23T10:00:00Z",
+  "p_up": 0.5,
+  "quantiles": null,
+  "regime_view": null,
+  "facts": {
+    "gap_minutes": 0
+  },
+  "invalidation": "zamknięcie dzienne poniżej 88 000 USD",
+  "status": "active"
+}

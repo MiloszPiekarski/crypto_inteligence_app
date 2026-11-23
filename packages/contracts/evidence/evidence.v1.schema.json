@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goatcash.app/schemas/evidence/evidence.v1.schema.json",
+  "title": "Evidence v1: dowód agenta analitycznego",
+  "description": "Pola z roadmapy E2 (Kontrakty). Reguły, których JSON Schema nie wyrazi (data_cutoff <= as_of, kwantyle niemalejące), sprawdza walidator Pydantic w E7 (tabela testów E7: blokada publikacji dowodu).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidence_id",
+    "schema_version",
+    "agent",
+    "model_version",
+    "asset",
+    "horizon",
+    "as_of",
+    "data_cutoff",
+    "p_up",
+    "quantiles",
+    "regime_view",
+    "facts",
+    "invalidation",
+    "status"
+  ],
+  "properties": {
+    "evidence_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "publiczny identyfikator (UUIDv7)"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        }
+      }
+    },
+    "model_version": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "wersja modelu ML/LLM; null dla agentów regułowych"
+    },
+    "asset": {
+      "type": "string",
+      "pattern": "^[A-Z0-9]{2,15}$"
+    },
+    "horizon": {
+      "enum": ["1h", "4h", "1d", "7d"]
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time",
+      "description": "chwila, której dotyczy dowód"
+    },
+    "data_cutoff": {
+      "type": "string",
+      "format": "date-time",
+      "description": "najpóźniejsza dana użyta do obliczenia (point-in-time, musi być <= as_of)"
+    },
+    "p_up": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "prawdopodobieństwo wzrostu w horyzoncie"
+    },
+    "quantiles": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["q05", "q25", "q50", "q75", "q95"],
+          "properties": {
+            "q05": {
+              "type": "number",
+              "description": "kwantyl zwrotu logarytmicznego w horyzoncie"
+            },
+            "q25": {
+              "type": "number",
+              "description": "kwantyl zwrotu logarytmicznego w horyzoncie"
+            },
+            "q50": {
+              "type": "number",
+              "description": "kwantyl zwrotu logarytmicznego w horyzoncie"
+            },
+            "q75": {
+              "type": "number",
+              "description": "kwantyl zwrotu logarytmicznego w horyzoncie"
+            },
+            "q95": {
+              "type": "number",
+              "description": "kwantyl zwrotu logarytmicznego w horyzoncie"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "regime_view": {
+      "oneOf": [
+        {
+          "enum": ["trend_up", "trend_down", "range", "high_volatility", "crisis"]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "reżim rynku według agenta; null, gdy agent go nie ocenia"
+    },
+    "facts": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 50,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": ["number", "string", "boolean"]
+      },
+      "description": "liczby i fakty, na których oparto dowód (narrator może cytować tylko je)"
+    },
+    "invalidation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "warunek, przy którym dowód przestaje obowiązywać"
+    },
+    "status": {
+      "enum": ["active", "invalidated", "expired", "settled"]
+    }
+  },
+  "anyOf": [
+    {
+      "properties": {
+        "p_up": {
+          "type": "number"
+        }
+      }
+    },
+    {
+      "properties": {
+        "quantiles": {
+          "type": "object"
+        }
+      }
+    }
+  ],
+  "$comment": "anyOf: dowód bez p_up i bez kwantyli nic nie prognozuje, więc jest odrzucany"
+}

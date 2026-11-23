@@ -1,0 +1,30 @@
+{
+  "_why": "p_up poza [0, 1]",
+  "evidence_id": "0193a4f2-7c1e-7a3b-9d2e-000000000010",
+  "schema_version": 1,
+  "agent": {
+    "name": "trend",
+    "version": "1.0.0"
+  },
+  "model_version": "lgbm-2026-11-20",
+  "asset": "BTC",
+  "horizon": "1d",
+  "as_of": "2026-11-23T10:00:00Z",
+  "data_cutoff": "2026-11-23T10:00:00Z",
+  "p_up": 1.3,
+  "quantiles": {
+    "q05": -0.041,
+    "q25": -0.012,
+    "q50": 0.004,
+    "q75": 0.019,
+    "q95": 0.052
+  },
+  "regime_view": "trend_up",
+  "facts": {
+    "ema_50_200_cross": true,
+    "rsi_14": 61.2,
+    "close": "91420.1"
+  },
+  "invalidation": "zamknięcie dzienne poniżej 88 000 USD",
+  "status": "active"
+}
