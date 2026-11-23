@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-DASH = "\N{EN DASH}"  # README pisze zakres etapów z półpauzą: E0–E2
+DASH = "\N{EN DASH}"  # README pisze zakres etapów z półpauzą (E0, półpauza, E2)
 
 
 def last_passed_gate() -> int:
