@@ -1,0 +1,9 @@
+{
+  "gate": "G2",
+  "type": "ci",
+  "run_id": 45144539739,
+  "commit": "aff8359a32e89976f4abb89127b0a5b74e1171f5",
+  "job": "8 bramka G2 (ubuntu-latest)",
+  "url": "https://github.com/MiloszPiekarski/crypto_inteligence_app/actions/runs/45144539739",
+  "recorded_at": "2026-11-23T09:20:56Z"
+}

@@ -59,7 +59,7 @@ Bramka to zestaw automatycznych sprawdzeń zapisany w pliku `gates/G<nr>.yaml` (
 | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------- |
 | G0     | E0   | Konta z 2FA, klucze w menedżerze haseł, `doctor` zielony, testy połączeń                                                              | E1                                                   | Zaliczona      |
 | G1     | E1   | CI zielone, blokada sekretu na 3 poziomach, ochrona `main`, ADR-001                                                                   | E2                                                   | Zaliczona      |
-| G2     | E2   | Migracja 0001 w obie strony, schematy zdarzeń i OpenAPI poprawne, wymagania z ID                                                      | E3, E12a                                             | W toku         |
+| G2     | E2   | Migracja 0001 w obie strony, schematy zdarzeń i OpenAPI poprawne, wymagania z ID                                                      | E3, E12a                                             | Zaliczona      |
 | G3     | E3   | Odtworzenie środowiska < 30 min, udane odtworzenie kopii, alerty działają                                                             | E4, E6                                               | Nie rozpoczęto |
 | G4     | E4   | Kompletność ≥ 99,9%, DQ wykrywa ≥ 95% błędów, 72 h bez interwencji                                                                    | E5                                                   | Nie rozpoczęto |
 | G5     | E5   | Test point-in-time 100%, live = replay, wskaźniki zgodne z referencją                                                                 | E7, E8                                               | Nie rozpoczęto |
@@ -86,6 +86,7 @@ Bramka to zestaw automatycznych sprawdzeń zapisany w pliku `gates/G<nr>.yaml` (
 | ------ | ------------------ | --------------------------- | --------------------------------------- |
 | G0     | `docs/gates/G0.md` | `docs/gates/G0.passed.json` | lokalny (komputer i klucze właściciela) |
 | G1     | `docs/gates/G1.md` | `docs/gates/G1.passed.json` | CI na `main`, przebieg 45027155138      |
+| G2     | `docs/gates/G2.md` | `docs/gates/G2.passed.json` | CI na `main`, przebieg 45144539739      |
 
 ### Jak bramki są egzekwowane
 
