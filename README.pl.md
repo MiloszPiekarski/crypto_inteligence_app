@@ -10,8 +10,10 @@ Otwarta platforma analityczna rynku kryptowalut: agenci analityczni, prognozy ro
 w Forecast Ledger, kalibracja i samouczenie z twardymi granicami, a w dalszych etapach
 bot handlowy w trybach o rosnącej autonomii.
 
-> **Status:** etap **E1** (repozytorium, standardy, CI, sekrety). Funkcje pojawiają się
-> zgodnie z roadmapą E0–E18; każdy etap kończy się bramką jakości sprawdzaną automatycznie.
+> **Status:** etapy **E0–E2** zakończone (bramki G0–G2 zaliczone: konta i narzędzia;
+> repozytorium, CI i sekrety; architektura szczegółowa, model danych i kontrakty). Następny:
+> **E3** (infrastruktura bazowa). Funkcje pojawiają się zgodnie z roadmapą E0–E18; każdy etap
+> kończy się bramką jakości sprawdzaną automatycznie. Bieżący stan: `docs/stan-pracy.md`.
 
 ## Struktura
 
@@ -19,14 +21,16 @@ bot handlowy w trybach o rosnącej autonomii.
 apps/web/              Next.js (frontend)
 services/platform/     pakiet Python `goatcash` (api, worker, ingest, scheduler)
 services/executor/     executor bota (osobny obraz, osobne sekrety)
-packages/contracts/    OpenAPI, JSON Schema zdarzeń, klient TS (od E2)
+packages/contracts/    OpenAPI, JSON Schema zdarzeń, kontrakt Evidence, klient TS
 ml/                    trening i notatniki (bez danych)
 prompts/               prompty LLM z wersjami
 infra/terraform/       Oracle, Cloudflare (od E3)
 infra/ansible/         konfiguracja serwerów (od E3)
 infra/compose/         Docker Compose dla dev, staging, prod (od E3)
 infra/secrets/         pliki *.enc.yaml zaszyfrowane SOPS + age
-docs/adr/              decyzje architektoniczne
+docs/adr/              decyzje architektoniczne (ADR-0001…0006)
+docs/architektura/     model zagrożeń (STRIDE) i diagramy C4
+docs/wymagania.yaml    wymagania funkcjonalne i niefunkcjonalne
 docs/gates/            raporty bramek jakości
 tests/e2e/             Playwright (od E12)
 .github/workflows/     CI/CD
@@ -42,7 +46,18 @@ make lint        # ruff + Biome
 make typecheck   # pyright (strict) + tsc
 make imports     # granice modułów (import-linter)
 make test        # pytest z pokryciem + vitest
-make gate G=1    # testy automatyczne bramki G1, raport w reports/gates/
+make gate G=1    # testy automatyczne bramki (G=1, G=2, ...), raport w reports/gates/
+```
+
+Kontrakty i baza (bramka G2; migracje wymagają włączonego Docker Desktop):
+
+```bash
+make db-migration-test   # Alembic upgrade/downgrade na Postgresie 17 + TimescaleDB
+make event-schemas-test  # JSON Schema zdarzeń: poprawne przykłady przechodzą, błędne nie
+make evidence-test       # kontrakt Evidence v1
+make openapi-lint        # OpenAPI zgodne z aplikacją, Spectral, klient TS aktualny
+make openapi             # regeneracja OpenAPI i klienta TS po zmianie API
+make requirements-check  # każde wymaganie ma ID, etap, bramkę i mierzalny próg
 ```
 
 ## Bezpieczeństwo
