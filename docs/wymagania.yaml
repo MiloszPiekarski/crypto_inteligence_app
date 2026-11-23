@@ -1,0 +1,302 @@
+# Wymagania funkcjonalne (F-xx) i niefunkcjonalne (NF-xx) GoatCash (roadmapa E2).
+#
+# Źródło: wiersze „Rezultat”, zakres prac i bramki etapów w docs/dokumentacja/roadmapa.md
+# oraz kryteria bramek w docs/dokumentacja/testy.md. Każde wymaganie ma: identyfikator,
+# etap realizacji, bramkę, która je sprawdza, sposób pomiaru i próg (z liczbą).
+# Kompletność sprawdza `make requirements-check` (scripts/check_requirements.py, bramka G2).
+# Zmiana wymagania = PR z aktualizacją tego pliku; identyfikatorów nie używamy ponownie.
+# `source: roadmapa` = próg wprost z roadmapy/testy.md; `source: doprecyzowanie` = próg
+# doprecyzowany w E2 tam, gdzie roadmapa podaje kryterium bez liczby (do akceptacji właściciela
+# w PR; zmiana progu wymaga zmiany tego pliku). Etap bez bramki w testy.md (E17): gate: null.
+
+functional:
+  - id: F-01
+    stage: E3
+    title: Odtwarzalne środowisko uruchomieniowe (Terraform, Ansible, Docker Compose)
+    measure: ćwiczenie odtworzenia środowiska od zera ze skryptów
+    target: odtworzenie w czasie < 30 min
+    gate: G3
+    source: roadmapa
+  - id: F-02
+    stage: E3
+    title: Kopie zapasowe bazy na R2 z odtwarzaniem
+    measure: odtworzenie kopii do czystej instancji i porównanie liczby wierszy
+    target: 100% tabel odtworzonych, 1 udane ćwiczenie na etap
+    gate: G3
+    source: doprecyzowanie
+  - id: F-03
+    stage: E3
+    title: Monitoring i alerty infrastruktury (OTel, Grafana, Better Stack)
+    measure: wywołanie testowej awarii usługi
+    target: alert dostarczony w ≤ 5 min
+    gate: G3
+    source: doprecyzowanie
+  - id: F-04
+    stage: E4
+    title: Pobieranie świec i danych pochodnych z giełd (adaptery, proces ingest, historia)
+    measure: odsetek oczekiwanych świec zapisanych w bazie
+    target: kompletność ≥ 99,9%
+    gate: G4
+    source: roadmapa
+  - id: F-05
+    stage: E4
+    title: Data Quality Sentinel wykrywający błędne dane
+    measure: dane z wstrzykniętymi błędami (luki, skoki, duplikaty)
+    target: wykrycie ≥ 95% wstrzykniętych błędów
+    gate: G4
+    source: roadmapa
+  - id: F-06
+    stage: E4
+    title: Cena referencyjna aktywa (mediana giełd) i ciągła praca ingestu
+    measure: praca ingestu bez ręcznej interwencji
+    target: 72 h bez interwencji
+    gate: G4
+    source: roadmapa
+  - id: F-07
+    stage: E5
+    title: Point-in-time feature store (cechy z as_of i data_cutoff)
+    measure: test wycieku informacji z przyszłości na wszystkich cechach
+    target: 100% cech bez wycieku
+    gate: G5
+    source: roadmapa
+  - id: F-08
+    stage: E5
+    title: Zgodność cech liczonych na żywo z powtórką historyczną
+    measure: porównanie cech live i replay dla tych samych chwil
+    target: 0 różnic powyżej tolerancji 1e-9
+    gate: G5
+    source: doprecyzowanie
+  - id: F-09
+    stage: E6
+    title: API v1 zgodne ze specyfikacją OpenAPI
+    measure: Schemathesis na wszystkich endpointach
+    target: 0 odpowiedzi niezgodnych ze schematem, 0 błędów 500
+    gate: G6
+    source: roadmapa
+  - id: F-10
+    stage: E6
+    title: Konta użytkowników (e-mail i hasło, Google, TOTP, passkeys) i role
+    measure: testy E2E przepływów kont i testy autoryzacji każdego endpointu
+    target: 100% przepływów przechodzi, 0 IDOR
+    gate: G6
+    source: roadmapa
+  - id: F-11
+    stage: E6
+    title: Limity zapytań i dziennik audytu
+    measure: seria zapytań ponad limit (k6)
+    target: 429 po przekroczeniu w 100% prób
+    gate: G6
+    source: roadmapa
+  - id: F-12
+    stage: E7
+    title: Agenci analityczni publikujący dowody Evidence v1
+    measure: walidacja każdego dowodu kontraktem i ciągłość publikacji
+    target: 100% dowodów zgodnych, 14 dni bez luk
+    gate: G7
+    source: roadmapa
+  - id: F-13
+    stage: E7
+    title: Forecast Ledger rozliczający prognozy agentów
+    measure: porównanie wyników Ledgera z ręcznym przeliczeniem na próbce
+    target: 0 różnic na 100 losowych prognozach
+    gate: G7
+    source: doprecyzowanie
+  - id: F-14
+    stage: E8
+    title: Modele ML (kierunek i kwantyle) z rejestrem i monitoringiem dryfu
+    measure: raport walk-forward i test odtwarzalności treningu
+    target: 2 treningi z tym samym ziarnem dają identyczne metryki, 0 wycieku
+    gate: G8
+    source: doprecyzowanie
+  - id: F-15
+    stage: E9
+    title: Fuzja dowodów w ocenę aktywa z kalibracją
+    measure: Brier score fuzji i najlepszego pojedynczego agenta na tym samym okresie
+    target: Brier fuzji − Brier najlepszego agenta ≤ 0
+    gate: G9
+    source: roadmapa
+  - id: F-16
+    stage: E9
+    title: Risk Governor z regułami weta i jawnym „nie rób nic”
+    measure: testy reguł weta
+    target: 100% reguł pokrytych testami
+    gate: G9
+    source: roadmapa
+  - id: F-17
+    stage: E9
+    title: Indeks Gotowości 0–100 i Radar okazji
+    measure: ablacje składników indeksu
+    target: raport ablacji dla 100% składników
+    gate: G9
+    source: roadmapa
+  - id: F-18
+    stage: E10
+    title: Narracje LLM zgodne z danymi
+    measure: walidator liczb na zbiorze ewaluacyjnym narracji
+    target: 0 niezgodnych liczb na 500 narracjach
+    gate: G10
+    source: roadmapa
+  - id: F-19
+    stage: E10
+    title: Klasyfikator newsów i agent sentymentu
+    measure: F1 na zbiorze ewaluacyjnym w porównaniu z FinBERT
+    target: wynik ≥ FinBERT + 5 pp.
+    gate: G10
+    source: roadmapa
+  - id: F-20
+    stage: E10
+    title: Odporność warstwy LLM na awarie dostawców
+    measure: test awarii dostawcy głównego i zapasowego
+    target: 100% narracji z modelu zapasowego albo szablonu, 0 pustych odpowiedzi
+    gate: G10
+    source: doprecyzowanie
+  - id: F-21
+    stage: E10a
+    title: Agent Zdarzeń z weryfikacją i oceną wpływu
+    measure: zdarzenia potwierdzone przez system porównane z rzeczywistością
+    target: 0 fałszywych zdarzeń potwierdzonych
+    gate: G10a
+    source: roadmapa
+  - id: F-22
+    stage: E11
+    title: Backtesting strategii z modelem kosztów
+    measure: wyniki 5 strategii referencyjnych porównane z niezależnym przeliczeniem
+    target: 5 z 5 strategii zgodnych
+    gate: G11
+    source: roadmapa
+  - id: F-23
+    stage: E11
+    title: Ochrona przed przeuczeniem w backtestach (walk-forward, DSR, PBO)
+    measure: test pułapki (strategia dopasowana do szumu)
+    target: 100% pułapek oznaczonych jako przeuczone
+    gate: G11
+    source: doprecyzowanie
+  - id: F-24
+    stage: E11a
+    title: Pętla samouczenia z granicami i automatycznym powrotem
+    measure: testy granic uczenia i powrotu do poprzedniej polityki
+    target: 0 naruszeń granic, powrót w 100% przypadków pogorszenia
+    gate: G11a
+    source: doprecyzowanie
+  - id: F-25
+    stage: E12
+    title: Aplikacja web (PL i EN, tryb ciemny i jasny, PWA) odpowiadająca na pytania z wizji
+    measure: testy użyteczności z użytkownikami
+    target: 5 z 5 zadań kluczowych wykonanych
+    gate: G12
+    source: roadmapa
+  - id: F-26
+    stage: E12
+    title: Wydajność i jakość frontendu
+    measure: Lighthouse na kluczowych widokach
+    target: wynik ≥ 90 we wszystkich kategoriach
+    gate: G12
+    source: roadmapa
+  - id: F-27
+    stage: E13
+    title: Alerty (e-mail, Telegram, Web Push, w aplikacji) dostarczane dokładnie raz
+    measure: test dostarczeń z powtórzeniami i awarią konsumenta
+    target: 0 duplikatów i 0 zgubionych, p95 dostarczenia ≤ 60 s
+    gate: G13
+    source: roadmapa
+  - id: F-28
+    stage: E14
+    title: Bot w trybie paper zgodny z backtestem
+    measure: porównanie wyników paper i backtestu na tym samym okresie
+    target: różnica < 1%
+    gate: G14a
+    source: roadmapa
+  - id: F-29
+    stage: E14
+    title: Bot na testnecie z uzgadnianiem stanu i kill switchem
+    measure: 30 dni testnetu, testy chaosu, pomiar zatrzymania
+    target: 0 rozbieżności przez 30 dni, kill switch ≤ 5 s
+    gate: G14b
+    source: roadmapa
+  - id: F-30
+    stage: E14
+    title: Bezpieczeństwo kluczy giełd użytkowników
+    measure: próby odczytu kluczy z API, logów i pamięci workera, klucz z prawem wypłat
+    target: 0 udanych prób, 100% kluczy z prawem wypłat odrzuconych
+    gate: G14b
+    source: roadmapa
+  - id: F-31
+    stage: E14
+    title: Bot w trybie live (zamknięta beta)
+    measure: incydenty krytyczne w becie live
+    target: 30 dni bez incydentu krytycznego
+    gate: G14c
+    source: roadmapa
+  - id: F-32
+    stage: E15
+    title: Audyt bezpieczeństwa i ćwiczenie odtworzenia po awarii
+    measure: audyt OWASP ASVS L2 i ćwiczenie DR
+    target: 0 ustaleń wysokich, RTO ≤ 4 h w ćwiczeniu
+    gate: G15
+    source: roadmapa
+  - id: F-33
+    stage: E16
+    title: Publiczne uruchomienie (beta, strona statusu, publiczny Ledger)
+    measure: dostępność w becie i lista gotowości
+    target: 30 dni bety, dostępność ≥ 99,5%, lista gotowości 100%
+    gate: G16
+    source: roadmapa
+  - id: F-34
+    stage: E17
+    title: Rytm operacyjny i raport miesięczny kosztów i jakości
+    measure: raporty miesięczne w repozytorium
+    target: 1 raport na każdy miesiąc utrzymania
+    gate: null
+    source: roadmapa
+  - id: F-35
+    stage: E18
+    title: Skaner tokenów Solana z oceną ryzyka 0–100
+    measure: odczyt posiadaczy porównany z eksploratorem, kalibracja oceny
+    target: zgodność na 50 tokenach, zużycie kredytów RPC < 80%
+    gate: G18
+    source: roadmapa
+
+# Przepisane z tabeli „Wymagania niefunkcjonalne (wyciąg)” roadmapy E2.
+non_functional:
+  - id: NF-01
+    title: Świeżość analizy 1 h
+    measure: metryka analysis_lag_seconds
+    target: ≤ 3 min po zamknięciu świecy dla 95% aktywów
+    gate: G15
+    source: roadmapa
+  - id: NF-02
+    title: Czas odpowiedzi API
+    measure: k6, Grafana
+    target: p95 ≤ 300 ms z cache, ≤ 1 s bez cache
+    gate: G15
+    source: roadmapa
+  - id: NF-03
+    title: Dostępność
+    measure: Better Stack
+    target: 99,5% w becie, 99,9% po GA
+    gate: G16
+    source: roadmapa
+  - id: NF-04
+    title: Kopie zapasowe i odtworzenie
+    measure: ćwiczenie odtworzenia w E15
+    target: RPO 24 h w budowie, 1 h po GA; RTO 4 h
+    gate: G15
+    source: roadmapa
+  - id: NF-05
+    title: Bezpieczeństwo aplikacji
+    measure: lista kontrolna OWASP ASVS w E15
+    target: zgodność z ASVS poziom 2, 0 ustaleń wysokich
+    gate: G15
+    source: roadmapa
+  - id: NF-06
+    title: Dostępność UI
+    measure: axe w Playwright
+    target: WCAG 2.2 AA, 0 naruszeń krytycznych
+    gate: G12
+    source: doprecyzowanie
+  - id: NF-07
+    title: Opóźnienie i uzgadnianie stanu bota
+    measure: metryki executora
+    target: od decyzji do zlecenia ≤ 5 s; uzgadnianie stanu co 15 s
+    gate: G14b
+    source: roadmapa
