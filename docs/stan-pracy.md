@@ -77,6 +77,8 @@ Decyzje właściciela do planu (22.11.2026):
 - Progi `source: doprecyzowanie` w `docs/wymagania.yaml` zaakceptowane lub zmienione przez
   właściciela 23.11.2026 (pole `accepted` i `note`, wymagane przez `make requirements-check`);
   F-23 rozdzielone na F-23 (pułapka z przyszłą ceną) i F-36 (przeuczenie: DSR/PBO).
+- NF-06: `source: roadmapa` (WCAG 2.2 AA oznacza w axe 0 critical i 0 serious); wiersz
+  „Dostępność UI” w `testy.md` ujednolicony.
 - Zgłoszenie #25 (`tech-debt`): brak ponowień `curl` w `install-tools.sh` (403 z GitHub
   Releases w CI).
 - Ryzyko przyjęte (G2.md): PR może zmienić `ci.yml`; ochrona przez przegląd `.github/`,
