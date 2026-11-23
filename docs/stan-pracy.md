@@ -30,7 +30,7 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 | 6   | `feat/E2-openapi`          | szkic OpenAPI 3.1 z FastAPI `/v1`, Spectral w CI, klient TS w `packages/contracts`           | ✅ (PR #36) |
 | 7   | `docs/E2-wymagania`        | F-xx i NF-xx w `docs/wymagania.yaml` + skrypt kompletności                                   | ✅ (PR #40) |
 | 8   | `docs/E2-stride`           | model zagrożeń STRIDE: API, executor, panel administratora                                   | ⏳          |
-| 9   | `docs/E2-c4`               | diagram C4 (kontekst, kontenery) w Mermaid                                                   | ⬜          |
+| 9   | `docs/E2-c4`               | diagram C4 (kontekst, kontenery) w Mermaid                                                   | ⏳          |
 | 10a | `ci/E2-gate-guard-target`  | luka: PR może podmienić `gate-guard.yml`; naprawa przed zaliczeniem G2                       | ⬜          |
 | 10  | `docs/E2-g2`               | bramka na `main`, raport `G2.md`, `G2.passed.json`                                           | ⬜          |
 
