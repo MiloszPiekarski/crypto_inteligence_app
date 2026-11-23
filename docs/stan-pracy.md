@@ -16,7 +16,12 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
   - Wymagane checki `main`: `ci-ok` (od teraz z bramkami G1 i G2) i `gate-guard`
     (przez `pull_request_target`, z `main`).
 - **Następny etap: E3** (infrastruktura bazowa; wymaga G2). Zaczynamy w nowej rozmowie
-  od zakresu E3 w `docs/dokumentacja/roadmapa.md`, z planem małych PR-ów jak w E2.
+  promptem z `docs/start-nowej-rozmowy.md`, z planem małych PR-ów jak w E2.
+- **Do uwzględnienia w planie E3** (wynik przeglądu E2):
+  - obraz platformy nie zawiera `alembic.ini`, więc migracji nie da się uruchomić z obrazu
+    (potrzebne do wdrożenia w E3);
+  - model `Evidence` w FastAPI nie jest generowany z JSON Schema; zgodność pilnują tylko
+    testy na przykładach kontraktu (do rozważenia generowanie albo test strukturalny).
 
 ## Plan E2 (zrealizowany; PR-y z etykietą `E2`, jedna rzecz na PR)
 
@@ -55,16 +60,23 @@ Decyzje właściciela do planu (22.11.2026):
   (osobny PR E0, klucze tylko do odczytu w `.env.local`); Resend ma na razie tylko konto,
   domena `goatcash.app` w Resend, klucz API i sprawdzenie dochodzą w E13 (do tego czasu ⚠️).
 - Sentry na koncie prywatnym: przepiąć na konto projektu w E3/E6.
-- Opcjonalnie: usunąć stary ruleset „Protect main” (zastąpiony przez `main-protection`).
+- Stary ruleset „Protect main” (id 27548795) nadal aktywny; do usunięcia przez właściciela
+  (zastąpiony przez `main-protection`).
+- Do potwierdzenia przez właściciela: ustawienia Actions („Require approval for all external
+  contributors”, „Require actions to be pinned to a full-length commit SHA”) i wygląd
+  diagramów `docs/architektura/c4.md` na GitHubie.
 - Nowy klucz Anthropic przed 19.02.2027.
-- Graphify przy PR #12 zgłosił 18 „możliwych problemów”; przejrzane tylko 3 widoczne
-  (panel Graphify jest dla właściciela niedostępny).
+- Graphify: uwagi z PR #12 i #13 przejrzane przez konektor 23.11.2026 (Graphify udostępnia
+  5 najważniejszych z 18; triaż w rozmowie o domknięciu E2, drobiazgi jako zgłoszenia
+  `tech-debt`). Limit przeglądów Graphify (10/miesiąc) wyczerpany na E1: PR-y E2 nie miały
+  przeglądu Graphify; odnowienie 1.12.2026.
 - Atrybucja „Data by CoinGecko” w interfejsie: w E12.
 - Logo w README (PR #28, poza planem E2, zgłoszone przez właściciela).
 - Migracja 0001 (PR 3): `make db-migration-test` wymaga Dockera (u właściciela Docker Desktop,
   w CI job G2 na ubuntu); w `make test` test migracji jest wyłączony markerem `migration`.
 - Do akceptacji właściciela: progi oznaczone `source: doprecyzowanie` w `docs/wymagania.yaml`
-  (9 pozycji, gdzie roadmapa podaje kryterium bez liczby).
+  (F-02, F-03, F-08, F-13, F-14, F-20, F-23, F-24, NF-06; roadmapa podaje tam kryterium bez
+  liczby). Po akceptacji: zmiana na `source: roadmapa` albo nowy próg w osobnym PR.
 - Zgłoszenie #25 (`tech-debt`): brak ponowień `curl` w `install-tools.sh` (403 z GitHub
   Releases w CI).
 - Ryzyko przyjęte (G2.md): PR może zmienić `ci.yml`; ochrona przez przegląd `.github/`,
