@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 G ?=
 
-.PHONY: help install tools dev lint audit fmt typecheck imports test build secrets-scan doctor gate
+.PHONY: help install tools dev lint audit fmt typecheck imports test db-migration-test build secrets-scan doctor gate
 
 help: ## Lista komend
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -42,6 +42,9 @@ imports: ## Granice modułów (import-linter)
 test: ## Testy jednostkowe z pokryciem
 	uv run pytest --cov --cov-report=term --cov-report=xml
 	pnpm test
+
+db-migration-test: ## Migracje w obie strony na czystym Postgresie z Timescale (Docker; bramka G2)
+	uv run pytest -m migration services/platform/tests/migrations
 
 build: ## Build frontendu
 	pnpm build
