@@ -10,8 +10,10 @@ An open crypto market intelligence platform: analytical agents, forecasts settle
 Forecast Ledger, calibration and self-learning within hard limits, and, in later stages, a
 trading bot with gradually increasing autonomy.
 
-> **Status:** stage **E1** (repository, standards, CI, secrets). Features arrive according
-> to the E0–E18 roadmap; every stage ends with a quality gate that is checked automatically.
+> **Status:** stages **E0–E2** are complete (gates G0–G2 passed: accounts and tools;
+> repository, CI and secrets; detailed architecture, data model and contracts). Next: **E3**
+> (base infrastructure). Features arrive according to the E0–E18 roadmap; every stage ends
+> with a quality gate that is checked automatically. Current state: `docs/stan-pracy.md`.
 
 ## Layout
 
@@ -19,14 +21,16 @@ trading bot with gradually increasing autonomy.
 apps/web/              Next.js (frontend)
 services/platform/     Python package `goatcash` (api, worker, ingest, scheduler)
 services/executor/     trading bot executor (separate image, separate secrets)
-packages/contracts/    OpenAPI, event JSON Schemas, TS client (from E2)
+packages/contracts/    OpenAPI, event JSON Schemas, Evidence contract, TS client
 ml/                    training and notebooks (no data)
 prompts/               versioned LLM prompts
 infra/terraform/       Oracle, Cloudflare (from E3)
 infra/ansible/         server configuration (from E3)
 infra/compose/         Docker Compose for dev, staging, prod (from E3)
 infra/secrets/         *.enc.yaml files encrypted with SOPS + age
-docs/adr/              architecture decision records
+docs/adr/              architecture decision records (ADR-0001…0006)
+docs/architektura/     threat model (STRIDE) and C4 diagrams
+docs/wymagania.yaml    functional and non-functional requirements
 docs/gates/            quality gate reports
 tests/e2e/             Playwright (from E12)
 .github/workflows/     CI/CD
@@ -42,7 +46,18 @@ make lint        # ruff + Biome
 make typecheck   # pyright (strict) + tsc
 make imports     # module boundaries (import-linter)
 make test        # pytest with coverage + vitest
-make gate G=1    # automated checks of gate G1, report in reports/gates/
+make gate G=1    # automated checks of a gate (G=1, G=2, ...), report in reports/gates/
+```
+
+Contracts and database (gate G2; migrations need Docker Desktop running):
+
+```bash
+make db-migration-test   # Alembic upgrade/downgrade on Postgres 17 + TimescaleDB
+make event-schemas-test  # event JSON Schemas: valid examples pass, invalid are rejected
+make evidence-test       # Evidence v1 contract
+make openapi-lint        # OpenAPI matches the app, Spectral, TS client up to date
+make openapi             # regenerate OpenAPI and the TS client after an API change
+make requirements-check  # every requirement has an ID, stage, gate and measurable target
 ```
 
 ## Security
