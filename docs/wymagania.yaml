@@ -6,8 +6,9 @@
 # Kompletność sprawdza `make requirements-check` (scripts/check_requirements.py, bramka G2).
 # Zmiana wymagania = PR z aktualizacją tego pliku; identyfikatorów nie używamy ponownie.
 # `source: roadmapa` = próg wprost z roadmapy/testy.md; `source: doprecyzowanie` = próg
-# doprecyzowany w E2 tam, gdzie roadmapa podaje kryterium bez liczby (do akceptacji właściciela
-# w PR; zmiana progu wymaga zmiany tego pliku). Etap bez bramki w testy.md (E17): gate: null.
+# doprecyzowany albo zmieniony względem roadmapy; wymaga `accepted: <data>` (akceptacja
+# właściciela) i `note` z wyjaśnieniem, czym różni się od roadmapy (złagodzenie, zaostrzenie,
+# nowa liczba). Etap bez bramki w testy.md (E17): gate: null.
 
 functional:
   - id: F-01
@@ -19,18 +20,20 @@ functional:
     source: roadmapa
   - id: F-02
     stage: E3
-    title: Kopie zapasowe bazy na R2 z odtwarzaniem
-    measure: odtworzenie kopii do czystej instancji i porównanie liczby wierszy
-    target: 100% tabel odtworzonych, 1 udane ćwiczenie na etap
+    title: Kopie zapasowe bazy na R2 z automatycznym testem odtworzenia
+    measure: cotygodniowy automatyczny test odtworzenia kopii do czystej instancji (testy.md, pipeline krok 7)
+    target: 100% tabel ze zgodną liczbą wierszy i sumą kontrolną zawartości; RPO ≤ 24 h, RTO ≤ 4 h (NF-04)
     gate: G3
     source: doprecyzowanie
+    accepted: 2026-11-23
+    note: tygodniowy test i RPO/RTO z testy.md i NF-04; zgodność sumy kontrolnej to doprecyzowanie kryterium „udane odtworzenie kopii” z G3
   - id: F-03
     stage: E3
     title: Monitoring i alerty infrastruktury (OTel, Grafana, Better Stack)
-    measure: wywołanie testowej awarii usługi
-    target: alert dostarczony w ≤ 5 min
+    measure: sztuczne zapełnienie dysku i zatrzymanie kontenera (tabela testów E3, wiersz „Alerty”)
+    target: powiadomienie w < 5 min dla każdego scenariusza
     gate: G3
-    source: doprecyzowanie
+    source: roadmapa
   - id: F-04
     stage: E4
     title: Pobieranie świec i danych pochodnych z giełd (adaptery, proces ingest, historia)
@@ -62,10 +65,12 @@ functional:
   - id: F-08
     stage: E5
     title: Zgodność cech liczonych na żywo z powtórką historyczną
-    measure: porównanie cech live i replay dla tych samych chwil
-    target: 0 różnic powyżej tolerancji 1e-9
+    measure: 7 dni cech na żywo porównane z odtworzeniem tych dni z historii (tabela testów E5)
+    target: 0 różnic powyżej tolerancji względnej 1e-9 w okresie 7 dni
     gate: G5
     source: doprecyzowanie
+    accepted: 2026-11-23
+    note: jawne złagodzenie roadmapy (E5 wymaga „identycznych wartości”, bit w bit) do tolerancji względnej 1e-9 na różnice zmiennoprzecinkowe
   - id: F-09
     stage: E6
     title: API v1 zgodne ze specyfikacją OpenAPI
@@ -101,13 +106,15 @@ functional:
     target: 0 różnic na 100 losowych prognozach
     gate: G7
     source: doprecyzowanie
+    accepted: 2026-11-23
+    note: roadmapa (G7) wymaga zgodności Ledgera z ręcznym przeliczeniem bez wielkości próby; 100 prognoz to doprecyzowanie
   - id: F-14
     stage: E8
     title: Modele ML (kierunek i kwantyle) z rejestrem i monitoringiem dryfu
-    measure: raport walk-forward i test odtwarzalności treningu
-    target: 2 treningi z tym samym ziarnem dają identyczne metryki, 0 wycieku
+    measure: dwa treningi z tym samym hashem danych i seedem; test z cechą-pułapką zawierającą przyszły zwrot (tabela testów E8)
+    target: 2 z 2 treningów dają identyczne predykcje; cecha-pułapka wykryta i odrzucona w 100% prób
     gate: G8
-    source: doprecyzowanie
+    source: roadmapa
   - id: F-15
     stage: E9
     title: Fuzja dowodów w ocenę aktywa z kalibracją
@@ -146,10 +153,10 @@ functional:
   - id: F-20
     stage: E10
     title: Odporność warstwy LLM na awarie dostawców
-    measure: test awarii dostawcy głównego i zapasowego
-    target: 100% narracji z modelu zapasowego albo szablonu, 0 pustych odpowiedzi
+    measure: symulacja 500, timeoutu i 429 u głównego dostawcy (Toxiproxy, mock; tabela testów E10)
+    target: 0 błędów u użytkownika w 3 z 3 scenariuszy (przełączenie na zapas, w ostateczności szablon)
     gate: G10
-    source: doprecyzowanie
+    source: roadmapa
   - id: F-21
     stage: E10a
     title: Agent Zdarzeń z weryfikacją i oceną wpływu
@@ -166,18 +173,20 @@ functional:
     source: roadmapa
   - id: F-23
     stage: E11
-    title: Ochrona przed przeuczeniem w backtestach (walk-forward, DSR, PBO)
-    measure: test pułapki (strategia dopasowana do szumu)
-    target: 100% pułapek oznaczonych jako przeuczone
+    title: Brak zaglądania w przyszłość w silniku backtestów
+    measure: strategia-pułapka używająca przyszłej ceny (tabela testów E11, G11)
+    target: błąd silnika w 100% przypadków
     gate: G11
-    source: doprecyzowanie
+    source: roadmapa
   - id: F-24
     stage: E11a
     title: Pętla samouczenia z granicami i automatycznym powrotem
-    measure: testy granic uczenia i powrotu do poprzedniej polityki
-    target: 0 naruszeń granic, powrót w 100% przypadków pogorszenia
+    measure: wymuszony spadek wyniku aktywnej polityki; próba zapisu limitów ryzyka z modułu learning (import-linter i użytkownik bazy bez prawa zapisu do tabel limitów)
+    target: pogorszenie = spadek Sharpe po kosztach aktywnej polityki o ≥ 30% względem poprzedniej wersji w oknie kroczącym 14 dni (min. 30 transakcji); powrót w ≤ 1 cykl z alertem w 100% przypadków; 0 udanych zapisów limitów (odmowa i wpis w audycie)
     gate: G11a
     source: doprecyzowanie
+    accepted: 2026-11-23
+    note: liczbowa definicja „pogorszenia” (metryka, okno, próg) to doprecyzowanie; test granic i powrót w ≤ 1 cykl z roadmapy E11a
   - id: F-25
     stage: E12
     title: Aplikacja web (PL i EN, tryb ciemny i jasny, PWA) odpowiadająca na pytania z wizji
@@ -255,6 +264,15 @@ functional:
     target: zgodność na 50 tokenach, zużycie kredytów RPC < 80%
     gate: G18
     source: roadmapa
+  - id: F-36
+    stage: E11
+    title: Ochrona przed przeuczeniem w backtestach (walk-forward, DSR, PBO)
+    measure: ≥ 20 strategii dopasowanych do szumu oraz 5 strategii referencyjnych
+    target: DSR/PBO oznacza 100% strategii szumowych jako przeuczone i 0 z 5 referencyjnych (brak fałszywego alarmu)
+    gate: G11
+    source: doprecyzowanie
+    accepted: 2026-11-23
+    note: wydzielone z F-23 na prośbę właściciela; roadmapa (E11, punkt 5) wymaga DSR i PBO bez progów liczbowych
 
 # Przepisane z tabeli „Wymagania niefunkcjonalne (wyciąg)” roadmapy E2.
 non_functional:
@@ -290,10 +308,12 @@ non_functional:
     source: roadmapa
   - id: NF-06
     title: Dostępność UI
-    measure: axe w Playwright
-    target: WCAG 2.2 AA, 0 naruszeń krytycznych
+    measure: skan axe-core każdego widoku (Playwright)
+    target: WCAG 2.2 AA, 0 naruszeń critical i 0 serious
     gate: G12
     source: doprecyzowanie
+    accepted: 2026-11-23
+    note: "zaostrzenie względem testy.md (tam „0 naruszeń krytycznych”): dodane 0 naruszeń serious"
   - id: NF-07
     title: Opóźnienie i uzgadnianie stanu bota
     measure: metryki executora

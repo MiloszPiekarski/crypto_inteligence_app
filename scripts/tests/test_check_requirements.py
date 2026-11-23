@@ -28,7 +28,8 @@ GOOD: dict[str, Any] = {
         {"id": "F-02", "stage": "E14", "title": "t", "measure": "m", "target": "≤ 5 s",
          "gate": "G14b", "source": "roadmapa"},
         {"id": "F-03", "stage": "E17", "title": "t", "measure": "m", "target": "1 raport",
-         "gate": None, "source": "doprecyzowanie"},
+         "gate": None, "source": "doprecyzowanie", "accepted": "2026-11-23",
+         "note": "próg doprecyzowany"},
     ],
     "non_functional": [
         {"id": "NF-01", "title": "t", "measure": "m", "target": "p95 ≤ 300 ms",
@@ -77,6 +78,12 @@ def test_good_data_passes() -> None:
     assert cr.check(GOOD, ROADMAP, TESTS) == []
 
 
+def test_note_allowed_for_roadmap_source() -> None:
+    data = copy.deepcopy(GOOD)
+    data["functional"][0]["note"] = "wyjaśnienie"
+    assert cr.check(data, ROADMAP, TESTS) == []
+
+
 def test_repository_requirements_pass() -> None:
     data = yaml.safe_load(cr.REQUIREMENTS.read_text("utf-8"))
     roadmap = cr.ROADMAP.read_text("utf-8")
@@ -102,6 +109,11 @@ def test_repository_requirements_pass() -> None:
         (drop_nf, "NF-xx różne"),
         (setf(0, "gate", "G99", group="non_functional"), "nie istnieje w testy.md"),
         (drop_functional, "brak wymagań funkcjonalnych"),
+        (popf(2, "accepted"), "bez akceptacji"),
+        (setf(2, "accepted", "jutro"), "bez akceptacji"),
+        (popf(2, "note"), "bez wyjaśnienia"),
+        (setf(2, "note", " "), "bez wyjaśnienia"),
+        (setf(0, "accepted", "2026-11-23"), "accepted dotyczy tylko"),
     ],
 )
 def test_each_rule_catches_its_violation(change: Change, message: str) -> None:
