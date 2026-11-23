@@ -22,16 +22,16 @@ w pełni lokalny (G0).
 
 ### 1. Budżet zasobów Oracle (D2): wszystko w Always Free
 
-| Zasób                                | Ilość                     | Uwagi                                   |
-| ------------------------------------ | ------------------------- | --------------------------------------- |
-| VM Ampere A1 (arm64)                 | 1 × 2 OCPU / 12 GB        | roadmapa E3; serwer platformy           |
-| VM AMD `VM.Standard.E2.1.Micro`      | 1                         | executor (ADR-0006), zarezerwowane IP   |
-| Dysk startowy A1                     | 50 GB                     | minimum dysku startowego OCI to 50 GB   |
-| Dysk startowy mikro-VM               | 50 GB                     |                                         |
-| Wolumen danych A1 (Postgres, Valkey) | **100 GB** (roadmapa 150) | **jawne odstępstwo**, patrz niżej       |
-| Razem dyski                          | 200 GB                    | limit Always Free dla dysków (do potw.) |
-| Object Storage (stan Terraform)      | < 1 GB                    | bucket z wersjonowaniem                 |
-| OCI Vault                            | 1 klucz główny (AES)      | ADR-0006; wariant bez opłat (do potw.)  |
+| Zasób                                | Ilość                     | Uwagi                                    |
+| ------------------------------------ | ------------------------- | ---------------------------------------- |
+| VM Ampere A1 (arm64)                 | 1 × 2 OCPU / 12 GB        | roadmapa E3; serwer platformy            |
+| VM AMD `VM.Standard.E2.1.Micro`      | 1                         | executor (ADR-0006), zarezerwowane IP    |
+| Dysk startowy A1                     | 50 GB                     | minimum dysku startowego OCI to 50 GB    |
+| Dysk startowy mikro-VM               | 50 GB                     |                                          |
+| Wolumen danych A1 (Postgres, Valkey) | **100 GB** (roadmapa 150) | **jawne odstępstwo**, patrz niżej        |
+| Razem dyski                          | 200 GB                    | limit Always Free: 200 GB (potwierdzone) |
+| Object Storage (stan Terraform)      | < 1 GB                    | bucket z wersjonowaniem                  |
+| OCI Vault                            | 1 klucz główny (AES, HSM) | ADR-0006; vault typu DEFAULT, nie VPV    |
 
 **Odstępstwo od roadmapy:** wolumen danych 100 GB zamiast 150 GB. Przy 150 GB dyski
 razem miałyby ok. 250 GB i przekroczyły limit Always Free, co na koncie PAYG oznacza
@@ -39,13 +39,34 @@ opłatę. Kopie trafiają na R2 (nie na dysk), a dane rynkowe pojawią się dopi
 100 GB wystarcza na E3–E5; alert dysku > 80% (F-03) ostrzeże z wyprzedzeniem. Zwiększenie
 wolumenu w przyszłości to zmiana jednej wartości w Terraform i jawna decyzja kosztowa.
 
-**Źródła i to, czego nie udało się potwierdzić automatycznie:** dokumentacja OCI
-(„Getting Started with OCI Ampere A1 Compute for Free”: pierwsze 3000 OCPU-godzin
-i 18 000 GB-godzin A1 miesięcznie bez opłat; „Oracle Cloud Infrastructure Free Tier”:
-konto Always Free do 2 OCPU i 12 GB A1; „Creating an Instance”: dysk startowy od 50 GB).
-Strona z listą zasobów Always Free (limit 200 GB dysków, mikro-VM, Object Storage, Vault)
-zwraca automatom 404/403; **właściciel potwierdza te limity w konsoli lub na stronie Oracle
-przed pierwszym `terraform apply`** (wynik zapisujemy w raporcie `G3.md`).
+**Limity Always Free potwierdzone przez właściciela 23.11.2026** (strona
+https://www.oracle.com/cloud/free/, filtr „Always Free”; strona zwraca automatom 404/403,
+więc źródłem są zrzuty ekranu właściciela):
+
+| Usługa          | Limit Always Free (strona Oracle, 23.11.2026)                                 |
+| --------------- | ----------------------------------------------------------------------------- |
+| Arm (Ampere A1) | **1500 OCPU-godzin i 9000 GB-godzin miesięcznie** („1 VM or 2 VMs”, 12 GB)    |
+| AMD             | 2 maszyny (1/8 OCPU, 1 GB pamięci każda)                                      |
+| Block Volume    | dyski startowe i blokowe razem: do 2 wolumenów blokowych, 200 GB, 5 kopii     |
+| Object Storage  | 20 GB łącznie (standard, infrequent, archive), 50 000 zapytań API miesięcznie |
+| Vault           | 20 wersji kluczy HSM, 150 sekretów (vault typu DEFAULT)                       |
+| Bastions        | do 5 (awaryjny dostęp SSH bez publicznego portu; na razie nieużywane)         |
+
+**Korekta:** pierwsza wersja tego ADR podawała dla A1 3000 OCPU-godzin i 18 000 GB-godzin
+(dokumentacja OCI z Context7); aktualna strona Oracle podaje połowę. Wnioski:
+
+- maszyna A1 2 OCPU / 12 GB działająca bez przerwy w 31-dniowym miesiącu (744 h) zużywa
+  1488 OCPU-godzin i 8928 GB-godzin: **mieści się, ale na styk** (zapas 12 OCPU-h, 72 GB-h);
+- **w danej chwili może istnieć tylko jedna maszyna A1 2/12.** Odtworzenie od zera (F-01)
+  najpierw niszczy starą maszynę, potem tworzy nową; test odtworzenia kopii (F-02) nie
+  tworzy drugiej A1 obok działającej (odtwarza do kontenera na runnerze CI albo na tej
+  samej maszynie). Druga A1, choćby na godzinę, może przekroczyć limit miesięczny;
+- dyski: 50 + 50 + 100 = 200 GB to cały limit: żadnego dodatkowego wolumenu ani większego
+  dysku startowego bez decyzji kosztowej;
+- Vault: wyłącznie typ DEFAULT z kluczem HSM; „Virtual Private Vault” jest płatny
+  (polityka w PR z Vault Terraform).
+
+Dysk startowy od 50 GB: dokumentacja OCI „Creating an Instance”.
 
 **Twarda blokada kosztów:** oprócz alarmu 1 USD właściciel ustawia w konsoli **limity
 (quota policies) compartmentu `goatcash`** na poziomie Always Free (rdzenie i pamięć A1,
@@ -123,9 +144,11 @@ zostają na komputerze właściciela).
 
 - Roadmapa E3 i `testy.md` dostają przypis o wolumenie 100 GB (w PR z maszynami Terraform)
   oraz o dowodzie mieszanym (w PR z `gate_guard`).
-- Przed pierwszym `terraform apply` właściciel potwierdza limity Always Free i ustawia
-  limity compartmentu; asystent przedstawia wynik `terraform plan` (add / change / destroy)
-  i czeka na zgodę.
+- Limity Always Free potwierdzone 23.11.2026 (tabela w punkcie 1). Przed pierwszym
+  `terraform apply` właściciel ustawia limity compartmentu; asystent przedstawia wynik
+  `terraform plan` (add / change / destroy) i czeka na zgodę.
+- Skrypty odtworzenia (F-01) i testu kopii (F-02) muszą przestrzegać zasady „jedna A1
+  naraz” (punkt 1); sprawdza to przegląd PR z tymi skryptami.
 - Nowe sprawdzenia G3 w `gates/G3.yaml` muszą wskazywać źródło dowodu z tabeli wyżej.
 - STRIDE: aktualizacja wiersza administracji (SSH tylko przez Tailscale, klucz
   jednorazowy w metadanych) w PR z Ansible.
