@@ -48,8 +48,8 @@ Decyzje właściciela (23.11.2026, propozycje asystenta zaakceptowane bez zmian)
 | 0a  | `docs/E3-tryb-lokalny`             | tryb lokalny i zasada zgody na koszty w `CLAUDE.md`, blokady sesji, lekcja `push --delete` | ⏳          |
 | 0   | `feat/E0-doctor-r2-telegram`       | `doctor.sh`: R2 (lista bucketów) i Telegram (`getMe` + wiadomość); zamyka ⚠️ E0            | ⬜          |
 | 1   | `docs/E3-adr-infra`                | ADR-0007: D2–D6, model dowodu, budżet Always Free                                          | ✅ (PR #76) |
-| 2   | `ci/E3-bramka-g3`                  | `gates/G3.yaml` (czerwona), szkic `G3.md`, job G3 poza `ci-ok`                             | ⏳          |
-| 3   | `ci/E3-dowod-mieszany`             | `gate_pass.py`/`gate_guard.py`: dowód mieszany + testy obejścia                            | ⬜          |
+| 2   | `ci/E3-bramka-g3`                  | `gates/G3.yaml` (czerwona), szkic `G3.md`, job G3 poza `ci-ok`                             | ✅ (PR #78) |
+| 3   | `ci/E3-dowod-mieszany`             | `gate_pass.py`/`gate_guard.py`: dowód mieszany + testy obejścia, niezależna recenzja       | ⏳          |
 | 4   | `fix/E3-obraz-alembic`             | `alembic.ini` i migracje w obrazie; test `upgrade head` z obrazu                           | ⬜          |
 | 5   | `ci/E3-narzedzia-iac`              | Terraform, tflint, ansible-lint, trivy config w `make tools`/`audit`                       | ⬜          |
 | 6   | `feat/E3-tf-oci-siec`              | VCN, podsieci, Security Lists (443 tylko z Cloudflare, bez 22)                             | ⬜          |
