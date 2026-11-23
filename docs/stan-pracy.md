@@ -15,13 +15,56 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
   raport `docs/gates/G2.md`). Zasady współpracy z asystentem w `CLAUDE.md` (PR #16).
   - Wymagane checki `main`: `ci-ok` (od teraz z bramkami G1 i G2) i `gate-guard`
     (przez `pull_request_target`, z `main`).
-- **Następny etap: E3** (infrastruktura bazowa; wymaga G2). Zaczynamy w nowej rozmowie
-  promptem z `docs/start-nowej-rozmowy.md`, z planem małych PR-ów jak w E2.
+- **E3: w toku** (infrastruktura bazowa; wymaga G2, spełnione). Plan i decyzje niżej.
 - **Do uwzględnienia w planie E3** (wynik przeglądu E2):
   - obraz platformy nie zawiera `alembic.ini`, więc migracji nie da się uruchomić z obrazu
     (potrzebne do wdrożenia w E3);
   - model `Evidence` w FastAPI nie jest generowany z JSON Schema; zgodność pilnują tylko
     testy na przykładach kontraktu (do rozważenia generowanie albo test strukturalny).
+
+## Plan E3 (zaakceptowany 23.11.2026; PR-y z etykietą `E3`, jedna rzecz na PR)
+
+Decyzje właściciela (23.11.2026, propozycje asystenta zaakceptowane bez zmian):
+
+- **D1 tryb lokalny:** asystent pracuje w Claude Code na Macu właściciela, w `git worktree`,
+  na gałęziach `claude/E3-…`, z blokadami tylko w tym projekcie (`.claude/settings.local.json`,
+  poza git; `docs/start-nowej-rozmowy.md`, „Blokady sesji lokalnej”); właściciel commituje
+  podpisane, otwiera PR i scala. Komendy z kluczami chmury uruchamia właściciel.
+- **D2 dysk:** boot A1 50 GB + boot mikro-VM 50 GB + wolumen danych 100 GB = 200 GB
+  (limit Always Free); jawne odstępstwo od 150 GB z roadmapy, zapis w ADR-0007.
+- **D3 stan Terraform:** OCI Object Storage (Always Free), wersjonowanie i blokada stanu
+  (do weryfikacji w dokumentacji przed PR 6).
+- **D4 dowód G3 mieszany:** przebieg CI na `main` + przebiegi GitHub Actions z ID
+  sprawdzane przez `gate-guard` (deploy, test odtworzenia, nmap, Lynis) + lokalny raport
+  odtworzenia od zera z czasem; zmiana `gate_guard` z niezależnym recenzentem.
+- **D5 SSH tylko przez Tailscale** (22 zamknięty w Security List i `ufw`).
+- **D6 Lynis:** „0 Warnings” (doprecyzowanie z `accepted`).
+- **D7 Sentry:** przepięcie na konto projektu w E6.
+- **D8 Compose:** kontener `api` (obraz `platform`) dla `/health` i testu dymnego;
+  rekord `app.` bez backendu do E12.
+
+| #   | Gałąź                              | Zakres                                                                                     | Stan |
+| --- | ---------------------------------- | ------------------------------------------------------------------------------------------ | ---- |
+| 0a  | `docs/E3-tryb-lokalny`             | tryb lokalny i zasada zgody na koszty w `CLAUDE.md`, blokady sesji, lekcja `push --delete` | ⏳   |
+| 0   | `feat/E0-doctor-r2-telegram`       | `doctor.sh`: R2 (lista bucketów) i Telegram (`getMe` + wiadomość); zamyka ⚠️ E0            | ⬜   |
+| 1   | `docs/E3-adr-infra`                | ADR-0007: D2–D6, model dowodu, budżet Always Free                                          | ⬜   |
+| 2   | `ci/E3-bramka-g3`                  | `gates/G3.yaml` (czerwona), szkic `G3.md`, job G3 poza `ci-ok`                             | ⬜   |
+| 3   | `ci/E3-dowod-mieszany`             | `gate_pass.py`/`gate_guard.py`: dowód mieszany + testy obejścia                            | ⬜   |
+| 4   | `fix/E3-obraz-alembic`             | `alembic.ini` i migracje w obrazie; test `upgrade head` z obrazu                           | ⬜   |
+| 5   | `ci/E3-narzedzia-iac`              | Terraform, tflint, ansible-lint, trivy config w `make tools`/`audit`                       | ⬜   |
+| 6   | `feat/E3-tf-oci-siec`              | VCN, podsieci, Security Lists (443 tylko z Cloudflare, bez 22)                             | ⬜   |
+| 7   | `feat/E3-tf-oci-maszyny`           | A1 2/12, wolumen, mikro-VM, zarezerwowane IP                                               | ⬜   |
+| 8   | `feat/E3-tf-oci-vault`             | Vault, klucz główny, polityka instancji executora                                          | ⬜   |
+| 9   | `feat/E3-tf-cloudflare`            | `api.`/`app.`, proxy, SSL Full strict, WAF, limit zapytań, R2, Origin CA, tokeny           | ⬜   |
+| 10  | `feat/E3-ansible-hardening`        | użytkownik, SSH kluczem, fail2ban, aktualizacje, ufw, swap, journald; Molecule             | ⬜   |
+| 11  | `feat/E3-ansible-docker-tailscale` | Docker, Tailscale, ACL                                                                     | ⬜   |
+| 12  | `feat/E3-compose-staging`          | Postgres 17 + Timescale + pgvector, Valkey AOF, Caddy, otel, exportery, `api`              | ⬜   |
+| 13  | `feat/E3-pgbackrest`               | pełna/przyrostowa/WAL, szyfrowanie, retencja 30 dni; test w CI (MinIO, PITR, sumy)         | ⬜   |
+| 14  | `ci/E3-test-odtworzenia`           | cotygodniowe odtworzenie z R2 do czystej instancji, 100% tabel (F-02)                      | ⬜   |
+| 15  | `feat/E3-obserwowalnosc`           | OTel → Grafana Cloud, pulpity, 3 alerty, e-mail i Telegram, Better Stack                   | ⬜   |
+| 16  | `ci/E3-deploy-staging`             | `deploy-staging.yml`: Tailscale, cosign, pull/up, migracje, test dymny, rollback           | ⬜   |
+| 17  | `docs/E3-runbooki`                 | odtworzenie z kopii, rotacja sekretów, wymiana serwera                                     | ⬜   |
+| 18  | `docs/E3-g3`                       | bramka, raport, dowód, „Stan realizacji E3”, README, lekcje                                | ⬜   |
 
 ## Plan E2 (zrealizowany; PR-y z etykietą `E2`, jedna rzecz na PR)
 

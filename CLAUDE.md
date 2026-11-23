@@ -30,23 +30,33 @@ Procedura zmian:
    `cd ~/Documents/Millosz/crypto_app`), przy każdym kroku oczekiwany wynik i wyraźne punkty
    STOP („wklej mi wynik, jeszcze nie scalaj”). Wynik wklejony przez właściciela asystent
    sprawdza (najlepiej także przez API GitHuba), a nie przyjmuje na słowo.
-2. **Zmiany jako łatki:** asystent przygotowuje je w swoim klonie i wysyła plik `.patch`
-   (`git diff --binary`). Właściciel: `git apply --check … && git apply …`, commit podpisany
-   SSH, push, PR z etykietą etapu (`--label E<nr>`). Gałęzie `feat/`, `fix/`, `docs/`, `ci/`
-   - `E<nr>-<opis>`; commity: Conventional Commits po polsku; scalanie tylko squash.
-3. **Zanim asystent wyśle łatkę (bez wyjątków):**
+2. **Tryb lokalny (od 23.11.2026, decyzja właściciela; jawna zmiana trybu „łatek”):**
+   asystent działa w Claude Code na komputerze właściciela, w osobnym `git worktree`
+   (`.git/claude-wt/<nazwa>`), tylko na gałęziach `claude/E<nr>-<opis>`. Commity asystenta
+   na tych gałęziach są niepodpisane (`git -c commit.gpgsign=false`), żeby nie nosiły podpisu
+   właściciela. Asystent wypycha gałąź `claude/…` i otwiera z niej szkic PR do testu CI.
+   Właściciel przegląda zmianę i przenosi ją na swoją gałąź (przedrostek `feat/`, `fix/`,
+   `docs/` albo `ci/`, potem `E<nr>-<opis>`; np. `git checkout -b docs/E3-x origin/claude/E3-x`
+   i commit podpisany SSH), wypycha, otwiera PR z etykietą etapu (`--label E<nr>`) i scala.
+   Commity: Conventional Commits po polsku; scalanie tylko squash. Blokady w ustawieniach
+   Claude Code właściciela (poza repo) opisuje sekcja „Blokady sesji lokalnej”
+   w `docs/start-nowej-rozmowy.md`. W sesji w chmurze (bez dostępu do komputera właściciela)
+   obowiązuje dawny tryb łatek: plik `.patch` z `git diff --binary`, właściciel
+   `git apply --check … && git apply …`.
+3. **Zanim asystent przekaże zmianę właścicielowi (bez wyjątków):**
    - `make gate G=1` i bramka bieżącego etapu, `CI=true make gate G=<nr>`, `make audit`,
      `pre-commit run --all-files`;
    - dla każdego zabezpieczenia pytanie „jak obejść tę kontrolę?”;
    - test dokładnie tak, jak użyje tego właściciel: ścieżki względne, katalog projektu z `.venv`,
      macOS `/bin/bash` 3.2, narzędzia BSD, GNU make 3.81;
-   - test na prawdziwym GitHubie: gałąź `claude/<nazwa>-test`, szkic PR do tego, na co
-     właściciel nałoży łatkę; całe CI zielone (z bramką na macOS), potem szkic zamknięty.
-     Gałąź usuwa właściciel (`git push origin --delete claude/…`), bo asystent dostaje 403;
-   - łatka nakłada się na dokładny commit właściciela i daje przetestowany stan
-     (`git apply --index` + `git diff --cached --quiet <testowany_commit>`).
+   - test na prawdziwym GitHubie: gałąź `claude/…` z bazą na aktualnym `main`, szkic PR;
+     całe CI zielone (z bramką na macOS), potem szkic zamknięty. Gałąź usuwa właściciel,
+     jedną komendą na gałąź (`git push origin --delete claude/…`);
+   - właściciel dostaje dokładnie przetestowany stan: jego gałąź powstaje z testowanego
+     commitu, a przed PR `git diff --quiet origin/claude/<nazwa> HEAD` nic nie zwraca
+     (w trybie łatek: `git apply --index` + `git diff --cached --quiet <testowany_commit>`).
 
-   W wiadomości z łatką: gdzie testowana (numer szkicu PR, wynik CI).
+   W wiadomości ze zmianą: gdzie testowana (numer szkicu PR, wynik CI).
 4. **Niezależny recenzent (osobny agent) domyślnie nie:** jest drogi (ok. 30 min). Asystent
    proponuje go tylko przy zmianach sekretów lub bezpieczeństwa, podaje czas i czeka na zgodę.
 5. **Uwagi Graphify i Copilota: triaż**, tabela naprawiamy / odpowiadamy / ignorujemy z gotowym
@@ -77,11 +87,22 @@ Zachowanie asystenta:
 - Decyzje właściciela (licencja, format, nazwy, zakres): pytanie z jedną rekomendowaną opcją.
   Rzeczy oczywiste bez pytania.
 - Asystent nie scala i nie wypycha na gałęzie właściciela; jego są tylko gałęzie `claude/…`.
+  Asystent nie czyta `.env.local`, `~/.oci`, kluczy age ani `~/.ssh`; w trybie lokalnym
+  pilnują tego także blokady w ustawieniach Claude Code (`docs/start-nowej-rozmowy.md`),
+  które jednak nie są pełną izolacją (ich luki są tam opisane).
 - Przed użyciem akcji GitHub lub wersji narzędzia: sprawdzić, że istnieje (`git ls-remote`),
   i przypiąć do SHA. Przed odejściem od dokumentacji: sprawdzić, co mówi dokumentacja.
   Wyjątków w skanerach nie dodajemy bez dowodu, że są potrzebne.
-- Prawdziwe zasoby (od E3): przed każdą operacją, która kosztuje albo jest nieodwracalna
-  (`terraform apply`/`destroy`, zmiany DNS, płatne usługi, usuwanie danych lub zasobów),
-  asystent pisze dokładnie, co się stanie (plan, koszt, czy da się cofnąć), i czeka na zgodę.
+- Prawdziwe zasoby (od E3): zanim asystent zaproponuje albo uruchomi cokolwiek, co kosztuje
+  albo jest nieodwracalne, zatrzymuje się i pisze: co dokładnie się stanie, ile to kosztuje
+  (albo że mieści się w Always Free / darmowym planie, z linkiem do źródła) i czy da się to
+  cofnąć; potem czeka na „tak” właściciela. Dotyczy zwłaszcza: dodania metody płatności
+  i włączania płatnych usług lub planów (R2, Oracle poza Always Free, Grafana, Better Stack,
+  Tailscale); `terraform apply` i `terraform destroy` (z liczbami z `terraform plan`:
+  add / change / destroy); zmian DNS i serwerów nazw; usuwania zasobów, wolumenów, kopii,
+  bucketów i danych; pierwszego uruchomienia `deploy-staging.yml`. W razie wątpliwości,
+  czy coś kosztuje, asystent traktuje to jako płatne i pyta.
+- Komendy z kluczami chmury (Oracle, Cloudflare, Terraform, Ansible) uruchamia właściciel
+  (albo CI); asystent sprawdza wklejony wynik. Komendy diagnostyczne nie wypisują sekretów.
 - Kroki w konsolach (Oracle, Cloudflare, Grafana, Better Stack itd.) wykonuje właściciel;
   asystent prowadzi go klik po kliku, z oczekiwanym wynikiem i punktem STOP.

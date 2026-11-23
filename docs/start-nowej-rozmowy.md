@@ -7,8 +7,11 @@ ten plik ich nie powtarza.
 ```text
 Kontynuujemy projekt GoatCash. Zaczynamy etap E<nr>. Odpowiadaj po polsku.
 
-1. Podłącz repozytorium MiloszPiekarski/crypto_inteligence_app z prawem zapisu (add_repo,
-   access: push) i sklonuj je.
+1. Tryb lokalny (domyślny od 23.11.2026): Claude Code na moim Macu w katalogu
+   ~/Documents/Millosz/crypto_app. Sprawdź, że działają blokady z sekcji „Blokady sesji
+   lokalnej” w docs/start-nowej-rozmowy.md, i pracuj w git worktree na gałęziach claude/….
+   (Sesja w chmurze: podłącz repo MiloszPiekarski/crypto_inteligence_app przez add_repo
+   z access: push i sklonuj je; obowiązuje wtedy tryb łatek.)
 2. Przeczytaj: CLAUDE.md, docs/stan-pracy.md, docs/lekcje.md, CONTRIBUTING.md,
    docs/dokumentacja/README.md, całą sekcję E<nr> w docs/dokumentacja/roadmapa.md,
    docs/dokumentacja/testy.md (sekcja 3 i „Wdrożenie w repozytorium”), raport poprzedniej
@@ -22,7 +25,65 @@ Kontynuujemy projekt GoatCash. Zaczynamy etap E<nr>. Odpowiadaj po polsku.
    i zapytaj o akceptację. Dopiero potem zaczynamy.
 ```
 
-## Ograniczenia sesji asystenta (stan po E2, 23.11.2026)
+## Blokady sesji lokalnej (od 23.11.2026)
+
+W trybie lokalnym asystent działa na komputerze właściciela, z jego `gh` i dostępem do jego
+plików. Obietnica „nie zaglądam do kluczy” nie wystarcza, więc w ustawieniach Claude Code
+**tylko tego projektu**, poza historią git (`.claude/settings.local.json` i
+`.claude/hooks/goatcash-guard.py` w katalogu projektu, wykluczone przez `.git/info/exclude`),
+są dwie warstwy blokad. Nie działają w żadnym innym projekcie na tym Macu (ustawienia
+globalne `~/.claude` są nietknięte). Zmienia je tylko właściciel: katalog `.claude/` jest
+objęty regułą `deny` dla narzędzi edycji, a hook odrzuca komendy, które go dotyczą.
+
+1. **Reguły `permissions.deny`** (narzędzia Read, Edit/Write, Grep): `Read` i `Edit` dla
+   `//**/.env.local`, `~/.oci/**`, `~/.ssh/**`, `~/.config/sops/age/**`
+   (`Read` także `~/Library/Application Support/sops/age/**`); `Edit` dla `/.claude/**`
+   (katalog `.claude` projektu); `Bash` dla `gh pr merge *`, `terraform apply *`,
+   `terraform destroy *` (i tak samo `tofu`).
+2. **Hook `PreToolUse`** `.claude/hooks/goatcash-guard.py`: sprawdza całą treść każdej
+   komendy Bash (także wewnątrz `sh -c`, `$(…)` i łańcuchów `&&`). Blokuje wzmianki
+   o ścieżkach z sekretami (`.env.local`, `.oci`, `.ssh`, `sops/age`, `keys.txt`, klucz
+   podpisu) i `gh auth token`; `terraform|tofu … apply|destroy` (także z `-chdir=`);
+   `gh pr merge`; `gh api` do scalania, refów, treści repo, rulesetów, środowisk i sekretów;
+   `git push` na cokolwiek poza `claude/…` (także `--all`, `--mirror`, `--tags` i push
+   bez jawnej gałęzi); komendy dotyczące ustawień i hooków Claude Code. Błąd hooka blokuje
+   komendę.
+
+Próba z 23.11.2026 (rozmowa E3): Read `.env.local`, `~/.ssh`, `~/.oci`,
+`~/.config/sops/age` i Write wabika `.env.local` → odmowa; `gh pr merge`,
+`terraform -chdir=… apply`, `git push origin HEAD:main`, `sh -c 'cat ~/.oci/…'`,
+Edit `settings.json` → odmowa; `git push --dry-run origin HEAD:claude/…` → dozwolone.
+Hook ma też test 27 przypadków (18 blokowanych, 9 dozwolonych). Tego samego dnia blokady
+przeniesiono z `~/.claude` (pierwsza wersja działała globalnie, błąd asystenta) do projektu
+i poprawiono fałszywy alarm `2>&1` po `git push`; ponowna próba na żywo (także z worktree
+w `.git/claude-wt/`): Read `~/.ssh`, push na `main`, `gh pr merge`, Edit
+`.claude/settings.local.json` → odmowa; `git push --dry-run … HEAD:claude/… 2>&1` → dozwolone.
+
+**Czego te blokady nie łapią (to nie jest izolacja):**
+
+- komendy zaciemnionej: ścieżki sklejanej w Pythonie albo Node (`chr(46)+'ssh'`), zmiennych,
+  base64. Próba z 23.11.2026: `python3 -c` sklejający `~/.ssh/__probe__` dotarł do systemu
+  plików (zatrzymał go tylko brak pliku);
+- skryptu z pliku (`./x.sh`, cel `make`, test pytest), który sam czyta sekrety, robi `push`
+  albo `terraform apply`: hook widzi tylko tekst komendy, nie to, co ona uruchamia;
+- aliasów git (`git p`) i `git config` zmieniającego remote albo `pushurl`;
+- tego, że `gh` i `git push` działają z kontem właściciela: GitHub nie odróżnia asystenta
+  od właściciela; `main` chroni ruleset, pozostałe gałęzie właściciela tylko hook;
+- sekretów, które już są w zmiennych środowiska procesu;
+- trybu `bypassPermissions` i zmian ustawień przez samego właściciela.
+
+Hook daje też fałszywe alarmy (w bezpieczną stronę): blokuje każdą komendę, której tekst
+zawiera np. `.env.local` (asystent zmienia wtedy plik narzędziem Edit, nie z powłoki).
+
+Mocniejsza warstwa (do decyzji właściciela): sandbox Claude Code (`sandbox.enabled`,
+`sandbox.filesystem.denyRead`, `allowUnsandboxedCommands: false`) blokuje odczyt na poziomie
+systemu dla komend Bash. Też można go włączyć tylko w ustawieniach tego projektu, ale
+domyślnie odcina sieć (lista dozwolonych domen) i wymaga wyjątków dla `gh` i `git push`
+przez SSH. Pełna izolacja to osobny użytkownik macOS albo maszyna wirtualna.
+
+## Ograniczenia sesji asystenta w chmurze (stan po E2, 23.11.2026)
+
+Dotyczą sesji w chmurze (tryb łatek); w trybie lokalnym większość z nich nie występuje.
 
 - GraphQL GitHuba niedostępny: tylko `gh api` (REST). API ustawień Actions i pobieranie
   artefaktów przebiegów są zablokowane przez proxy sesji (ustawienia sprawdza właściciel).

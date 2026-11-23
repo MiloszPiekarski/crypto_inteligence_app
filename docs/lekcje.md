@@ -49,3 +49,13 @@ jak tego unikamy.
   z normy przywołanej w roadmapie (np. WCAG AA → axe 0 serious) to `source: roadmapa`.
 - Etykieta PR przez `gh pr create --label` nie działa w sesji (GraphQL) → PR i etykiety
   przez REST (`gh api …/pulls`, `…/issues/<nr>/labels`).
+- Dwie gałęzie w jednym `git push origin --delete a b`: błąd przy jednej przerwał całą
+  komendę → jedna komenda `git push origin --delete` na gałąź.
+
+## E3
+
+- Blokady sesji wpisane do globalnych ustawień Claude Code (`~/.claude`), więc działały też
+  w innych projektach właściciela, a skutek opisano dopiero po fakcie → zmiany na komputerze
+  właściciela tylko w zakresie projektu; przed zmianą poza repo mówimy, czego dotknie.
+- Poprawka hooka podana właścicielowi bez testu (nie działała) → każdą komendę dla
+  właściciela testujemy najpierw na kopii (np. fałszywy katalog domowy w scratchpadzie).
