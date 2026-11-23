@@ -13,11 +13,9 @@ name: gate-guard
 # PR nie może podmienić kontroli, której sam podlega. Bezpieczne, bo job nie pobiera ani nie
 # uruchamia kodu z PR (checkout bez `ref` = commit bazowy), ma tylko uprawnienia do odczytu
 # i nie używa sekretów poza tokenem tylko do odczytu (test: scripts/tests/test_gate_guard.py).
-# Przejściowo (10a) działają oba wyzwalacze; 10b usuwa `pull_request`, gdy ten plik z
-# `pull_request_target` jest już na main (inaczej PR zmieniający wyzwalacz nie miałby checka).
+# Zmiana wyzwalacza wymaga dwóch kroków (PR #46 dodał pull_request_target, 10b usunął
+# pull_request), bo GitHub bierze workflow dla pull_request_target z main.
 on:
-  pull_request:
-    types: [synchronize, reopened, labeled, unlabeled]
   pull_request_target: # zizmor: ignore[dangerous-triggers] uzasadnienie wyżej, test w scripts/tests
     types: [synchronize, reopened, labeled, unlabeled]
 
@@ -40,14 +38,8 @@ jobs:
       - name: bramki wymagane przez etykietę etapu
         env:
           GH_TOKEN: ${{ github.token }}
-        # Skrypt i reguły bramek z main (git worktree), nie z PR: PR nie może osłabić
-        # kontroli, której sam podlega. Wyjątek startowy: zanim skrypt trafi na main.
+        # Checkout przy pull_request_target to commit z main: skrypt, reguły bramek i dowody
+        # pochodzą z main, a kod z PR nie jest pobierany ani uruchamiany.
         run: |
           git fetch --no-tags origin main
-          guard_root="$RUNNER_TEMP/main"
-          git worktree add --detach "$guard_root" origin/main
-          if [ ! -f "$guard_root/scripts/gate_guard.py" ]; then
-            echo "Na main nie ma jeszcze scripts/gate_guard.py: używam wersji z PR (start)."
-            guard_root="$PWD"
-          fi
-          uv run --frozen python "$guard_root/scripts/gate_guard.py" --ref origin/main
+          uv run --frozen python scripts/gate_guard.py --ref origin/main
