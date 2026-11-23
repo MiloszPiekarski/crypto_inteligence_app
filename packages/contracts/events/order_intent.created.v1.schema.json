@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goatcash.app/schemas/events/order_intent.created.v1.schema.json",
+  "title": "Zdarzenie order_intent.created (schema_version 1)",
+  "description": "Intencja zlecenia bota; executor czyta ją z Postgresa, zdarzenie służy UI i alertom (ADR-0006).",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "order_intent.created"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_id",
+        "bot_config_id",
+        "instrument_id",
+        "side",
+        "order_type",
+        "quantity",
+        "stop_loss"
+      ],
+      "properties": {
+        "intent_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "bot_config_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "instrument_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "side": {
+          "enum": ["buy", "sell"]
+        },
+        "order_type": {
+          "enum": ["market", "limit"]
+        },
+        "quantity": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "not": {
+            "pattern": "^0(\\.0+)?$"
+          },
+          "description": "dodatnia liczba dziesiętna jako tekst"
+        },
+        "limit_price": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "not": {
+            "pattern": "^0(\\.0+)?$"
+          },
+          "description": "dodatnia liczba dziesiętna jako tekst"
+        },
+        "stop_loss": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "not": {
+            "pattern": "^0(\\.0+)?$"
+          },
+          "description": "dodatnia liczba dziesiętna jako tekst"
+        },
+        "take_profit": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "not": {
+            "pattern": "^0(\\.0+)?$"
+          },
+          "description": "dodatnia liczba dziesiętna jako tekst"
+        }
+      },
+      "if": {
+        "properties": {
+          "order_type": {
+            "const": "limit"
+          }
+        }
+      },
+      "then": {
+        "required": ["limit_price"]
+      },
+      "else": {
+        "not": {
+          "required": ["limit_price"]
+        }
+      }
+    }
+  }
+}
