@@ -16,6 +16,8 @@ name: gate-guard
 # Zmiana wyzwalacza wymaga dwóch kroków (PR #46 dodał pull_request_target, 10b usunął
 # pull_request), bo GitHub bierze workflow dla pull_request_target z main.
 on:
+  pull_request:
+    types: [synchronize, reopened, labeled, unlabeled]
   pull_request_target: # zizmor: ignore[dangerous-triggers] uzasadnienie wyżej, test w scripts/tests
     types: [synchronize, reopened, labeled, unlabeled]
 
