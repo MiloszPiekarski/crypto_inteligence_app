@@ -2,7 +2,9 @@
 # scripts/iac-lint.sh (make iac-lint, bramka G3 `iac-lint`): statyczna kontrola IaC.
 #   Terraform: fmt -check, init -backend=false (lockfile tylko do odczytu), validate, tflint;
 #   trivy config (błędne konfiguracje HIGH/CRITICAL, wbudowane reguły, bez pobierania);
-#   Ansible: ansible-lint, profil production, offline.
+#   Ansible: ansible-lint, profil production, offline;
+#   moduł OCI dodatkowo: polityka sieci (scripts/iac_policy.py; trivy nie ma reguł OCI)
+#   i zgodność listy IP Cloudflare z API Cloudflare (scripts/check_cloudflare_ips.py).
 # Dwie części, obie muszą przejść:
 #   1. autotest na wzorcach (scripts/tests/fixtures/iac): każde narzędzie przepuszcza poprawny
 #      wzorzec i ODRZUCA błędny; narzędzie, które niczego nie odrzuca, niczego nie sprawdza;
@@ -15,7 +17,7 @@ if [ -d .tools/bin ]; then PATH="$PWD/.tools/bin:$PATH"; fi
 if [ -d .venv/bin ]; then PATH="$PATH:$PWD/.venv/bin"; fi
 fail=0
 need() { command -v "$1" >/dev/null || { echo "Brak narzędzia: $1 (uruchom: make tools, uv sync)"; fail=1; }; }
-for t in terraform tflint trivy ansible-lint; do need "$t"; done
+for t in terraform tflint trivy ansible-lint uv; do need "$t"; done
 [ "$fail" -eq 0 ] || exit 1
 
 work="$(mktemp -d)"
@@ -40,6 +42,7 @@ trivy_config() {
     --severity HIGH,CRITICAL "$1"
 }
 ansible_lint() { ansible-lint --offline --profile production --nocolor "$1"; }
+py() { uv run --frozen python "$@"; }
 
 # expect WYNIK OPIS KOMENDA...: WYNIK=pass (musi przejść) albo reject (musi zostać odrzucone).
 expect() {
@@ -75,6 +78,10 @@ for dir in infra/terraform/oci infra/terraform/cloudflare; do
   expect pass "tflint: $dir" tf_lint "$dir"
   expect pass "trivy config: $dir" trivy_config "$dir"
 done
+if ls infra/terraform/oci/*.tf >/dev/null 2>&1; then
+  expect pass "polityka sieci OCI (443 tylko z Cloudflare, bez SSH)" py scripts/iac_policy.py infra/terraform/oci
+  expect pass "lista IP Cloudflare zgodna z api.cloudflare.com" py scripts/check_cloudflare_ips.py infra/terraform/oci/cloudflare_ips.tf
+fi
 if [ -f infra/ansible/site.yml ]; then
   expect pass "ansible-lint: infra/ansible" ansible_lint infra/ansible/site.yml
 else
