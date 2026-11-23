@@ -50,8 +50,8 @@ Decyzje właściciela (23.11.2026, propozycje asystenta zaakceptowane bez zmian)
 | 1   | `docs/E3-adr-infra`                | ADR-0007: D2–D6, model dowodu, budżet Always Free                                          | ✅ (PR #76) |
 | 2   | `ci/E3-bramka-g3`                  | `gates/G3.yaml` (czerwona), szkic `G3.md`, job G3 poza `ci-ok`                             | ✅ (PR #78) |
 | 3   | `ci/E3-dowod-mieszany`             | `gate_pass.py`/`gate_guard.py`: dowód mieszany + testy obejścia, niezależna recenzja       | ✅ (PR #80) |
-| 4   | `fix/E3-obraz-alembic`             | `alembic.ini` i migracje w obrazie; test `upgrade head` z obrazu                           | ⏳          |
-| 5   | `ci/E3-narzedzia-iac`              | Terraform, tflint, ansible-lint, trivy config w `make tools`/`audit`                       | ⬜          |
+| 4   | `fix/E3-obraz-alembic`             | `alembic.ini` i migracje w obrazie; test `upgrade head` z obrazu                           | ✅ (PR #82) |
+| 5   | `ci/E3-narzedzia-iac`              | Terraform, tflint, ansible-lint, trivy config w `make tools`/`audit`                       | ⏳          |
 | 6   | `feat/E3-tf-oci-siec`              | VCN, podsieci, Security Lists (443 tylko z Cloudflare, bez 22)                             | ⬜          |
 | 7   | `feat/E3-tf-oci-maszyny`           | A1 2/12, wolumen, mikro-VM, zarezerwowane IP                                               | ⬜          |
 | 8   | `feat/E3-tf-oci-vault`             | Vault, klucz główny, polityka instancji executora                                          | ⬜          |

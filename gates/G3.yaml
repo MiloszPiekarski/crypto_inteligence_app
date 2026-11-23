@@ -18,7 +18,7 @@ criteria: >-
   wdraża staging z testem dymnym i automatycznym rollbackiem
 checks:
   - id: iac-lint
-    name: "IaC: terraform fmt/validate, tflint, trivy config, ansible-lint, docker compose config"
+    name: "IaC: terraform fmt/validate, tflint, trivy config, ansible-lint (z autotestem narzędzi na wzorcach)"
     run: make -s iac-lint
   - id: image-migrations
     name: "obraz platformy uruchamia migracje: alembic upgrade head z obrazu na Postgresie z Timescale"
