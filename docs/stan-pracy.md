@@ -23,6 +23,7 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 | 0a  | `ci/E2-gate-guard-wyscig`  | `gate-guard`: etykiety z API, bez `opened` i bez anulowania przebiegów (PR #20)              | ✅          |
 | 1   | `ci/E2-bramka-g2`          | `gates/G2.yaml` + szkic `docs/gates/G2.md`; bramka czerwona, dopóki nie ma treści            | ✅ (PR #22) |
 | 2   | `docs/E2-adr`              | ADR-002 model danych, 003 Valkey Streams, 004 uwierzytelnianie, 005 bramka LLM, 006 executor | ⏳          |
+| 2a  | `docs/E2-auth-drift-e6`    | porównanie schematu Better Auth przeniesione z G2 do E6/G6 (zgodnie z roadmapą)              | ⏳          |
 | 3   | `feat/E2-migracja-0001`    | Alembic, migracja 0001, test `upgrade head` / `downgrade base` (testcontainers)              | ⬜          |
 | 4   | `feat/E2-schematy-zdarzen` | JSON Schema 8 zdarzeń z `schema_version`, testy poprawnych i błędnych przykładów             | ⬜          |
 | 5   | `feat/E2-evidence-v1`      | kontrakt `Evidence` v1 + testy                                                               | ⬜          |
@@ -39,9 +40,10 @@ Decyzje właściciela do planu (22.11.2026):
 - Test migracji (testcontainers) tylko na ubuntu: runnery macOS w GitHub Actions nie mają
   Dockera. Na macOS bramka G2 sprawdza schematy, Spectral i wymagania. Jawne odstępstwo,
   zapisane w `docs/gates/G2.md`.
-- Tabele Better Auth tworzy nasza migracja Alembic (jedno źródło schematu). ADR-004 musi
-  opisać wykrywanie rozjazdu po aktualizacji Better Auth: CI porównuje schemat wymagany przez
-  przypiętą wersję Better Auth (jego CLI) ze schematem z migracji; różnica = czerwone CI.
+- Tabele Better Auth tworzy nasza migracja Alembic (jedno źródło schematu). Wykrywanie
+  rozjazdu po aktualizacji Better Auth opisuje ADR-0004; sprawdzenie powstaje w E6 razem
+  z konfiguracją Better Auth i należy do G6 (właściciel zostawił wybór asystentowi: zgodnie
+  z roadmapą, bez dokładania pracy do E2).
 
 ## Otwarte sprawy
 
@@ -57,9 +59,8 @@ Decyzje właściciela do planu (22.11.2026):
 - Atrybucja „Data by CoinGecko” w interfejsie: w E12.
 - Bramka G2 działa w CI jako job „8 bramka G2” poza `ci-ok` (czerwona do końca E2); każdy PR
   z elementem E2 dodaje swój cel Makefile z `gates/G2.yaml`.
-- Do decyzji (ADR-0004): sprawdzenie `auth-schema-drift` w G2 wymaga minimalnej konfiguracji
-  Better Auth w `apps/web` już w E2 (bez ekranów logowania); alternatywa: przenieść to kryterium
-  do G6.
+- Zgłoszenie #25 (`tech-debt`): brak ponowień `curl` w `install-tools.sh` (403 z GitHub
+  Releases w CI).
 - ⚠️ Luka w `gate-guard` (istniejąca od #13): przy zdarzeniu `pull_request` GitHub używa pliku
   workflow z PR, więc PR zmieniający `.github/workflows/gate-guard.yml` może sam ominąć kontrolę
   (skrypt jest brany z `main`, ale komenda w workflow już nie). Decyzja (właściciel zostawił wybór asystentowi): naprawa

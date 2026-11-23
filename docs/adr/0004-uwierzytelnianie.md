@@ -1,6 +1,6 @@
 # ADR-0004: Uwierzytelnianie i autoryzacja
 
-- **Status:** proponowana (zatwierdzenie: scalenie PR `docs/E2-adr`)
+- **Status:** zatwierdzona 2026-11-22 (scalenie PR #24, commit `2e4cb62`); zmiana 2026-11-22: sprawdzenie `auth-schema-drift` w E6/G6 zamiast G2 (punkt 5)
 - **Data:** 2026-11-22
 - **Etap:** E2
 - **Źródło:** ADR-0001 (Better Auth + JWT przez JWKS), roadmapa E6 (zakres prac 3–4),
@@ -32,7 +32,7 @@ trafi na produkcję.
    (jawne rozszerzenie, ADR-0002). `better-auth migrate` nie jest uruchamiany w żadnym
    środowisku. Klucze prywatne JWKS w bazie są szyfrowane (opcja wtyczki), a klucz
    szyfrujący jest sekretem aplikacji w SOPS.
-5. **Wykrywanie rozjazdu schematu (sprawdzenie `auth-schema-drift` w G2):**
+5. **Wykrywanie rozjazdu schematu (sprawdzenie `auth-schema-drift`, od E6 w G6 i `ci-ok`):**
    - CI stawia czysty Postgres w kontenerze i wykonuje `alembic upgrade head`;
    - skrypt w `apps/web` wywołuje `getMigrations(auth.options)` z Better Auth (ta sama
      konfiguracja i ta sama przypięta wersja co aplikacja) na tej bazie;
@@ -41,8 +41,9 @@ trafi na produkcję.
      kolumny i indeksy;
    - kolumny dodane przez nas ponad wymagania Better Auth nie są błędem.
      Skutek: PR Dependabota podbijający Better Auth, który wymaga zmian w schemacie, ma czerwone
-     CI, dopóki nie powstanie migracja Alembic dopasowująca schemat. Do zaliczenia G2 to
-     sprawdzenie działa w jobie bramki G2; po zaliczeniu wchodzi do `ci-ok` razem z G2.
+     CI, dopóki nie powstanie migracja Alembic dopasowująca schemat. Sprawdzenie powstaje
+     w E6 razem z konfiguracją Better Auth; do tego czasu nic nie używa tabel Better Auth,
+     więc rozjazd nie może wystąpić.
      Ograniczenie: sprawdzenie widzi tylko to, co Better Auth zgłasza w `getMigrations`; zmianę
      znaczenia istniejącej kolumny wyłapią testy E2E logowania w E6/E12.
 6. **Hasła i ochrona kont:** skrót hasła z Better Auth (scrypt), limit prób logowania
@@ -60,11 +61,9 @@ trafi na produkcję.
 
 ## Konsekwencje
 
-- PR `feat/E2-migracja-0001` tworzy tabele Better Auth; PR z kodem Better Auth (E6) dodaje
-  `apps/web/scripts/auth-schema-drift.ts` i cel `make auth-schema-drift`. Do tego czasu
-  sprawdzenie `auth-schema-drift` w G2 jest FAIL, więc G2 nie przejdzie bez działającej
-  kontroli rozjazdu. Kolejność do ustalenia przy migracji 0001: albo minimalna konfiguracja
-  Better Auth już w E2 (tylko do porównania schematu), albo zmiana kryterium G2. Rekomendacja:
-  minimalna konfiguracja w E2, bez ekranów logowania.
+- PR `feat/E2-migracja-0001` tworzy tabele Better Auth według dokumentacji przypiętej wersji.
+  PR z konfiguracją Better Auth (E6) dodaje `apps/web/scripts/auth-schema-drift.ts`, cel
+  `make auth-schema-drift` i sprawdzenie w `gates/G6.yaml`; jeśli wtedy wykaże różnicę,
+  pierwsza migracja E6 ją usuwa. Wiersz „Schemat Better Auth” w tabeli testów E6 (roadmapa).
 - Testy w E6: token z innym `aud`, `alg=none`, HS256 podpisany kluczem publicznym, wygasły,
   z nieznanym `kid` → odrzucone.
