@@ -59,3 +59,6 @@ jak tego unikamy.
   właściciela tylko w zakresie projektu; przed zmianą poza repo mówimy, czego dotknie.
 - Poprawka hooka podana właścicielowi bez testu (nie działała) → każdą komendę dla
   właściciela testujemy najpierw na kopii (np. fałszywy katalog domowy w scratchpadzie).
+- Po resecie katalogu powłoki komendy gita asystenta trafiły do głównego katalogu
+  właściciela (przełączona gałąź, zmieniony plik) zamiast do worktree → każda komenda gita
+  asystenta ma jawną ścieżkę (`git -C <worktree>`), a `git status` sprawdzamy przed commitem.
