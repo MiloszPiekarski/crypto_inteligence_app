@@ -1,5 +1,9 @@
 # GoatCash
 
+<p align="center">
+  <img src="assets/goatcash-logo.png" alt="Logo GoatCash" width="280" />
+</p>
+
 [English version: README.md](README.md)
 
 Otwarta platforma analityczna rynku kryptowalut: agenci analityczni, prognozy rozliczane
