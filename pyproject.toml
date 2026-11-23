@@ -26,6 +26,7 @@ dev = [
   "import-linter>=2.4",
   "pre-commit>=4.3",
   "pyyaml>=6.0",
+  "testcontainers>=4.10",
 ]
 
 # ---------------- ruff (lint + format) ----------------
@@ -55,12 +56,17 @@ venv = ".venv"
 [tool.pytest.ini_options]
 testpaths = ["services/platform/tests", "services/executor/tests", "scripts/tests"]
 pythonpath = ["scripts"]
-addopts = "--strict-markers --strict-config -ra"
+# Testy z markerem `migration` wymagają Dockera (testcontainers): `make db-migration-test`
+# (bramka G2). W `make test` są wyłączone, bo runnery macOS w CI nie mają Dockera.
+addopts = '--strict-markers --strict-config -ra -m "not migration"'
+markers = ["migration: test migracji na Postgresie w kontenerze (wymaga Dockera)"]
 xfail_strict = true
 
 [tool.coverage.run]
 branch = true
 source = ["goatcash", "goatcash_executor"]
+# Migracje sprawdza test integracyjny `make db-migration-test` (G2), nie testy jednostkowe.
+omit = ["*/goatcash/migrations/*"]
 
 [tool.coverage.report]
 fail_under = 80
