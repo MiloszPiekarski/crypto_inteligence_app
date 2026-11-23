@@ -148,11 +148,28 @@ def test_labels_removed_in_api_make_guard_red(
 
 def test_workflow_has_no_opened_trigger_and_no_cancellation() -> None:
     wf = yaml.safe_load((gate_guard.ROOT / ".github/workflows/gate-guard.yml").read_text("utf-8"))
-    triggers = wf[True]["pull_request"]["types"]  # PyYAML czyta klucz `on` jako True
-    assert "opened" not in triggers
-    assert {"synchronize", "labeled", "unlabeled", "reopened"} <= set(triggers)
+    for event in wf[True]:  # PyYAML czyta klucz `on` jako True
+        triggers = wf[True][event]["types"]
+        assert "opened" not in triggers
+        assert {"synchronize", "labeled", "unlabeled", "reopened"} <= set(triggers)
+    assert "pull_request_target" in wf[True]
     assert "concurrency" not in wf
     assert wf["permissions"].get("pull-requests") == "read"
+
+
+def test_workflow_never_runs_pr_code_with_target_trigger() -> None:
+    # pull_request_target jest bezpieczny tylko bez kodu z PR i bez uprawnień do zapisu.
+    wf = yaml.safe_load((gate_guard.ROOT / ".github/workflows/gate-guard.yml").read_text("utf-8"))
+    assert set(wf["permissions"].values()) == {"read"}
+    for job in wf["jobs"].values():
+        assert "permissions" not in job
+        for step in job["steps"]:
+            if str(step.get("uses", "")).startswith("actions/checkout@"):
+                assert "ref" not in step.get("with", {}), "checkout kodu z PR"
+                assert step["with"]["persist-credentials"] is False
+            text = yaml.safe_dump(step)
+            assert "secrets." not in text
+            assert "github.event.pull_request.head" not in text
 
 
 def test_requirements_cover_every_stage_label() -> None:
