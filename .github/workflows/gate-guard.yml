@@ -8,8 +8,17 @@ name: gate-guard
 # checka i zablokować scalenie (PR #18). PR otwarty bez etykiety nie ma checka gate-guard,
 # więc ruleset i tak blokuje scalenie („Expected”) do czasu dodania etykiety. Każdy przebieg
 # czyta etykiety z API w chwili uruchomienia, więc równoległe przebiegi dają ten sam wynik.
+#
+# pull_request_target (PR 10a/10b, luka z #13): wersja workflow i skryptu zawsze z main, więc
+# PR nie może podmienić kontroli, której sam podlega. Bezpieczne, bo job nie pobiera ani nie
+# uruchamia kodu z PR (checkout bez `ref` = commit bazowy), ma tylko uprawnienia do odczytu
+# i nie używa sekretów poza tokenem tylko do odczytu (test: scripts/tests/test_gate_guard.py).
+# Przejściowo (10a) działają oba wyzwalacze; 10b usuwa `pull_request`, gdy ten plik z
+# `pull_request_target` jest już na main (inaczej PR zmieniający wyzwalacz nie miałby checka).
 on:
   pull_request:
+    types: [synchronize, reopened, labeled, unlabeled]
+  pull_request_target: # zizmor: ignore[dangerous-triggers] uzasadnienie wyżej, test w scripts/tests
     types: [synchronize, reopened, labeled, unlabeled]
 
 permissions:
