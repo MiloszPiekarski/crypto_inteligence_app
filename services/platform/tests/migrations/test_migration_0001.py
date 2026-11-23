@@ -76,6 +76,11 @@ def alembic(db_url: str, action: str) -> None:
         command.downgrade(cfg, "base")
 
 
+def execute(db_url: str, sql: str) -> None:
+    with psycopg.connect(db_url, autocommit=True) as conn:
+        conn.execute(sql)  # type: ignore[arg-type]
+
+
 def rows(db_url: str, sql: str) -> list[tuple[object, ...]]:
     with psycopg.connect(db_url, autocommit=True) as conn:
         return conn.execute(sql).fetchall()  # type: ignore[arg-type]
@@ -131,10 +136,10 @@ def test_hypertables_with_compression_policy(migrated: str) -> None:
 
 
 def test_audit_log_is_append_only_even_for_owner(migrated: str) -> None:
-    rows(migrated, "INSERT INTO audit_log (actor, action) VALUES ('test', 'insert')")
+    execute(migrated, "INSERT INTO audit_log (actor, action) VALUES ('test', 'insert')")
     for sql in ("UPDATE audit_log SET actor = 'x'", "DELETE FROM audit_log", "TRUNCATE audit_log"):
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            rows(migrated, sql)
+            execute(migrated, sql)
 
 
 @pytest.mark.parametrize(
@@ -151,6 +156,9 @@ def test_audit_log_is_append_only_even_for_owner(migrated: str) -> None:
         ("goatcash_auth", "SELECT * FROM evidence"),
         ("goatcash_readonly", "SELECT * FROM bot.exchange_connections"),
         ("goatcash_readonly", 'SELECT * FROM "account"'),
+        ("goatcash_readonly", 'SELECT * FROM "user"'),
+        ("goatcash_readonly", "SELECT address FROM notification_channels"),
+        ("goatcash_readonly", "SELECT display_name FROM profiles"),
         ("goatcash_readonly", "INSERT INTO agents (name, kind) VALUES ('x', 'y')"),
     ],
 )
@@ -176,9 +184,9 @@ def test_roles_can_do_their_job(migrated: str, role: str, sql: str) -> None:
 
 
 def test_withdraw_permission_key_rejected(migrated: str) -> None:
-    rows(migrated, """INSERT INTO "user" (id, name, email) VALUES ('u1', 'U', 'u@example.com')""")
+    execute(migrated, """INSERT INTO "user" (id, name, email) VALUES ('u1', 'U', 'u@ex.com')""")
     with pytest.raises(psycopg.errors.CheckViolation):
-        rows(
+        execute(
             migrated,
             "INSERT INTO bot.exchange_connections (public_id, user_id, exchange, label, "
             "api_key_enc, api_secret_enc, dek_enc, key_fingerprint, permissions) VALUES "

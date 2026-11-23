@@ -341,7 +341,7 @@ CREATE TABLE session (
     "userAgent" text,
     "userId"    text NOT NULL REFERENCES "user" ON DELETE CASCADE
 );
-CREATE INDEX session_user ON session ("userId");
+CREATE INDEX session_user_id ON session ("userId");
 
 CREATE TABLE account (
     id                      text PRIMARY KEY,
@@ -358,7 +358,7 @@ CREATE TABLE account (
     "createdAt"             timestamptz NOT NULL DEFAULT now(),
     "updatedAt"             timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX account_user ON account ("userId");
+CREATE INDEX account_user_id ON account ("userId");
 
 CREATE TABLE verification (
     id          text PRIMARY KEY,
@@ -668,7 +668,10 @@ BEGIN
                                    'audit_log', 'alembic_version')
     LOOP
         EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO goatcash_app', t);
-        EXECUTE format('GRANT SELECT ON public.%I TO goatcash_readonly', t);
+        -- goatcash_readonly bez danych osobowych (ADR-0002, punkt 9).
+        IF t NOT IN ('profiles', 'watchlists', 'notification_channels', 'deliveries') THEN
+            EXECUTE format('GRANT SELECT ON public.%I TO goatcash_readonly', t);
+        END IF;
     END LOOP;
 END $$;
 GRANT SELECT, INSERT ON public.audit_log TO goatcash_app;
@@ -778,7 +781,6 @@ def downgrade() -> None:
         "candles",
         "instruments",
         "assets",
-        ").split()",
     )
     for table in tables:
         op.execute(f'DROP TABLE public."{table}"')
