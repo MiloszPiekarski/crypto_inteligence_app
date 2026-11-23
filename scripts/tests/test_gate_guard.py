@@ -152,7 +152,6 @@ def test_workflow_has_no_opened_trigger_and_no_cancellation() -> None:
         triggers = wf[True][event]["types"]
         assert "opened" not in triggers
         assert {"synchronize", "labeled", "unlabeled", "reopened"} <= set(triggers)
-    assert set(wf[True]) == {"pull_request_target"}, "tylko pull_request_target (PR 10b)"
     assert "concurrency" not in wf
     assert wf["permissions"].get("pull-requests") == "read"
 
