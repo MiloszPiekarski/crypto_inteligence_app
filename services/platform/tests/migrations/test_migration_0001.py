@@ -119,6 +119,29 @@ def test_upgrade_creates_all_table_groups(migrated: str) -> None:
     assert {"timescaledb", "vector"} <= extensions
 
 
+def test_evidence_matches_contract_v1(migrated: str) -> None:
+    # Kolumny tabeli `evidence` dla pól kontraktu Evidence v1 (migracja 0002).
+    columns = {
+        str(r[0])
+        for r in rows(
+            migrated,
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'evidence'",
+        )
+    }
+    contract = {"p_up", "quantiles", "regime_view", "facts", "invalidation", "status"}
+    assert contract | {"as_of", "data_cutoff", "agent_version", "model_version"} <= columns
+    insert = (
+        "WITH a AS (INSERT INTO agents (name, kind) VALUES ('rv_{0}', 'rule') RETURNING agent_id),"
+        " s AS (INSERT INTO assets (symbol, name) VALUES ('RV{0}', 'x') RETURNING asset_id)"
+        " INSERT INTO evidence (public_id, agent_id, asset_id, horizon, as_of, data_cutoff, facts,"
+        " status, schema_version, agent_version, regime_view) SELECT gen_random_uuid(),"
+        " a.agent_id, s.asset_id, '1d', now(), now(), '{{}}', 'active', 1, '1.0.0', '{1}' FROM a, s"
+    )
+    execute(migrated, insert.format("OK", "trend_up"))
+    with pytest.raises(psycopg.errors.CheckViolation):
+        execute(migrated, insert.format("BAD", "moon"))
+
+
 def test_hypertables_with_compression_policy(migrated: str) -> None:
     hypertables = {
         str(r[0]): bool(r[1])
