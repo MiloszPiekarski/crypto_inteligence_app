@@ -205,7 +205,7 @@ Bramka **G2: zaliczona** · dowód: `docs/gates/G2.md`, `docs/gates/G2.passed.js
 
 ## E3. Infrastruktura bazowa
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⏳ w toku (od 23.11.2026; plan PR-ów i decyzje: `docs/stan-pracy.md`, ADR-0007)
 
 Etap kończy się, gdy środowisko `staging` na Oracle powstaje od zera jedną komendą, ma kopie zapasowe, które faktycznie da się odtworzyć, i wysyła metryki do Grafany.
 

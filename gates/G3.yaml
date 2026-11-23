@@ -1,0 +1,43 @@
+# Bramka G3 (E3): infrastruktura bazowa.
+# Format bramek: docs/dokumentacja/testy.md, sekcja 3. Uruchomienie: make gate G=3.
+# Każde sprawdzenie to cel Makefile dodawany przez PR, który dostarcza dany element E3
+# (plan w docs/stan-pracy.md). Dopóki celu nie ma, sprawdzenie jest FAIL („No rule to make
+# target”), więc bramka jest czerwona, a nie pusta.
+#
+# Tu są sprawdzenia, które działają w CI (dowód: przebieg ci.yml na main). Sprawdzenia na
+# prawdziwej infrastrukturze (wdrożenie z rollbackiem, tygodniowy test odtworzenia kopii,
+# nmap i Lynis, alerty < 5 min, odtworzenie od zera < 30 min) dochodzą razem z typem dowodu
+# „mixed” w gate_guard (ADR-0007, punkt 5; PR ci/E3-dowod-mieszany).
+gate: G3
+stage: E3
+criteria: >-
+  Odtworzenie środowiska od zera < 30 min bez ręcznych kroków; kopia odtworzona na nowej
+  instancji z identycznymi sumami kontrolnymi i odtworzeniem do punktu w czasie; z zewnątrz
+  otwarty tylko 443 przez Cloudflare; Lynis bez ostrzeżeń; alerty < 5 min; commit na main
+  wdraża staging z testem dymnym i automatycznym rollbackiem
+checks:
+  - id: iac-lint
+    name: "IaC: terraform fmt/validate, tflint, trivy config, ansible-lint, docker compose config"
+    run: make -s iac-lint
+  - id: image-migrations
+    name: "obraz platformy uruchamia migracje: alembic upgrade head z obrazu na Postgresie z Timescale"
+    run: make -s image-migration-test
+    # Runnery macOS w GitHub Actions nie mają Dockera (jak test migracji w G2).
+    skip_on_ci_os: [macOS]
+    reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
+  - id: compose-staging
+    name: "Compose staging: wszystkie usługi zdrowe, Postgres 17 z Timescale i pgvector, Valkey z AOF"
+    run: make -s compose-staging-test
+    skip_on_ci_os: [macOS]
+    reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
+  - id: backup-restore
+    name: "pgBackRest: pełna + przyrostowa + WAL, odtworzenie do czystej instancji i do punktu w czasie, 100% tabel zgodnych (F-02)"
+    run: make -s backup-restore-test
+    skip_on_ci_os: [macOS]
+    reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
+reports:
+  - docs/gates/G3.md
+  - docs/adr/0007-infrastruktura-staging.md
+  - docs/runbooks/odtworzenie-z-kopii.md
+  - docs/runbooks/rotacja-sekretow.md
+  - docs/runbooks/wymiana-serwera.md
