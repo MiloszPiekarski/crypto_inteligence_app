@@ -75,7 +75,8 @@ if [ -f "$ENV_FILE" ]; then
 else
   bad ".env.local not found in $ROOT"
 fi
-for v in ANTHROPIC_API_KEY GEMINI_API_KEY OPENROUTER_API_KEY COINGECKO_DEMO_API_KEY; do
+for v in ANTHROPIC_API_KEY GEMINI_API_KEY OPENROUTER_API_KEY COINGECKO_DEMO_API_KEY \
+         CLOUDFLARE_ACCOUNT_ID R2_READONLY_API_TOKEN TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID; do
   if [ -n "${!v:-}" ]; then ok "$v is set (value hidden)"; else bad "$v is empty or missing"; fi
 done
 
@@ -161,6 +162,36 @@ if [ -n "$oci_user" ] && oci iam user get --user-id "$oci_user" --output json > 
   uname=$(jq -r '.data.name' "$TMP/ociu")
   case "$uname" in *terraform*) ok "Oracle: CLI uses the IAM user '$uname', not the root admin";; *) bad "Oracle: CLI uses '$uname', expected the terraform IAM user";; esac
 else bad "Oracle: cannot read the CLI user from ~/.oci/config"; fi
+
+# ---------------------------------------------------------------------------
+section "6. Cloudflare R2 and Telegram (E0, used in E3 for backups and alerts)"
+# R2: token konta "Admin Read only" (tylko odczyt). Lista bucketów działa tylko, gdy R2 jest
+# włączone na koncie; wartości tokena i Account ID nie są wypisywane.
+cf_acc="${CLOUDFLARE_ACCOUNT_ID:-none}"
+code=$(http "https://api.cloudflare.com/client/v4/accounts/${cf_acc}/r2/buckets" \
+  -H "Authorization: Bearer ${R2_READONLY_API_TOKEN:-}")
+if [ "$code" = 200 ] && jq -e '.success == true' "$TMP/body" >/dev/null 2>&1; then
+  ok "Cloudflare R2: enabled, token lists buckets ($(jq -r '(.result.buckets // []) | length' "$TMP/body") bucket(s))"
+else bad "Cloudflare R2: bucket list HTTP $code $(jq -r '[.errors[]?.message] | join("; ")' "$TMP/body" 2>/dev/null | head -c 200)"; fi
+code=$(http "https://api.cloudflare.com/client/v4/accounts/${cf_acc}/tokens/verify" \
+  -H "Authorization: Bearer ${R2_READONLY_API_TOKEN:-}")
+if [ "$code" = 200 ] && jq -e '.result.status == "active"' "$TMP/body" >/dev/null 2>&1; then
+  ok "Cloudflare R2: token active, expires $(jq -r '.result.expires_on // "never"' "$TMP/body" | cut -c1-10)"
+else bad "Cloudflare R2: token verify HTTP $code $(jq -r '[.errors[]?.message] | join("; ")' "$TMP/body" 2>/dev/null | head -c 200)"; fi
+
+# Telegram: getMe (bot istnieje) i cicha wiadomość testowa na TELEGRAM_CHAT_ID (dostarczenie).
+# Token jest częścią adresu API Telegrama; adres nie jest nigdzie wypisywany.
+code=$(http "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN:-none}/getMe")
+if [ "$code" = 200 ] && jq -e '.ok == true' "$TMP/body" >/dev/null 2>&1; then
+  ok "Telegram: bot @$(jq -r '.result.username' "$TMP/body") answers getMe"
+else bad "Telegram: getMe HTTP $code $(jq -r '.description // empty' "$TMP/body" 2>/dev/null | head -c 200)"; fi
+code=$(http "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN:-none}/sendMessage" \
+  --data-urlencode "chat_id=${TELEGRAM_CHAT_ID:-}" \
+  --data-urlencode "text=GoatCash doctor.sh: test powiadomień (E0) $(date -u +%Y-%m-%dT%H:%MZ)" \
+  --data-urlencode "disable_notification=true")
+if [ "$code" = 200 ] && jq -e '.ok == true' "$TMP/body" >/dev/null 2>&1; then
+  ok "Telegram: test message delivered to TELEGRAM_CHAT_ID (silent)"
+else bad "Telegram: sendMessage HTTP $code $(jq -r '.description // empty' "$TMP/body" 2>/dev/null | head -c 200)"; fi
 
 # ---------------------------------------------------------------------------
 printf '\n== Summary: %d PASS, %d FAIL ==\n' "$PASS" "$FAIL"
