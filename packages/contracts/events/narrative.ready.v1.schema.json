@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goatcash.app/schemas/events/narrative.ready.v1.schema.json",
+  "title": "Zdarzenie narrative.ready (schema_version 1)",
+  "description": "Zwalidowana narracja do oceny (worker, ADR-0005).",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "narrative.ready"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assessment_id", "language", "model", "prompt_version", "validated"],
+      "properties": {
+        "assessment_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "language": {
+          "enum": ["pl", "en"]
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prompt_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validated": {
+          "const": true,
+          "description": "publikujemy tylko narracje po walidacji liczb (ADR-0005)"
+        }
+      }
+    }
+  }
+}

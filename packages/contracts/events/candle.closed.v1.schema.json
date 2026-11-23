@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goatcash.app/schemas/events/candle.closed.v1.schema.json",
+  "title": "Zdarzenie candle.closed (schema_version 1)",
+  "description": "Zamknięta świeca z jednej giełdy (ingest).",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "candle.closed"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instrument_id",
+        "exchange",
+        "symbol",
+        "timeframe",
+        "ts",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "source"
+      ],
+      "properties": {
+        "instrument_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "exchange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timeframe": {
+          "enum": ["1m", "5m", "15m", "1h", "4h", "1d"]
+        },
+        "ts": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "open": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "not": {
+            "pattern": "^0(\\.0+)?$"
+          },
+          "description": "dodatnia liczba dziesiętna jako tekst"
+        },
+        "high": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "not": {
+            "pattern": "^0(\\.0+)?$"
+          },
+          "description": "dodatnia liczba dziesiętna jako tekst"
+        },
+        "low": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "not": {
+            "pattern": "^0(\\.0+)?$"
+          },
+          "description": "dodatnia liczba dziesiętna jako tekst"
+        },
+        "close": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "not": {
+            "pattern": "^0(\\.0+)?$"
+          },
+          "description": "dodatnia liczba dziesiętna jako tekst"
+        },
+        "volume": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "description": "nieujemna liczba dziesiętna jako tekst"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

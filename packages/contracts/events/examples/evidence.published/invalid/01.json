@@ -1,0 +1,19 @@
+{
+  "_why": "p_up poza [0, 1]",
+  "event_id": "0193a4f2-7c1e-7a3b-9d2e-4f5a6b7c8d9e",
+  "type": "evidence.published",
+  "schema_version": 1,
+  "occurred_at": "2026-11-23T10:00:05Z",
+  "producer": "worker@0.1.0",
+  "correlation_id": "0193a4f2-7c1e-7a3b-9d2e-000000000001",
+  "payload": {
+    "evidence_id": "0193a4f2-7c1e-7a3b-9d2e-000000000010",
+    "agent": "trend",
+    "agent_version": "1.0.0",
+    "asset": "BTC",
+    "horizon": "1d",
+    "as_of": "2026-11-23T10:00:00Z",
+    "p_up": 1.2,
+    "status": "active"
+  }
+}
