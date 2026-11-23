@@ -311,9 +311,8 @@ non_functional:
     measure: skan axe-core każdego widoku (Playwright)
     target: WCAG 2.2 AA, 0 naruszeń critical i 0 serious
     gate: G12
-    source: doprecyzowanie
-    accepted: 2026-11-23
-    note: "zaostrzenie względem testy.md (tam „0 naruszeń krytycznych”): dodane 0 naruszeń serious"
+    source: roadmapa
+    note: "WCAG 2.2 AA (roadmapa) wymaga też 0 serious: np. kontrast kolorów ma w axe wagę serious; testy.md ujednolicone 23.11.2026"
   - id: NF-07
     title: Opóźnienie i uzgadnianie stanu bota
     measure: metryki executora
