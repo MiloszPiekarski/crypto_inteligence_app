@@ -1,0 +1,1124 @@
+{
+  "components": {
+    "schemas": {
+      "Agent": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "horizons": {
+            "items": {
+              "enum": [
+                "1h",
+                "4h",
+                "1d",
+                "7d"
+              ],
+              "type": "string"
+            },
+            "title": "Horizons",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "description",
+          "horizons"
+        ],
+        "title": "Agent",
+        "type": "object"
+      },
+      "AgentRef": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version"
+        ],
+        "title": "AgentRef",
+        "type": "object"
+      },
+      "Assessment": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "assessment_id": {
+            "format": "uuid",
+            "title": "Assessment Id",
+            "type": "string"
+          },
+          "asset": {
+            "examples": [
+              "BTC"
+            ],
+            "pattern": "^[A-Z0-9]{2,15}$",
+            "title": "Asset",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "horizon": {
+            "enum": [
+              "1h",
+              "4h",
+              "1d",
+              "7d"
+            ],
+            "title": "Horizon",
+            "type": "string"
+          },
+          "p_up": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "P Up",
+            "type": "number"
+          },
+          "quantiles": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Quantiles"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "regime": {
+            "title": "Regime",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assessment_id",
+          "asset",
+          "horizon",
+          "as_of",
+          "p_up",
+          "quantiles",
+          "regime",
+          "evidence_ids"
+        ],
+        "title": "Assessment",
+        "type": "object"
+      },
+      "Asset": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "symbol": {
+            "examples": [
+              "BTC"
+            ],
+            "pattern": "^[A-Z0-9]{2,15}$",
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "symbol",
+          "name"
+        ],
+        "title": "Asset",
+        "type": "object"
+      },
+      "Candle": {
+        "additionalProperties": false,
+        "properties": {
+          "close": {
+            "description": "liczba dziesiętna jako tekst",
+            "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+            "title": "Close",
+            "type": "string"
+          },
+          "high": {
+            "description": "liczba dziesiętna jako tekst",
+            "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+            "title": "High",
+            "type": "string"
+          },
+          "low": {
+            "description": "liczba dziesiętna jako tekst",
+            "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+            "title": "Low",
+            "type": "string"
+          },
+          "open": {
+            "description": "liczba dziesiętna jako tekst",
+            "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+            "title": "Open",
+            "type": "string"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          },
+          "volume": {
+            "description": "liczba dziesiętna jako tekst",
+            "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+            "title": "Volume",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ts",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ],
+        "title": "Candle",
+        "type": "object"
+      },
+      "Evidence": {
+        "additionalProperties": false,
+        "description": "Dowód agenta (kontrakt Evidence v1).",
+        "properties": {
+          "agent": {
+            "$ref": "#/components/schemas/AgentRef"
+          },
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "asset": {
+            "examples": [
+              "BTC"
+            ],
+            "pattern": "^[A-Z0-9]{2,15}$",
+            "title": "Asset",
+            "type": "string"
+          },
+          "data_cutoff": {
+            "format": "date-time",
+            "title": "Data Cutoff",
+            "type": "string"
+          },
+          "evidence_id": {
+            "format": "uuid",
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "facts": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "maxProperties": 50,
+            "minProperties": 1,
+            "title": "Facts",
+            "type": "object"
+          },
+          "horizon": {
+            "enum": [
+              "1h",
+              "4h",
+              "1d",
+              "7d"
+            ],
+            "title": "Horizon",
+            "type": "string"
+          },
+          "invalidation": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Invalidation",
+            "type": "string"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "p_up": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Up"
+          },
+          "quantiles": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Quantiles"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "regime_view": {
+            "anyOf": [
+              {
+                "enum": [
+                  "trend_up",
+                  "trend_down",
+                  "range",
+                  "high_volatility",
+                  "crisis"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regime View"
+          },
+          "schema_version": {
+            "const": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "invalidated",
+              "expired",
+              "settled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "schema_version",
+          "agent",
+          "model_version",
+          "asset",
+          "horizon",
+          "as_of",
+          "data_cutoff",
+          "p_up",
+          "quantiles",
+          "regime_view",
+          "facts",
+          "invalidation",
+          "status"
+        ],
+        "title": "Evidence",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Health": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
+      "Page_Asset_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "Page[Asset]",
+        "type": "object"
+      },
+      "Page_Candle_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Candle"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "Page[Candle]",
+        "type": "object"
+      },
+      "Page_Evidence_": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "Page[Evidence]",
+        "type": "object"
+      },
+      "Problem": {
+        "additionalProperties": false,
+        "description": "Błąd w formacie RFC 9457 (Problem Details).",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "status": {
+            "maximum": 599.0,
+            "minimum": 400.0,
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "description": "URI typu błędu",
+            "examples": [
+              "about:blank"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "title": "Problem",
+        "type": "object"
+      },
+      "Quantiles": {
+        "additionalProperties": false,
+        "properties": {
+          "q05": {
+            "title": "Q05",
+            "type": "number"
+          },
+          "q25": {
+            "title": "Q25",
+            "type": "number"
+          },
+          "q50": {
+            "title": "Q50",
+            "type": "number"
+          },
+          "q75": {
+            "title": "Q75",
+            "type": "number"
+          },
+          "q95": {
+            "title": "Q95",
+            "type": "number"
+          }
+        },
+        "required": [
+          "q05",
+          "q25",
+          "q50",
+          "q75",
+          "q95"
+        ],
+        "title": "Quantiles",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "contact": {
+      "name": "GoatCash",
+      "url": "https://goatcash.app/"
+    },
+    "description": "Publiczne API platformy GoatCash (szkic kontraktu z etapu E2). Endpointy oznaczone 501 powstają w etapach E6, E7 i E9.",
+    "license": {
+      "identifier": "AGPL-3.0-only",
+      "name": "AGPL-3.0-only"
+    },
+    "title": "GoatCash API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/agents": {
+      "get": {
+        "description": "Agenci analityczni z wersjami i horyzontami (E7).",
+        "operationId": "listAgents",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Agent"
+                  },
+                  "title": "Response Listagents",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Jeszcze nie zaimplementowane (szkic E2)"
+          }
+        },
+        "summary": "Rejestr agentów",
+        "tags": [
+          "analysis"
+        ]
+      }
+    },
+    "/v1/assets": {
+      "get": {
+        "description": "Aktywa obsługiwane przez platformę, z paginacją kursorową (E6).",
+        "operationId": "listAssets",
+        "parameters": [
+          {
+            "description": "kursor następnej strony",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "kursor następnej strony",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "liczba elementów na stronie",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "liczba elementów na stronie",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Asset_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Jeszcze nie zaimplementowane (szkic E2)"
+          }
+        },
+        "summary": "Lista aktywów",
+        "tags": [
+          "market"
+        ]
+      }
+    },
+    "/v1/assets/{asset_id}": {
+      "get": {
+        "description": "Szczegóły jednego aktywa (E6).",
+        "operationId": "getAsset",
+        "parameters": [
+          {
+            "description": "publiczny identyfikator aktywa",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "publiczny identyfikator aktywa",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Jeszcze nie zaimplementowane (szkic E2)"
+          }
+        },
+        "summary": "Aktywo",
+        "tags": [
+          "market"
+        ]
+      }
+    },
+    "/v1/assets/{asset_id}/assessment": {
+      "get": {
+        "description": "Ocena po fuzji dowodów dla horyzontu (E9).",
+        "operationId": "getAssessment",
+        "parameters": [
+          {
+            "description": "publiczny identyfikator aktywa",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "publiczny identyfikator aktywa",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "horyzont oceny",
+            "in": "query",
+            "name": "horizon",
+            "required": true,
+            "schema": {
+              "description": "horyzont oceny",
+              "enum": [
+                "1h",
+                "4h",
+                "1d",
+                "7d"
+              ],
+              "title": "Horizon",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Assessment"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Jeszcze nie zaimplementowane (szkic E2)"
+          }
+        },
+        "summary": "Bieżąca ocena aktywa",
+        "tags": [
+          "analysis"
+        ]
+      }
+    },
+    "/v1/assets/{asset_id}/candles": {
+      "get": {
+        "description": "Świece ceny referencyjnej (mediana giełd) dla interwału, od najnowszej (E6).",
+        "operationId": "listCandles",
+        "parameters": [
+          {
+            "description": "publiczny identyfikator aktywa",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "publiczny identyfikator aktywa",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "interwał świec",
+            "in": "query",
+            "name": "timeframe",
+            "required": true,
+            "schema": {
+              "description": "interwał świec",
+              "enum": [
+                "1m",
+                "5m",
+                "15m",
+                "1h",
+                "4h",
+                "1d"
+              ],
+              "title": "Timeframe",
+              "type": "string"
+            }
+          },
+          {
+            "description": "kursor następnej strony",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "kursor następnej strony",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "liczba elementów na stronie",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "description": "liczba elementów na stronie",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Candle_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Jeszcze nie zaimplementowane (szkic E2)"
+          }
+        },
+        "summary": "Świece referencyjne aktywa",
+        "tags": [
+          "market"
+        ]
+      }
+    },
+    "/v1/assets/{asset_id}/evidence": {
+      "get": {
+        "description": "Dowody agentów dla aktywa w formacie kontraktu Evidence v1 (E7).",
+        "operationId": "listEvidence",
+        "parameters": [
+          {
+            "description": "publiczny identyfikator aktywa",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "publiczny identyfikator aktywa",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "filtr horyzontu",
+            "in": "query",
+            "name": "horizon",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "1h",
+                    "4h",
+                    "1d",
+                    "7d"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "filtr horyzontu",
+              "title": "Horizon"
+            }
+          },
+          {
+            "description": "kursor następnej strony",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "kursor następnej strony",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "liczba elementów na stronie",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "liczba elementów na stronie",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Evidence_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Jeszcze nie zaimplementowane (szkic E2)"
+          }
+        },
+        "summary": "Dowody agentów dla aktywa",
+        "tags": [
+          "analysis"
+        ]
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "description": "Stan procesu i wersja pakietu; nie wymaga uwierzytelnienia.",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stan procesu api",
+        "tags": [
+          "system"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "produkcja (od E16)",
+      "url": "https://api.goatcash.app"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Stan procesu",
+      "name": "system"
+    },
+    {
+      "description": "Dane rynkowe (E6)",
+      "name": "market"
+    },
+    {
+      "description": "Dowody agentów i oceny (E7, E9)",
+      "name": "analysis"
+    }
+  ]
+}
