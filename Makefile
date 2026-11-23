@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 G ?=
 
-.PHONY: help install tools dev lint audit fmt typecheck imports test db-migration-test event-schemas-test build secrets-scan doctor gate
+.PHONY: help install tools dev lint audit fmt typecheck imports test db-migration-test event-schemas-test evidence-test build secrets-scan doctor gate
 
 help: ## Lista komend
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -48,6 +48,9 @@ db-migration-test: ## Migracje w obie strony na czystym Postgresie z Timescale (
 
 event-schemas-test: ## JSON Schema zdarzeń: poprawne przykłady przechodzą, błędne odrzucone (G2)
 	uv run pytest packages/contracts/tests/test_event_schemas.py
+
+evidence-test: ## Kontrakt Evidence v1: poprawne przykłady przechodzą, błędne odrzucone (G2)
+	uv run pytest packages/contracts/tests/test_evidence_schema.py
 
 build: ## Build frontendu
 	pnpm build
