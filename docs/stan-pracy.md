@@ -27,8 +27,8 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 Decyzje właściciela (23.11.2026, propozycje asystenta zaakceptowane bez zmian):
 
 - **D1 tryb lokalny:** asystent pracuje w Claude Code na Macu właściciela, w `git worktree`,
-  na gałęziach `claude/E3-…`, z blokadami w `~/.claude/settings.json`
-  (`docs/start-nowej-rozmowy.md`, „Blokady sesji lokalnej”); właściciel commituje
+  na gałęziach `claude/E3-…`, z blokadami tylko w tym projekcie (`.claude/settings.local.json`,
+  poza git; `docs/start-nowej-rozmowy.md`, „Blokady sesji lokalnej”); właściciel commituje
   podpisane, otwiera PR i scala. Komendy z kluczami chmury uruchamia właściciel.
 - **D2 dysk:** boot A1 50 GB + boot mikro-VM 50 GB + wolumen danych 100 GB = 200 GB
   (limit Always Free); jawne odstępstwo od 150 GB z roadmapy, zapis w ADR-0007.
