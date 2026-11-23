@@ -70,5 +70,5 @@
 
 - Jeden serwer i jedna osoba obsługi w fazie budowy: awaria serwera = przerwa (NF-03 dopuszcza
   99,5% w becie); łagodzenie: kopie na R2 i odtworzenie < 30 min (F-01, F-02).
-- Luka w `gate-guard` (PR może podmienić workflow): naprawa w PR 10a przed zaliczeniem G2
-  (`docs/stan-pracy.md`).
+- Luka w `gate-guard` (PR mógł podmienić workflow): zamykana przez `pull_request_target`
+  (PR #46 i 10b) przed zaliczeniem G2; dowód w `docs/gates/G2.md`.
