@@ -23,3 +23,14 @@ Kontrakty: OpenAPI, JSON Schema zdarzeń, wygenerowany klient TS (etap E2).
   egzekwuje walidator Pydantic w E7 (tabela testów E7: blokada publikacji dowodu); w bazie
   `data_cutoff <= as_of` pilnuje już CHECK z migracji 0001.
 - Test: `make evidence-test` (bramka G2). Kolumna `evidence.regime_view` (migracja 0002).
+
+## API (`openapi/`, `src/`)
+
+- `openapi/openapi.json`: specyfikacja OpenAPI 3.1 generowana z aplikacji FastAPI
+  (`goatcash.http_api`); w E2 szkic: endpointy z roadmapy E6, E7 i E9 zwracają 501
+  (RFC 9457), działa tylko `/v1/health`.
+- `src/api.ts`: typy generowane przez openapi-typescript; `src/index.ts`: klient
+  (`createApiClient`, openapi-fetch). Pliki generowane nie są formatowane przez Biome.
+- Po zmianie API: `make openapi` (regeneracja), potem commit obu plików.
+- Kontrola: `make openapi-lint` (bramka G2): specyfikacja zgodna z aplikacją, Spectral
+  (`openapi/.spectral.yaml`) bez błędów i ostrzeżeń, typy TS aktualne, `tsc` bez błędów.
