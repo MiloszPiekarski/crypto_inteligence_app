@@ -1,5 +1,9 @@
 # GoatCash
 
+<p align="center">
+  <img src="assets/goatcash-logo.png" alt="GoatCash logo" width="280" />
+</p>
+
 [Polska wersja: README.pl.md](README.pl.md)
 
 An open crypto market intelligence platform: analytical agents, forecasts settled in a
