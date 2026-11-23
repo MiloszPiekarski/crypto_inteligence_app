@@ -56,7 +56,9 @@ Procedura zmian:
 6. **Małe PR-y:** jedna rzecz na PR.
 7. **Dokumentacja na bieżąco:** stan w `roadmapa.md` i `testy.md` (✅ tylko z dowodem,
    ⚠️ brak dowodu, ⏳ w toku, ⬜ nie rozpoczęto); `docs/stan-pracy.md` aktualizowany w każdej
-   łatce; bramka etapu = raport `docs/gates/G<nr>.md` + `G<nr>.passed.json` z `gate_pass.py`.
+   łatce; bramka etapu = raport `docs/gates/G<nr>.md` + `G<nr>.passed.json` z `gate_pass.py`;
+   przy zamknięciu etapu także status i komendy w `README.md` i `README.pl.md` (pilnuje
+   `scripts/tests/test_readme_status.py`).
 8. **Nowa rozmowa na każdy etap** (bez kompaktowania); wszystko, co ustalimy, ląduje w repo.
    Prompt na start: `docs/start-nowej-rozmowy.md`.
 
