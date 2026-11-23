@@ -31,13 +31,19 @@ case "$(uname -s)-$(uname -m)" in
   *) echo "Nieobsługiwany system: $(uname -s)-$(uname -m)"; exit 1 ;;
 esac
 gh=https://github.com
-curl -sSfLo "$gl" "$gh/gitleaks/gitleaks/releases/download/v8.30.1/$gl"
-curl -sSfLo "$so" "$gh/getsops/sops/releases/download/v3.13.3/$so"
-curl -sSfLo "$ag" "$gh/FiloSottile/age/releases/download/v1.3.2/$ag"
-curl -sSfLo "$sc" "$gh/koalaman/shellcheck/releases/download/v0.11.0/$sc"
-curl -sSfLo "$hd" "$gh/hadolint/hadolint/releases/download/v2.14.0/$hd"
-curl -sSfLo "$al" "$gh/rhysd/actionlint/releases/download/v1.7.12/$al"
-curl -sSfLo "$zz" "$gh/zizmorcore/zizmor/releases/download/v1.32.0/$zz"
+# Ponowienia przy chwilowych błędach GitHub Releases (np. 403/5xx w CI, zgłoszenie #25);
+# przy porażce komunikat z adresem pliku. Sumy SHA-256 niżej i tak sprawdzają zawartość.
+fetch() {
+  curl -sSfL --retry 3 --retry-all-errors --retry-delay 3 -o "$1" "$2" ||
+    { echo "Nie udało się pobrać: $2" >&2; exit 1; }
+}
+fetch "$gl" "$gh/gitleaks/gitleaks/releases/download/v8.30.1/$gl"
+fetch "$so" "$gh/getsops/sops/releases/download/v3.13.3/$so"
+fetch "$ag" "$gh/FiloSottile/age/releases/download/v1.3.2/$ag"
+fetch "$sc" "$gh/koalaman/shellcheck/releases/download/v0.11.0/$sc"
+fetch "$hd" "$gh/hadolint/hadolint/releases/download/v2.14.0/$hd"
+fetch "$al" "$gh/rhysd/actionlint/releases/download/v1.7.12/$al"
+fetch "$zz" "$gh/zizmorcore/zizmor/releases/download/v1.32.0/$zz"
 for h in "$gl_sha" "$so_sha" "$ag_sha" "$sc_sha" "$hd_sha" "$al_sha" "$zz_sha"; do
   [ "${#h}" -eq 64 ] || { echo "Niepoprawna suma SHA-256: '$h'"; exit 1; }
 done
