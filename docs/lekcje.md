@@ -49,3 +49,5 @@ jak tego unikamy.
   z normy przywołanej w roadmapie (np. WCAG AA → axe 0 serious) to `source: roadmapa`.
 - Etykieta PR przez `gh pr create --label` nie działa w sesji (GraphQL) → PR i etykiety
   przez REST (`gh api …/pulls`, `…/issues/<nr>/labels`).
+- Dwie gałęzie w jednym `git push origin --delete a b`: błąd przy jednej przerwał całą
+  komendę → jedna komenda `git push origin --delete` na gałąź.
