@@ -58,6 +58,7 @@ Procedura zmian:
    ⚠️ brak dowodu, ⏳ w toku, ⬜ nie rozpoczęto); `docs/stan-pracy.md` aktualizowany w każdej
    łatce; bramka etapu = raport `docs/gates/G<nr>.md` + `G<nr>.passed.json` z `gate_pass.py`.
 8. **Nowa rozmowa na każdy etap** (bez kompaktowania); wszystko, co ustalimy, ląduje w repo.
+   Prompt na start: `docs/start-nowej-rozmowy.md`.
 
 Zachowanie asystenta:
 

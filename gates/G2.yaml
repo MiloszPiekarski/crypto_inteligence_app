@@ -10,7 +10,7 @@ criteria: >-
   przechodzą walidację; wymagania mają identyfikatory, etapy i mierzalne kryteria
 checks:
   - id: migration
-    name: "migracja 0001: alembic upgrade head i downgrade base na czystym Postgresie z Timescale"
+    name: "migracje (0001 i kolejne): alembic upgrade head i downgrade base na czystym Postgresie z Timescale"
     run: make -s db-migration-test
     # Runnery macOS w GitHub Actions nie mają Dockera (testcontainers). Na ubuntu (źródło
     # dowodu bramki) i u właściciela sprawdzenie zawsze się wykonuje (scripts/gate.py).
