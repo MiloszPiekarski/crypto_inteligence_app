@@ -125,7 +125,7 @@ Bramka **G1: zaliczona** · dowód: `docs/gates/G1.md`, `docs/gates/G1.passed.js
 
 ## E2. Architektura szczegółowa, model danych i kontrakty
 
-**Status:** ⏳ w toku (od 22.11.2026; plan PR-ów i decyzje w `docs/stan-pracy.md`)
+**Status:** ✅ zakończony 23.11.2026, G2 zaliczona (`docs/gates/G2.passed.json`, przebieg 45144539739; raport `docs/gates/G2.md`)
 
 Etap kończy się, gdy model danych, kontrakty API i zdarzeń oraz wymagania niefunkcjonalne są zapisane jako pliki w repo i przechodzą automatyczną walidację. Od tego momentu kod musi być z nimi zgodny.
 
