@@ -1,0 +1,8 @@
+---
+- name: Wzorzec poprawnego playbooka
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Wypisz komunikat
+      ansible.builtin.debug:
+        msg: "ok"
