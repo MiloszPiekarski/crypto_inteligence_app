@@ -44,7 +44,7 @@ test: ## Testy jednostkowe z pokryciem
 	pnpm test
 
 db-migration-test: ## Migracje w obie strony na czystym Postgresie z Timescale (Docker; bramka G2)
-	uv run pytest -m migration -s services/platform/tests/migrations
+	uv run pytest -m migration services/platform/tests/migrations
 
 build: ## Build frontendu
 	pnpm build

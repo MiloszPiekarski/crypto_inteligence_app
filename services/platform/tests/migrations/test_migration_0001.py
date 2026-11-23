@@ -20,8 +20,12 @@ pytestmark = pytest.mark.migration
 
 PLATFORM = Path(__file__).resolve().parents[2]
 MIGRATION = PLATFORM / "src/goatcash/migrations/versions/v0001_schemat_poczatkowy.py"
-# Obraz przypięty do digestu (ADR-0002); zmiana = PR z wynikiem tego testu.
-IMAGE = os.environ.get("GOATCASH_TEST_PG_IMAGE", "timescale/timescaledb-ha:pg17")
+# Obraz przypięty do digestu (ADR-0002): PostgreSQL 17 + TimescaleDB + pgvector, wieloarch.
+# (arm64 u właściciela i na Oracle A1, amd64 w CI). Zmiana = PR z wynikiem tego testu.
+IMAGE = (
+    "timescale/timescaledb-ha:pg17"
+    "@sha256:c72b4cb8aaa0a52c0870c2b0a48173c595ee9bef0f3d8f92c3f546c69fef3567"
+)
 
 PUBLIC_TABLES = {
     # Rynek
@@ -61,8 +65,6 @@ def load_migration() -> ModuleType:
 @pytest.fixture(scope="module")
 def db_url() -> Iterator[str]:
     with PostgresContainer(IMAGE, driver=None) as pg:
-        digests = pg.get_wrapped_container().image.attrs.get("RepoDigests")  # type: ignore[union-attr]
-        print(f"\nobraz bazy: {IMAGE} -> {digests}")
         yield pg.get_connection_url()
 
 
@@ -104,6 +106,10 @@ def as_role(db_url: str, role: str, sql: str) -> None:
 def migrated(db_url: str) -> str:
     alembic(db_url, "upgrade")
     return db_url
+
+
+def test_postgres_17(migrated: str) -> None:
+    assert int(str(rows(migrated, "SHOW server_version_num")[0][0])) // 10000 == 17
 
 
 def test_upgrade_creates_all_table_groups(migrated: str) -> None:
