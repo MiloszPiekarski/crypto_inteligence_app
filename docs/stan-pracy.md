@@ -66,8 +66,10 @@ Decyzje właściciela do planu (22.11.2026):
   contributors”, „Require actions to be pinned to a full-length commit SHA”) i wygląd
   diagramów `docs/architektura/c4.md` na GitHubie.
 - Nowy klucz Anthropic przed 19.02.2027.
-- Graphify przy PR #12 zgłosił 18 „możliwych problemów”; przejrzane tylko 3 widoczne
-  (panel Graphify jest dla właściciela niedostępny).
+- Graphify: uwagi z PR #12 i #13 przejrzane przez konektor 23.11.2026 (Graphify udostępnia
+  5 najważniejszych z 18; triaż w rozmowie o domknięciu E2, drobiazgi jako zgłoszenia
+  `tech-debt`). Limit przeglądów Graphify (10/miesiąc) wyczerpany na E1: PR-y E2 nie miały
+  przeglądu Graphify; odnowienie 1.12.2026.
 - Atrybucja „Data by CoinGecko” w interfejsie: w E12.
 - Logo w README (PR #28, poza planem E2, zgłoszone przez właściciela).
 - Migracja 0001 (PR 3): `make db-migration-test` wymaga Dockera (u właściciela Docker Desktop,
