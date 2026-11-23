@@ -30,6 +30,8 @@ dev = [
   "jsonschema>=4.25",
   # E3: lint ról i playbooków Ansible (make iac-lint, bramka G3); wersja z 13.10.2026.
   "ansible-lint>=26.10.1,<26.11",
+  # E3: polityka sieci Terraform (trivy nie ma reguł dla OCI): scripts/iac_policy.py.
+  "python-hcl2>=8.1.4,<8.2",
   "rfc3339-validator>=0.1.4",
   "httpx>=0.28",
 ]

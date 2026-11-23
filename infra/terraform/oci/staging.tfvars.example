@@ -1,0 +1,3 @@
+# Wzór zmiennych modułu OCI (staging). Skopiuj do staging.tfvars (plik ignorowany przez git)
+# i uzupełnij OCID compartmentu goatcash z konsoli Oracle (Identity > Compartments).
+compartment_ocid = "ocid1.compartment.oc1..UZUPELNIJ"
