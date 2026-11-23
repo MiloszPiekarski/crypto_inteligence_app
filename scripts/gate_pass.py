@@ -133,9 +133,6 @@ def main(argv: list[str]) -> int:
     group.add_argument("--run", type=int, help="ID zielonego przebiegu ci.yml na main")
     group.add_argument("--local", type=Path, help="raport z reports/gates/ (bramka tylko lokalna)")
     parser.add_argument(
-        "--job", help="nazwa joba bramki (domyślnie: 8 bramka G<nr> (ubuntu-latest))"
-    )
-    parser.add_argument(
         "--workflow", action="append", default=[], help="typ mixed: id=ID przebiegu workflow"
     )
     parser.add_argument(
@@ -143,22 +140,19 @@ def main(argv: list[str]) -> int:
     )
     args = parser.parse_args(argv[1:])
     gate = f"G{args.nr}"
-    mixed = gate_guard.gate_evidence(gate) is not None
+    # Reguły z HEAD (to, co trafi na main), nie z niezacommitowanych zmian w drzewie.
+    mixed = gate_guard.gate_evidence(gate, "HEAD") is not None
     if mixed and args.run is None:
         raise SystemExit(f"{gate} ma blok evidence: wymagany typ mixed (--run i dowody)")
     if not mixed and (args.workflow or args.local_report):
         raise SystemExit(f"{gate} nie ma bloku evidence: --workflow/--local-report niedozwolone")
     if mixed:
-        ci = ci_proof(
-            gate, cast(int, args.run), cast(str, args.job or f"8 bramka {gate} (ubuntu-latest)")
-        )
+        ci = ci_proof(gate, cast(int, args.run), gate_guard.ci_job_name(gate))
         proof = mixed_proof(
             gate, ci, cast(list[str], args.workflow), cast(list[str], args.local_report)
         )
     elif args.run is not None:
-        proof = ci_proof(
-            gate, cast(int, args.run), cast(str, args.job or f"8 bramka {gate} (ubuntu-latest)")
-        )
+        proof = ci_proof(gate, cast(int, args.run), gate_guard.ci_job_name(gate))
     else:
         proof = local_proof(gate, cast(Path, args.local))
     out = ROOT / "docs" / "gates" / f"{gate}.passed.json"

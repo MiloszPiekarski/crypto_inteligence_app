@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import cast
@@ -18,6 +19,8 @@ GOOD_RUN: dict[str, object] = {
     "conclusion": "success",
     "path": ".github/workflows/ci.yml",
     "head_sha": COMMIT,
+    "repository": {"full_name": "o/r"},
+    "head_repository": {"full_name": "o/r"},
 }
 JOB = "8 bramka G1 (ubuntu-latest)"
 PROOF: dict[str, object] = {"gate": "G1", "type": "ci", "run_id": 1, "commit": COMMIT, "job": JOB}
@@ -218,198 +221,358 @@ def test_repo_g1_proof_is_well_formed() -> None:
     )
 
 
+@pytest.mark.parametrize("job", ["1 lint", "8 bramka G1 (macos-15)", "8 bramka G2 (ubuntu-latest)"])
+def test_ci_proof_with_other_job_rejected(monkeypatch: pytest.MonkeyPatch, job: str) -> None:
+    # Recenzja PR 3: job bramki ma continue-on-error, przebieg jest zielony także z czerwoną
+    # bramką, więc dowód nie może wskazać dowolnego zielonego joba (np. lint albo macOS).
+    monkeypatch.setattr(gate_guard, "github_get", fake_github(GOOD_RUN))
+    found = gate_guard.verify_ci("G1", {**PROOF, "job": job}, "o/r", "origin/main")
+    assert any("job dowodu musi być „8 bramka G1 (ubuntu-latest)”" in p for p in found), found
+
+
+@pytest.mark.parametrize("key", ["repository", "head_repository"])
+def test_ci_proof_from_other_repository_rejected(monkeypatch: pytest.MonkeyPatch, key: str) -> None:
+    run: dict[str, object] = {**GOOD_RUN, key: {"full_name": "atak/fork"}}
+    monkeypatch.setattr(gate_guard, "github_get", fake_github(run))
+    assert any(key in p for p in gate_guard.verify_ci("G1", PROOF, "o/r", "origin/main"))
+
+
 # --- Dowód mixed (ADR-0007, punkt 5): próby obejścia muszą być odrzucone -------------------
 
 REPO = "o/r"
 WF = ".github/workflows/deploy-staging.yml"
+WF2 = ".github/workflows/external-scan.yml"
+G3_JOB = "8 bramka G3 (ubuntu-latest)"
+REPORT_COMMIT = "b" * 40
+REBUILD_LINE = r"== G3 rebuild \(local\): PASS, (?P<seconds>[0-9]+) s, 0 manual steps =="
 EVIDENCE: dict[str, dict[str, dict[str, object]]] = {
-    "workflows": {"deploy": {"workflow": WF, "events": ["push"]}},
-    "local": {
-        "rebuild": {
-            "pass_line": r"== G3 rebuild \(local\): PASS, [0-9]+ s < 1800 s, 0 manual steps =="
-        }
+    "workflows": {
+        "deploy": {"workflow": WF, "job": "deploy", "events": ["push"]},
+        "external-scan": {"workflow": WF2, "job": "external-scan", "events": ["schedule"]},
     },
+    "local": {"rebuild": {"pass_line": REBUILD_LINE, "max_seconds": 1800}},
 }
-REPORT = b"Odtworzenie od zera\n== G3 rebuild (local): PASS, 1234 s < 1800 s, 0 manual steps ==\n"
+HEADER = f"Raport G3 rebuild | commit {REPORT_COMMIT} | 20261201T100000Z | local"
+REPORT = (
+    f"{HEADER}\nkrok: infrastruktura gotowa\n"
+    "== G3 rebuild (local): PASS, 1234 s, 0 manual steps ==\n"
+)
 REPORT_PATH = "docs/gates/G3/rebuild-20261201T100000Z.log"
-GOOD_WF_RUN: dict[str, object] = {
-    "event": "push",
-    "head_branch": "main",
-    "conclusion": "success",
-    "path": WF,
-    "head_sha": "a" * 40,
-    "repository": {"full_name": REPO},
-    "head_repository": {"full_name": REPO},
-}
 
 
-def mixed_proof(**changes: object) -> dict[str, object]:
+def wf_run(workflow: str, event: str, **changes: object) -> dict[str, object]:
+    run: dict[str, object] = {
+        "event": event,
+        "head_branch": "main",
+        "conclusion": "success",
+        "path": workflow,
+        "head_sha": "a" * 40,
+        "repository": {"full_name": REPO},
+        "head_repository": {"full_name": REPO},
+    }
+    run.update(changes)
+    return run
+
+
+def mixed_proof(report: str = REPORT, /, **changes: object) -> dict[str, object]:
     proof: dict[str, object] = {
         "gate": "G3",
         "type": "mixed",
-        "ci": {"run_id": 1, "commit": COMMIT, "job": "8 bramka G3 (ubuntu-latest)"},
-        "workflows": {"deploy": {"run_id": 2}},
-        "local": {"rebuild": {"path": REPORT_PATH, "sha256": hashlib.sha256(REPORT).hexdigest()}},
+        "ci": {"run_id": 1, "commit": COMMIT, "job": G3_JOB},
+        "workflows": {"deploy": {"run_id": 2}, "external-scan": {"run_id": 3}},
+        "local": {
+            "rebuild": {
+                "path": REPORT_PATH,
+                "sha256": hashlib.sha256(report.encode()).hexdigest(),
+            }
+        },
     }
     proof.update(changes)
     return proof
 
 
-def mixed_github(wf_run: dict[str, object]) -> Callable[[str], dict[str, object]]:
+def mixed_github(
+    deploy: dict[str, object] | None = None,
+    ci_job_ok: bool = True,
+    wf_job_ok: bool = True,
+) -> Callable[[str], dict[str, object]]:
+    runs: dict[str, dict[str, object]] = {
+        "1": {**GOOD_RUN, "head_sha": COMMIT},
+        "2": deploy if deploy is not None else wf_run(WF, "push"),
+        "3": wf_run(WF2, "schedule"),
+    }
+    jobs = {
+        "1": [
+            {"name": "1 lint", "conclusion": "success"},
+            {"name": G3_JOB, "conclusion": "success" if ci_job_ok else "failure"},
+        ],
+        "2": [{"name": "deploy", "conclusion": "success" if wf_job_ok else "skipped"}],
+        "3": [{"name": "external-scan", "conclusion": "success"}],
+    }
+
     def get(path: str) -> dict[str, object]:
+        run_id = path.split("/runs/")[1].split("/", maxsplit=1)[0]
         if path.endswith("/jobs?per_page=100"):
-            return {"jobs": [{"name": "8 bramka G3 (ubuntu-latest)", "conclusion": "success"}]}
-        if path.endswith("/runs/1"):
-            return {**GOOD_RUN, "head_sha": COMMIT}
-        return wf_run
+            return {"jobs": jobs[run_id]}
+        return runs[run_id]
 
     return get
 
 
-@pytest.fixture
-def g3(monkeypatch: pytest.MonkeyPatch) -> None:
-    def evidence(gate: str) -> dict[str, dict[str, dict[str, object]]] | None:
-        return EVIDENCE if gate == "G3" else None
+def use_report(monkeypatch: pytest.MonkeyPatch, report: str | bytes) -> None:
+    blob = report.encode() if isinstance(report, str) else report
 
     def show(_ref: str, path: str) -> bytes | None:
-        return REPORT if path == REPORT_PATH else None
+        return blob if path == REPORT_PATH else None
 
-    monkeypatch.setattr(gate_guard, "gate_evidence", evidence)
     monkeypatch.setattr(gate_guard, "git_show_bytes", show)
 
 
-@pytest.mark.usefixtures("g3")
-def test_valid_mixed_proof() -> None:
-    found = gate_guard.verify_mixed(
-        "G3", mixed_proof(), REPO, "origin/main", mixed_github(GOOD_WF_RUN)
-    )
-    assert found == []
+@pytest.fixture
+def g3(monkeypatch: pytest.MonkeyPatch) -> None:
+    def evidence(
+        gate: str, _ref: str | None = None
+    ) -> dict[str, dict[str, dict[str, object]]] | None:
+        return EVIDENCE if gate == "G3" else None
+
+    monkeypatch.setattr(gate_guard, "gate_evidence", evidence)
+    use_report(monkeypatch, REPORT)
 
 
-@pytest.mark.usefixtures("g3")
-@pytest.mark.parametrize(
-    ("key", "value"),
-    [
-        ("event", "pull_request"),  # PR (także z forka) nie może dostarczyć dowodu
-        ("event", "pull_request_target"),
-        ("head_branch", "feat/x"),
-        ("conclusion", "failure"),
-        ("path", ".github/workflows/ci.yml"),  # inny workflow podstawiony pod wymagany
-        ("repository", {"full_name": "atak/fork"}),
-        ("head_repository", {"full_name": "atak/fork"}),
-    ],
-)
-def test_mixed_workflow_run_from_wrong_source_rejected(key: str, value: object) -> None:
-    run = {**GOOD_WF_RUN, key: value}
-    found = gate_guard.verify_mixed("G3", mixed_proof(), REPO, "origin/main", mixed_github(run))
-    assert any("deploy" in p for p in found), found
+def verify(
+    proof: dict[str, object], get: Callable[[str], dict[str, object]] | None = None
+) -> list[str]:
+    return gate_guard.verify_mixed("G3", proof, REPO, "origin/main", get or mixed_github())
 
 
-@pytest.mark.usefixtures("g3")
-def test_mixed_workflow_run_older_than_ci_commit_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+def git_rejecting(monkeypatch: pytest.MonkeyPatch, *pairs: tuple[str, str]) -> None:
+    """git merge-base --is-ancestor odpowiada „nie” dla podanych par (przodek, potomek)."""
+
     class Res:
         def __init__(self, code: int) -> None:
             self.returncode = code
 
     def git(*args: str) -> Res:
-        # commit przebiegu deploy ("a"*40) jest w historii main, ale starszy niż commit CI
-        if (
-            args[:2] == ("merge-base", "--is-ancestor")
-            and args[2] == COMMIT
-            and args[3] == "a" * 40
-        ):
+        if args[:2] == ("merge-base", "--is-ancestor") and (args[2], args[3]) in pairs:
             return Res(1)
         return Res(0)
 
     monkeypatch.setattr(gate_guard, "git", git)
-    found = gate_guard.verify_mixed(
-        "G3", mixed_proof(), REPO, "origin/main", mixed_github(GOOD_WF_RUN)
-    )
-    assert any("starszego niż dowód CI" in p for p in found), found
+
+
+@pytest.mark.usefixtures("g3")
+def test_valid_mixed_proof() -> None:
+    assert verify(mixed_proof()) == []
+
+
+@pytest.mark.usefixtures("g3")
+def test_mixed_ci_part_with_red_gate_job_rejected() -> None:
+    found = verify(mixed_proof(), mixed_github(ci_job_ok=False))
+    assert any(f"brak zielonego joba „{G3_JOB}”" in p for p in found), found
+
+
+@pytest.mark.usefixtures("g3")
+def test_mixed_ci_part_with_lint_job_rejected() -> None:
+    proof = mixed_proof(ci={"run_id": 1, "commit": COMMIT, "job": "1 lint"})
+    assert any("job dowodu musi być" in p for p in verify(proof))
+
+
+@pytest.mark.usefixtures("g3")
+def test_mixed_ci_part_from_other_commit_rejected() -> None:
+    proof = mixed_proof(ci={"run_id": 1, "commit": "c" * 40, "job": G3_JOB})
+    assert any("head_sha" in p for p in verify(proof))
 
 
 @pytest.mark.usefixtures("g3")
 @pytest.mark.parametrize(
-    "changes",
+    ("key", "value", "message"),
     [
-        {"workflows": {}},  # brak wymaganego przebiegu
-        {"local": {}},  # brak raportu lokalnego
-        {"workflows": {"deploy": {"run_id": 2}, "extra": {"run_id": 3}}},  # dowód spoza reguł
-        {"workflows": {"deploy": {"run_id": "2"}}},
-        {"workflows": {"deploy": {"run_id": True}}},
-        {"workflows": ["deploy"]},
-        {"ci": None},
+        ("event", "pull_request", "zdarzenie 'pull_request'"),
+        ("event", "pull_request_target", "zdarzenie 'pull_request_target'"),
+        ("event", "workflow_dispatch", "zdarzenie 'workflow_dispatch'"),
+        ("head_branch", "feat/x", "head_branch"),
+        ("conclusion", "failure", "conclusion"),
+        ("path", ".github/workflows/ci.yml", "path"),
+        ("path", "x/.github/workflows/deploy-staging.yml", "path"),
+        ("repository", {"full_name": "atak/fork"}, "repository"),
+        ("head_repository", {"full_name": "atak/fork"}, "head_repository"),
     ],
 )
-def test_mixed_proof_missing_or_malformed_parts_rejected(changes: dict[str, object]) -> None:
-    found = gate_guard.verify_mixed(
-        "G3", mixed_proof(**changes), REPO, "origin/main", mixed_github(GOOD_WF_RUN)
-    )
-    assert found, changes
+def test_mixed_workflow_run_from_wrong_source_rejected(
+    key: str, value: object, message: str
+) -> None:
+    found = verify(mixed_proof(), mixed_github(deploy={**wf_run(WF, "push"), key: value}))
+    assert any(p.startswith("G3: deploy:") and message in p for p in found), found
+
+
+@pytest.mark.usefixtures("g3")
+def test_mixed_workflow_with_skipped_job_rejected() -> None:
+    # Recenzja PR 3: przebieg zielony, ale job sprawdzający pominięty (if:) albo z
+    # continue-on-error; liczy się wynik joba z reguły, nie całego przebiegu.
+    found = verify(mixed_proof(), mixed_github(wf_job_ok=False))
+    assert any("brak zielonego joba „deploy”" in p for p in found), found
+
+
+@pytest.mark.usefixtures("g3")
+def test_mixed_workflow_run_older_than_ci_commit_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    git_rejecting(monkeypatch, (COMMIT, "a" * 40))
+    assert any("starszego niż dowód CI" in p for p in verify(mixed_proof()))
+
+
+@pytest.mark.usefixtures("g3")
+def test_mixed_workflow_run_outside_main_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    git_rejecting(monkeypatch, ("a" * 40, "origin/main"))
+    assert any("commit przebiegu 2 nie należy do historii" in p for p in verify(mixed_proof()))
+
+
+@pytest.mark.usefixtures("g3")
+def test_mixed_same_run_for_two_rules_rejected() -> None:
+    proof = mixed_proof(workflows={"deploy": {"run_id": 2}, "external-scan": {"run_id": 2}})
+    assert any("ten sam przebieg" in p for p in verify(proof))
 
 
 @pytest.mark.usefixtures("g3")
 @pytest.mark.parametrize(
-    "entry",
+    ("changes", "message"),
     [
-        {"path": "docs/gates/G3/inny.log", "sha256": "0" * 64},  # brak pliku na main
-        {"path": REPORT_PATH, "sha256": "0" * 64},  # suma nie pasuje (plik zmieniony)
-        {"path": "docs/gates/G3/../G2.md", "sha256": "0" * 64},  # wyjście z katalogu
-        {"path": "docs/gates/G3/./x.log", "sha256": "0" * 64},
-        {"path": "README.md", "sha256": "0" * 64},
-        {"path": "docs/gates/G30/x.log", "sha256": "0" * 64},  # inny katalog z tym prefiksem
-        {"path": REPORT_PATH, "sha256": "ABC"},
-        {"path": REPORT_PATH},
+        ({"workflows": {"deploy": {"run_id": 2}}}, "brak dowodu 'external-scan'"),
+        ({"local": {}}, "brak dowodu 'rebuild'"),
+        (
+            {
+                "workflows": {
+                    "deploy": {"run_id": 2},
+                    "external-scan": {"run_id": 3},
+                    "x": {"run_id": 4},
+                }
+            },
+            "'x' nie jest wymagany",
+        ),
+        (
+            {"workflows": {"deploy": {"run_id": "2"}, "external-scan": {"run_id": 3}}},
+            "run_id (liczba)",
+        ),
+        (
+            {"workflows": {"deploy": {"run_id": True}, "external-scan": {"run_id": 3}}},
+            "run_id (liczba)",
+        ),
+        ({"workflows": ["deploy"]}, "musi być mapą"),
+        ({"ci": None}, "wymaga części ci"),
     ],
 )
-def test_mixed_local_report_tampering_rejected(entry: dict[str, object]) -> None:
-    proof = mixed_proof(local={"rebuild": entry})
-    found = gate_guard.verify_mixed("G3", proof, REPO, "origin/main", mixed_github(GOOD_WF_RUN))
-    assert any("rebuild" in p for p in found), found
+def test_mixed_proof_missing_or_malformed_parts_rejected(
+    changes: dict[str, object], message: str
+) -> None:
+    found = verify(mixed_proof(**changes))
+    assert any(message in p for p in found), found
 
 
 @pytest.mark.usefixtures("g3")
-def test_mixed_local_report_without_pass_line_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
-    red = b"== G3 rebuild (local): FAIL, 2400 s, 2 manual steps ==\n"
+@pytest.mark.parametrize(
+    "path",
+    [
+        "docs/gates/G3/../G2.md",
+        "docs/gates/G3/./x.log",
+        "docs/gates/G3/x\\y.log",
+        "docs/gates/G3/sub/",
+        "README.md",
+        "docs/gates/G30/x.log",
+    ],
+)
+def test_mixed_local_report_path_outside_dir_rejected(path: str) -> None:
+    proof = mixed_proof(local={"rebuild": {"path": path, "sha256": "0" * 64}})
+    assert any("raport musi leżeć w docs/gates/G3/" in p for p in verify(proof)), path
 
-    def show(_ref: str, _path: str) -> bytes:
-        return red
 
-    monkeypatch.setattr(gate_guard, "git_show_bytes", show)
+@pytest.mark.usefixtures("g3")
+@pytest.mark.parametrize(
+    ("entry", "message"),
+    [
+        ({"path": "docs/gates/G3/inny.log", "sha256": "0" * 64}, "brak pliku"),
+        ({"path": REPORT_PATH, "sha256": "0" * 64}, "suma SHA-256"),
+        ({"path": REPORT_PATH, "sha256": "ABC"}, "64 znaki"),
+        ({"path": REPORT_PATH}, "64 znaki"),
+    ],
+)
+def test_mixed_local_report_tampering_rejected(entry: dict[str, object], message: str) -> None:
+    found = verify(mixed_proof(local={"rebuild": entry}))
+    assert any(message in p for p in found), found
+
+
+@pytest.mark.usefixtures("g3")
+@pytest.mark.parametrize(
+    ("report", "message"),
+    [
+        (REPORT.replace("1234 s", "99999 s"), "przekracza limit 1800 s"),
+        (REPORT + "== G3 rebuild (local): FAIL, 99 s ==\n", "linię FAIL"),
+        (REPORT.replace("krok: infrastruktura gotowa", "krok: FAIL"), "linię FAIL"),
+        (REPORT + "coś po linii PASS\n", "ostatnia linia raportu nie jest linią PASS"),
+        (REPORT.replace(HEADER + "\n", ""), "pierwsza linia raportu"),
+        (REPORT.replace("Raport G3 rebuild", "Raport G2 rebuild"), "pierwsza linia raportu"),
+        (REPORT.replace("Raport G3 rebuild", "Raport G3 inny"), "pierwsza linia raportu"),
+        (REPORT.replace(REPORT_COMMIT, "b" * 7), "pierwsza linia raportu"),
+    ],
+)
+def test_mixed_local_report_content_rejected(
+    monkeypatch: pytest.MonkeyPatch, report: str, message: str
+) -> None:
+    use_report(monkeypatch, report)
+    found = verify(mixed_proof(report))
+    assert any(message in p for p in found), found
+
+
+@pytest.mark.usefixtures("g3")
+def test_mixed_local_report_older_than_ci_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    git_rejecting(monkeypatch, (COMMIT, REPORT_COMMIT))
+    assert any("raport dotyczy commita starszego" in p for p in verify(mixed_proof()))
+
+
+@pytest.mark.usefixtures("g3")
+def test_mixed_local_report_commit_outside_main_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    git_rejecting(monkeypatch, (REPORT_COMMIT, "origin/main"))
+    assert any("commit raportu nie należy do historii" in p for p in verify(mixed_proof()))
+
+
+@pytest.mark.usefixtures("g3")
+def test_mixed_local_report_not_utf8_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    blob = REPORT.encode("utf-16")
+    use_report(monkeypatch, blob)
     proof = mixed_proof(
-        local={"rebuild": {"path": REPORT_PATH, "sha256": hashlib.sha256(red).hexdigest()}}
+        local={"rebuild": {"path": REPORT_PATH, "sha256": hashlib.sha256(blob).hexdigest()}}
     )
-    found = gate_guard.verify_mixed("G3", proof, REPO, "origin/main", mixed_github(GOOD_WF_RUN))
-    assert any("brak linii PASS" in p for p in found), found
+    assert any("nie jest w UTF-8" in p for p in verify(proof))
 
 
 @pytest.mark.usefixtures("g3")
-def test_gate_with_evidence_rejects_plain_ci_proof(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("kind", ["ci", "local"])
+def test_gate_with_evidence_rejects_plain_ci_or_local_proof(
+    monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
     # Obejście: zaliczyć G3 samym zielonym przebiegiem CI, bez dowodów z infrastruktury.
-    ci_only: dict[str, object] = {
+    proof: dict[str, object] = {
         "gate": "G3",
-        "type": "ci",
+        "type": kind,
         "run_id": 1,
         "commit": COMMIT,
-        "job": "x",
+        "job": G3_JOB,
     }
 
-    def load_ci(_gate: str, _ref: str) -> dict[str, object]:
-        return ci_only
+    def load(_gate: str, _ref: str) -> dict[str, object]:
+        return proof
 
-    monkeypatch.setattr(gate_guard, "load_proof", load_ci)
+    monkeypatch.setattr(gate_guard, "load_proof", load)
     found = gate_guard.check_gate("G3", REPO, "origin/main")
     assert any("wymagany dowód typu mixed" in p for p in found), found
-    local_only: dict[str, object] = {**ci_only, "type": "local"}
-
-    def load_local(_gate: str, _ref: str) -> dict[str, object]:
-        return local_only
-
-    monkeypatch.setattr(gate_guard, "load_proof", load_local)
-    assert gate_guard.check_gate("G3", REPO, "origin/main") != []
 
 
-def test_mixed_proof_rejected_for_gate_without_evidence() -> None:
+def test_mixed_proof_rejected_for_gate_without_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    def no_evidence(_gate: str, _ref: str | None = None) -> None:
+        return None
+
+    monkeypatch.setattr(gate_guard, "gate_evidence", no_evidence)
     found = gate_guard.verify_mixed("G2", mixed_proof(gate="G2"), REPO, "origin/main")
     assert any("tylko dla bramki z blokiem evidence" in p for p in found), found
 
@@ -423,19 +586,43 @@ def test_repo_g3_evidence_rules_are_valid() -> None:
         assert "pull_request" not in cast(list[str], rule["events"])
     assert gate_guard.gate_evidence("G2") is None
     assert gate_guard.gate_evidence("G0") is None
+    line = "== G3 rebuild (local): PASS, 1799 s, 0 manual steps =="
+    assert re.fullmatch(str(ev["local"]["rebuild"]["pass_line"]), line)
+
+
+def test_gate_evidence_reads_rules_from_ref(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Recenzja PR 3: reguły z `ref` (main), nie z drzewa roboczego.
+    asked: list[tuple[str, str]] = []
+
+    def show(ref: str, path: str) -> bytes:
+        asked.append((ref, path))
+        return b"gate: G3\n"
+
+    monkeypatch.setattr(gate_guard, "git_show_bytes", show)
+    assert gate_guard.gate_evidence("G3", "origin/main") is None
+    assert asked == [("origin/main", "gates/G3.yaml")]
+
+
+GOOD_WF_RULE: dict[str, object] = {"workflow": WF, "job": "deploy", "events": ["push"]}
 
 
 @pytest.mark.parametrize(
     "bad",
     [
-        {"workflows": {"x": {"workflow": WF, "events": ["pull_request"]}}},
-        {"workflows": {"x": {"workflow": "../evil.yml", "events": ["push"]}}},
-        {"workflows": {"x": {"workflow": WF, "events": []}}},
-        {"workflows": {"X Y": {"workflow": WF, "events": ["push"]}}},
-        {"local": {"r": {}}},
-        {"local": {"r": {"pass_line": "("}}},
-        {},
+        None,  # `evidence:` bez wartości nie może wyłączyć wymogu dowodu mixed
         [],
+        {},
+        {"workflows": {"x": {**GOOD_WF_RULE, "events": ["pull_request"]}}},
+        {"workflows": {"x": {**GOOD_WF_RULE, "workflow": "../evil.yml"}}},
+        {"workflows": {"x": {**GOOD_WF_RULE, "events": []}}},
+        {"workflows": {"x": {"workflow": WF, "events": ["push"]}}},  # brak job
+        {"workflows": {"X Y": GOOD_WF_RULE}},
+        {"workflows": {"a": GOOD_WF_RULE, "b": GOOD_WF_RULE}},  # ten sam plik workflow
+        {"local": {"r": {}}},
+        {"local": {"r": {"pass_line": "(", "max_seconds": 1}}},
+        {"local": {"r": {"pass_line": "PASS", "max_seconds": 1}}},  # brak grupy seconds
+        {"local": {"r": {"pass_line": "(?P<seconds>[0-9]+)"}}},  # brak max_seconds
+        {"local": {"r": {"pass_line": "(?P<seconds>[0-9]+)", "max_seconds": True}}},
     ],
 )
 def test_bad_evidence_rules_raise(
@@ -449,7 +636,9 @@ def test_bad_evidence_rules_raise(
 
 
 def test_gate_pass_rejects_wrong_mode_for_gate(monkeypatch: pytest.MonkeyPatch) -> None:
-    def evidence(gate: str) -> dict[str, dict[str, dict[str, object]]] | None:
+    def evidence(
+        gate: str, _ref: str | None = None
+    ) -> dict[str, dict[str, dict[str, object]]] | None:
         return EVIDENCE if gate == "G3" else None
 
     monkeypatch.setattr(gate_guard, "gate_evidence", evidence)
@@ -457,6 +646,8 @@ def test_gate_pass_rejects_wrong_mode_for_gate(monkeypatch: pytest.MonkeyPatch) 
         gate_pass.main(["p", "3", "--local", "x.log"])
     with pytest.raises(SystemExit, match="niedozwolone"):
         gate_pass.main(["p", "2", "--run", "1", "--workflow", "deploy=2"])
+    with pytest.raises(SystemExit):
+        gate_pass.main(["p", "2", "--run", "1", "--job", "1 lint"])  # --job już nie istnieje
 
 
 def test_gate_pass_mixed_rejects_bad_pairs() -> None:

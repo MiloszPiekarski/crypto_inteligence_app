@@ -12,8 +12,10 @@ wierzony na słowo:
   w gates/G<nr>.yaml (np. G3). Część `ci` jak wyżej, a do tego każdy przebieg workflow
   wymagany w `evidence.workflows` (ten plik workflow, dozwolone zdarzenie, `main`, sukces,
   to repozytorium, commit między commitem części `ci` a `main`) i każdy raport lokalny
-  z `evidence.local` (plik w docs/gates/G<nr>/ na `main`, zgodna suma SHA-256, wymagana
-  linia PASS). Reguły pochodzą z `main`, więc PR nie może ich złagodzić.
+  z `evidence.local` (plik w docs/gates/G<nr>/ na `main`, zgodna suma SHA-256, nagłówek
+  z commitem nie starszym niż część `ci`, bez linii FAIL, ostatnia linia PASS z czasem
+  w limicie). Reguły czytamy z `main` (`git show`), więc PR nie może ich złagodzić.
+Nazwy jobów bramki i workflow pochodzą z reguł, nigdy z pliku dowodu (recenzja PR 3).
 
 PR bez etykiety etapu przechodzi tylko z etykietą `dependencies` (aktualizacje Dependabota).
 Użycie w CI: python scripts/gate_guard.py (zmienne GITHUB_EVENT_PATH, GITHUB_REPOSITORY,
@@ -44,6 +46,10 @@ LOCAL_SUMMARY_RE = re.compile(r"== (G\d+[a-c]?) \(local\): (\d+) PASS, 0 FAIL, 0
 WORKFLOW_PATH_RE = re.compile(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml")
 EVIDENCE_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
+REPORT_HEADER_RE = re.compile(
+    r"Raport (G\d+[a-c]?) ([a-z0-9-]+) \| commit ([0-9a-f]{40}) \| (\d{8}T\d{6}Z) \| local"
+)
+FAIL_LINE_RE = re.compile(r".*\bFAIL\b.*")
 # Zdarzenia, które może wywołać tylko ktoś z prawem zapisu (nie PR z forka).
 ALLOWED_EVENTS = frozenset({"push", "schedule", "workflow_dispatch"})
 Getter = Callable[[str], dict[str, object]]
@@ -78,7 +84,7 @@ def git_show_bytes(ref: str, path: str) -> bytes | None:
 
 
 def _evidence_rules(
-    path: Path, ev: Mapping[str, object], section: str
+    path: str, ev: Mapping[str, object], section: str
 ) -> dict[str, dict[str, object]]:
     items: object = ev.get(section) or {}
     if not isinstance(items, dict):
@@ -93,10 +99,17 @@ def _evidence_rules(
     return rules
 
 
-def _check_workflow_rule(path: Path, key: str, rule: Mapping[str, object]) -> None:
-    workflow, events = rule.get("workflow"), rule.get("events")
+def ci_job_name(gate: str) -> str:
+    """Job bramki w ci.yml, którego wynik liczy się do dowodu (nie z pliku dowodu)."""
+    return f"8 bramka {gate} (ubuntu-latest)"
+
+
+def _check_workflow_rule(path: str, key: str, rule: Mapping[str, object]) -> None:
+    workflow, events, job = rule.get("workflow"), rule.get("events"), rule.get("job")
     if not isinstance(workflow, str) or not WORKFLOW_PATH_RE.fullmatch(workflow):
         raise ValueError(f"{path}: {key}: 'workflow' musi być ścieżką .github/workflows/*.yml")
+    if not isinstance(job, str) or not job:
+        raise ValueError(f"{path}: {key}: 'job' (nazwa joba, który musi być zielony) jest wymagany")
     if (
         not isinstance(events, list)
         or not events
@@ -105,23 +118,39 @@ def _check_workflow_rule(path: Path, key: str, rule: Mapping[str, object]) -> No
         raise ValueError(f"{path}: {key}: 'events' to niepusta lista z {sorted(ALLOWED_EVENTS)}")
 
 
-def _check_local_rule(path: Path, key: str, rule: Mapping[str, object]) -> None:
-    pattern = rule.get("pass_line")
+def _check_local_rule(path: str, key: str, rule: Mapping[str, object]) -> None:
+    pattern, limit = rule.get("pass_line"), rule.get("max_seconds")
     if not isinstance(pattern, str) or not pattern:
         raise ValueError(f"{path}: {key}: 'pass_line' (wyrażenie regularne) jest wymagane")
     try:
-        re.compile(pattern)
+        compiled = re.compile(pattern)
     except re.error as err:
         raise ValueError(f"{path}: {key}: niepoprawne 'pass_line': {err}") from err
+    if "seconds" not in compiled.groupindex:
+        raise ValueError(f"{path}: {key}: 'pass_line' musi mieć grupę (?P<seconds>...)")
+    if not isinstance(limit, int) or isinstance(limit, bool) or limit <= 0:
+        raise ValueError(f"{path}: {key}: 'max_seconds' (dodatnia liczba całkowita) jest wymagane")
 
 
-def gate_evidence(gate: str) -> dict[str, dict[str, dict[str, object]]] | None:
-    """Blok `evidence` z gates/G<nr>.yaml (reguły dowodu mixed) albo None, gdy go nie ma."""
-    path = ROOT / "gates" / f"{gate}.yaml"
-    raw = cast(dict[str, object], yaml.safe_load(path.read_text("utf-8")))
-    ev = raw.get("evidence")
-    if ev is None:
+def gate_evidence(
+    gate: str, ref: str | None = None
+) -> dict[str, dict[str, dict[str, object]]] | None:
+    """Blok `evidence` z gates/G<nr>.yaml (reguły dowodu mixed) albo None, gdy go nie ma.
+
+    Z `ref` reguły pochodzą z tego commita (`git show`), nie z drzewa roboczego.
+    """
+    path = f"gates/{gate}.yaml"
+    if ref is None:
+        text = (ROOT / path).read_text("utf-8")
+    else:
+        blob = git_show_bytes(ref, path)
+        if blob is None:
+            raise ValueError(f"{ref}:{path}: brak pliku reguł bramki")
+        text = blob.decode("utf-8")
+    raw = cast(dict[str, object], yaml.safe_load(text))
+    if "evidence" not in raw:
         return None
+    ev = raw["evidence"]
     if not isinstance(ev, dict):
         raise ValueError(f"{path}: 'evidence' musi być mapą")
     ev_map = cast(dict[str, object], ev)
@@ -132,6 +161,9 @@ def gate_evidence(gate: str) -> dict[str, dict[str, dict[str, object]]] | None:
         _check_local_rule(path, key, rule)
     if not out["workflows"] and not out["local"]:
         raise ValueError(f"{path}: 'evidence' bez reguł")
+    workflows = [str(rule["workflow"]) for rule in out["workflows"].values()]
+    if len(workflows) != len(set(workflows)):
+        raise ValueError(f"{path}: każda reguła workflow musi wskazywać inny plik workflow")
     return out
 
 
@@ -184,6 +216,10 @@ def verify_ci(
         or not isinstance(job_name, str)
     ):
         return [f"{gate}: dowód ci wymaga pól run_id (liczba), commit i job"]
+    if job_name != ci_job_name(gate):
+        # Job bramki ma continue-on-error, dopóki etap trwa: przebieg ci.yml jest zielony
+        # także z czerwoną bramką, więc liczy się wyłącznie job tej bramki na ubuntu.
+        return [f"{gate}: job dowodu musi być „{ci_job_name(gate)}”, jest „{job_name}”"]
     if git("merge-base", "--is-ancestor", commit, ref).returncode != 0:
         return [f"{gate}: commit {commit[:12]} nie należy do historii {ref}"]
     run = get(f"repos/{repo}/actions/runs/{run_id}")
@@ -194,12 +230,15 @@ def verify_ci(
         "conclusion": "success",
         "path": ".github/workflows/ci.yml",
         "head_sha": commit,
+        "repository": repo,
+        "head_repository": repo,
     }
     for key, want in expected.items():
-        if run.get(key) != want:
-            problems.append(
-                f"{gate}: przebieg {run_id}: {key} = {run.get(key)!r}, oczekiwano {want!r}"
-            )
+        got = run.get(key)
+        if key in {"repository", "head_repository"}:
+            got = cast(dict[str, object], got or {}).get("full_name")
+        if got != want:
+            problems.append(f"{gate}: przebieg {run_id}: {key} = {got!r}, oczekiwano {want!r}")
     jobs = cast(
         list[dict[str, object]],
         get(f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100").get("jobs") or [],
@@ -277,6 +316,14 @@ def verify_workflow_run(
         problems.append(
             f"{gate}: {key}: przebieg {run_id}: zdarzenie {run.get('event')!r} spoza {events}"
         )
+    job_name = str(rule.get("job"))
+    jobs = cast(
+        list[dict[str, object]],
+        ctx.get(f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100").get("jobs") or [],
+    )
+    job = next((j for j in jobs if j.get("name") == job_name), None)
+    if job is None or job.get("conclusion") != "success":
+        problems.append(f"{gate}: {key}: w przebiegu {run_id} brak zielonego joba „{job_name}”")
     sha = run.get("head_sha")
     if not isinstance(sha, str) or git("merge-base", "--is-ancestor", sha, ref).returncode != 0:
         problems.append(f"{gate}: {key}: commit przebiegu {run_id} nie należy do historii {ref}")
@@ -307,10 +354,49 @@ def _local_entry(gate: str, key: str, entry: object) -> tuple[str, str] | str:
     return path, digest
 
 
-def verify_local_report(
-    gate: str, key: str, rule: Mapping[str, object], entry: object, ref: str
+def _header_problem(ctx: RunContext, key: str, lines: list[str]) -> str | None:
+    """Pierwsza linia: ta bramka i ten dowód, commit z `ref` nie starszy niż część ci."""
+    gate = ctx.gate
+    header = REPORT_HEADER_RE.fullmatch(lines[0]) if lines else None
+    if header is None or header[1] != gate or header[2] != key:
+        return (
+            f"{gate}: {key}: pierwsza linia raportu musi mieć postać "
+            f"„Raport {gate} {key} | commit <sha 40 znaków> | <RRRRMMDDTGGMMSSZ> | local”"
+        )
+    commit = header[3]
+    if git("merge-base", "--is-ancestor", commit, ctx.ref).returncode != 0:
+        return f"{gate}: {key}: commit raportu nie należy do historii {ctx.ref}"
+    if git("merge-base", "--is-ancestor", ctx.since, commit).returncode != 0:
+        return f"{gate}: {key}: raport dotyczy commita starszego niż dowód CI ({ctx.since[:12]})"
+    return None
+
+
+def _report_problems(
+    ctx: RunContext, key: str, rule: Mapping[str, object], lines: list[str]
 ) -> list[str]:
-    """Raport lokalny: plik w docs/gates/G<nr>/ na `ref`, zgodna suma SHA-256, linia PASS."""
+    """Treść raportu: poprawny nagłówek, bez FAIL, ostatnia linia PASS z czasem w limicie."""
+    gate = ctx.gate
+    problem = _header_problem(ctx, key, lines)
+    if problem is not None:
+        return [problem]
+    if any(FAIL_LINE_RE.fullmatch(line) for line in lines):
+        return [f"{gate}: {key}: raport zawiera linię FAIL"]
+    passed = re.fullmatch(str(rule.get("pass_line")), lines[-1])
+    if passed is None:
+        return [
+            f"{gate}: {key}: ostatnia linia raportu nie jest linią PASS ({rule.get('pass_line')})"
+        ]
+    seconds, limit = int(passed["seconds"]), cast(int, rule.get("max_seconds"))
+    if seconds > limit:
+        return [f"{gate}: {key}: czas {seconds} s przekracza limit {limit} s"]
+    return []
+
+
+def verify_local_report(
+    ctx: RunContext, key: str, rule: Mapping[str, object], entry: object
+) -> list[str]:
+    """Raport lokalny: plik w docs/gates/G<nr>/ na `ref`, zgodna suma SHA-256, poprawna treść."""
+    gate, ref = ctx.gate, ctx.ref
     parsed = _local_entry(gate, key, entry)
     if isinstance(parsed, str):
         return [parsed]
@@ -320,17 +406,18 @@ def verify_local_report(
         return [f"{gate}: {key}: brak pliku {path} na {ref}"]
     if hashlib.sha256(content).hexdigest() != digest:
         return [f"{gate}: {key}: suma SHA-256 pliku {path} nie zgadza się z dowodem"]
-    pattern = str(rule.get("pass_line"))
-    text = content.decode("utf-8", errors="replace")
-    if not any(re.fullmatch(pattern, line) for line in text.splitlines()):
-        return [f"{gate}: {key}: w raporcie {path} brak linii PASS ({pattern})"]
-    return []
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        return [f"{gate}: {key}: raport {path} nie jest w UTF-8"]
+    lines = [line for line in text.splitlines() if line.strip()]
+    return _report_problems(ctx, key, rule, lines)
 
 
 def verify_mixed(
     gate: str, proof: Mapping[str, object], repo: str, ref: str, get: Getter | None = None
 ) -> list[str]:
-    evidence = gate_evidence(gate)
+    evidence = gate_evidence(gate, ref)
     if evidence is None:
         return [f"{gate}: dowód mixed tylko dla bramki z blokiem evidence w gates/{gate}.yaml"]
     ci = proof.get("ci")
@@ -341,6 +428,17 @@ def verify_mixed(
     if problems:
         return problems
     ctx = RunContext(gate, repo, ref, str(ci_part["commit"]), get or github_get)
+    run_ids = (
+        [
+            cast(dict[str, object], e).get("run_id")
+            for e in cast(dict[str, object], proof.get("workflows") or {}).values()
+            if isinstance(e, dict)
+        ]
+        if isinstance(proof.get("workflows"), dict)
+        else []
+    )
+    if len(run_ids) != len({str(r) for r in run_ids}):
+        problems.append(f"{gate}: workflows: ten sam przebieg (run_id) użyty więcej niż raz")
     for section in ("workflows", "local"):
         given: object = proof.get(section) or {}
         if not isinstance(given, dict):
@@ -356,7 +454,7 @@ def verify_mixed(
             elif section == "workflows":
                 problems += verify_workflow_run(ctx, key, rule, given_map[key])
             else:
-                problems += verify_local_report(gate, key, rule, given_map[key], ref)
+                problems += verify_local_report(ctx, key, rule, given_map[key])
     return problems
 
 
@@ -375,7 +473,7 @@ def check_gate(gate: str, repo: str, ref: str) -> list[str]:
     proof = load_proof(gate, ref)
     if isinstance(proof, str):
         return [proof]
-    if gate_evidence(gate) is not None:
+    if gate_evidence(gate, ref) is not None:
         # Bramka z dowodami z prawdziwej infrastruktury: sam przebieg CI nie wystarcza.
         if proof.get("type") != "mixed":
             return [f"{gate}: gates/{gate}.yaml ma blok evidence, wymagany dowód typu mixed"]

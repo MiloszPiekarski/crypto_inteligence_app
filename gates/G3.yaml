@@ -37,29 +37,38 @@ checks:
     skip_on_ci_os: [macOS]
     reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
 evidence:
-  # Przebiegi workflow na main: ten plik, jedno z tych zdarzeń, sukces, commit nie starszy
-  # niż commit części `ci` dowodu. pull_request jest niedozwolony (PR z forka, kod z PR).
+  # Przebiegi workflow na main: ten plik, jedno z tych zdarzeń, sukces przebiegu i joba `job`,
+  # commit nie starszy niż commit części `ci` dowodu. pull_request jest niedozwolony.
+  # Workflow z tej listy nie mogą mieć continue-on-error w jobie `job` ani wejść, które
+  # osłabiają sprawdzenie (test statyczny w PR, który dodaje dany workflow).
   workflows:
     deploy:
       workflow: .github/workflows/deploy-staging.yml
+      job: deploy
       events: [push]
       what: "commit na main wdraża staging: test dymny zielony, rollback sprawdzony"
     restore-test:
       workflow: .github/workflows/restore-test.yml
+      job: restore-test
       events: [schedule, workflow_dispatch]
       what: "kopia z R2 odtworzona do czystej instancji, 100% tabel zgodnych, PITR (F-02)"
     external-scan:
       workflow: .github/workflows/external-scan.yml
+      job: external-scan
       events: [schedule, workflow_dispatch]
       what: "nmap z zewnątrz: otwarty tylko 443 przez Cloudflare; Lynis: 0 Warnings"
     alert-drill:
       workflow: .github/workflows/alert-drill.yml
+      job: alert-drill
       events: [workflow_dispatch]
       what: "zapełnienie dysku i zatrzymanie kontenera: powiadomienie < 5 min (F-03)"
-  # Raporty lokalne właściciela w docs/gates/G3/ (suma SHA-256 w dowodzie, linia PASS).
+  # Raporty lokalne właściciela w docs/gates/G3/: pierwsza linia „Raport G3 <id> | commit
+  # <sha> | <czas> | local” (commit nie starszy niż część ci), żadnej linii FAIL, ostatnia
+  # linia pasuje do pass_line, a czas z grupy `seconds` nie przekracza max_seconds.
   local:
     rebuild:
-      pass_line: "== G3 rebuild \\(local\\): PASS, [0-9]+ s < 1800 s, 0 manual steps =="
+      pass_line: "== G3 rebuild \\(local\\): PASS, (?P<seconds>[0-9]+) s, 0 manual steps =="
+      max_seconds: 1800
       what: "terraform destroy/apply + Ansible od zera < 30 min bez ręcznych kroków (F-01)"
 reports:
   - docs/gates/G3.md
