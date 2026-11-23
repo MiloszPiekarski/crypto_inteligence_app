@@ -32,6 +32,8 @@ Decyzje właściciela (23.11.2026, propozycje asystenta zaakceptowane bez zmian)
   podpisane, otwiera PR i scala. Komendy z kluczami chmury uruchamia właściciel.
 - **D2 dysk:** boot A1 50 GB + boot mikro-VM 50 GB + wolumen danych 100 GB = 200 GB
   (limit Always Free); jawne odstępstwo od 150 GB z roadmapy, zapis w ADR-0007.
+  Limity Always Free potwierdzone 23.11.2026 (ADR-0007): A1 1500 OCPU-h i 9000 GB-h/mies.,
+  czyli jedna maszyna 2/12 naraz (odtwarzanie: najpierw zniszcz, potem twórz).
 - **D3 stan Terraform:** OCI Object Storage (Always Free), wersjonowanie i blokada stanu
   (do weryfikacji w dokumentacji przed PR 6).
 - **D4 dowód G3 mieszany:** przebieg CI na `main` + przebiegi GitHub Actions z ID
@@ -52,7 +54,7 @@ Decyzje właściciela (23.11.2026, propozycje asystenta zaakceptowane bez zmian)
 | 3   | `ci/E3-dowod-mieszany`             | `gate_pass.py`/`gate_guard.py`: dowód mieszany + testy obejścia, niezależna recenzja       | ✅ (PR #80) |
 | 4   | `fix/E3-obraz-alembic`             | `alembic.ini` i migracje w obrazie; test `upgrade head` z obrazu                           | ✅ (PR #82) |
 | 5   | `ci/E3-narzedzia-iac`              | Terraform, tflint, ansible-lint, trivy config w `make tools`/`audit`                       | ✅ (PR #84) |
-| 6   | `feat/E3-tf-oci-siec`              | VCN, podsieci, Security Lists (443 tylko z Cloudflare, bez 22)                             | ⏳          |
+| 6   | `feat/E3-tf-oci-siec`              | VCN, podsieci, Security Lists (443 tylko z Cloudflare, bez 22)                             | ✅ (PR #86) |
 | 7   | `feat/E3-tf-oci-maszyny`           | A1 2/12, wolumen, mikro-VM, zarezerwowane IP                                               | ⬜          |
 | 8   | `feat/E3-tf-oci-vault`             | Vault, klucz główny, polityka instancji executora                                          | ⬜          |
 | 9   | `feat/E3-tf-cloudflare`            | `api.`/`app.`, proxy, SSL Full strict, WAF, limit zapytań, R2, Origin CA, tokeny           | ⬜          |
