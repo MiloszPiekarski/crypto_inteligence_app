@@ -17,6 +17,9 @@ RUN uv sync --frozen --no-dev --package goatcash-platform --no-editable
 FROM python:3.12-slim AS runtime
 RUN useradd --create-home --uid 10001 goatcash
 COPY --from=build --chown=goatcash:goatcash /app/.venv /app/.venv
+# Konfiguracja Alembic: migracje uruchamiane z obrazu (`alembic upgrade head` w /app) przy
+# wdrożeniu (deploy-staging.yml, E3). Skrypty migracji są w pakiecie goatcash.migrations.
+COPY --chown=goatcash:goatcash services/platform/alembic.ini /app/alembic.ini
 ENV PATH="/app/.venv/bin:${PATH}" PYTHONUNBUFFERED=1
 USER goatcash
 WORKDIR /app
