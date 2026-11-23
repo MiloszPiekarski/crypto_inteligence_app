@@ -10,7 +10,9 @@
       "!**/.venv",
       "!pnpm-lock.yaml",
       "!**/*.enc.yaml",
-      "!scripts/tests/fixtures"
+      "!scripts/tests/fixtures",
+      "!packages/contracts/openapi/openapi.json",
+      "!packages/contracts/src/api.ts"
     ]
   },
   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },

@@ -29,6 +29,7 @@ dev = [
   "testcontainers>=4.10",
   "jsonschema>=4.25",
   "rfc3339-validator>=0.1.4",
+  "httpx>=0.28",
 ]
 
 # ---------------- ruff (lint + format) ----------------

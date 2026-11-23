@@ -1,3 +1,9 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Skrypty instalacyjne zależności są domyślnie zablokowane. @scarf/scarf (zależność
+# @stoplight/spectral-*) w skrypcie wysyła telemetrię instalacji, więc jawnie go nie
+# uruchamiamy; narzędzie działa bez niego.
+allowBuilds:
+  "@scarf/scarf": false

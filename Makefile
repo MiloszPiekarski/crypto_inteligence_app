@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 G ?=
 
-.PHONY: help install tools dev lint audit fmt typecheck imports test db-migration-test event-schemas-test evidence-test build secrets-scan doctor gate
+.PHONY: help install tools dev lint audit fmt typecheck imports test db-migration-test event-schemas-test evidence-test openapi-lint openapi build secrets-scan doctor gate
 
 help: ## Lista komend
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -51,6 +51,16 @@ event-schemas-test: ## JSON Schema zdarzeń: poprawne przykłady przechodzą, b�
 
 evidence-test: ## Kontrakt Evidence v1: poprawne przykłady przechodzą, błędne odrzucone (G2)
 	uv run pytest packages/contracts/tests/test_evidence_schema.py
+
+openapi-lint: ## OpenAPI zgodne z aplikacją, Spectral bez błędów i ostrzeżeń, klient TS aktualny (G2)
+	uv run python scripts/export_openapi.py --check
+	pnpm --filter @goatcash/contracts lint:openapi
+	pnpm --filter @goatcash/contracts exec openapi-typescript openapi/openapi.json --output src/api.ts --check
+	pnpm --filter @goatcash/contracts typecheck
+
+openapi: ## Regeneruje specyfikację OpenAPI i klienta TS po zmianie API
+	uv run python scripts/export_openapi.py
+	pnpm --filter @goatcash/contracts generate
 
 build: ## Build frontendu
 	pnpm build
