@@ -17,8 +17,8 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
     (przez `pull_request_target`, z `main`).
 - **E3: w toku** (infrastruktura bazowa; wymaga G2, spełnione). Plan i decyzje niżej.
 - **Do uwzględnienia w planie E3** (wynik przeglądu E2):
-  - obraz platformy nie zawiera `alembic.ini`, więc migracji nie da się uruchomić z obrazu
-    (potrzebne do wdrożenia w E3);
+  - obraz platformy bez `alembic.ini` (migracje nie ruszały z obrazu): naprawa w PR 4,
+    test `make image-migration-test` (sprawdzenie `image-migrations` w G3);
   - model `Evidence` w FastAPI nie jest generowany z JSON Schema; zgodność pilnują tylko
     testy na przykładach kontraktu (do rozważenia generowanie albo test strukturalny).
 
@@ -49,8 +49,8 @@ Decyzje właściciela (23.11.2026, propozycje asystenta zaakceptowane bez zmian)
 | 0   | `feat/E0-doctor-r2-telegram`       | `doctor.sh`: R2 (lista bucketów) i Telegram (`getMe` + wiadomość); zamyka ⚠️ E0            | ⬜          |
 | 1   | `docs/E3-adr-infra`                | ADR-0007: D2–D6, model dowodu, budżet Always Free                                          | ✅ (PR #76) |
 | 2   | `ci/E3-bramka-g3`                  | `gates/G3.yaml` (czerwona), szkic `G3.md`, job G3 poza `ci-ok`                             | ✅ (PR #78) |
-| 3   | `ci/E3-dowod-mieszany`             | `gate_pass.py`/`gate_guard.py`: dowód mieszany + testy obejścia, niezależna recenzja       | ⏳          |
-| 4   | `fix/E3-obraz-alembic`             | `alembic.ini` i migracje w obrazie; test `upgrade head` z obrazu                           | ⬜          |
+| 3   | `ci/E3-dowod-mieszany`             | `gate_pass.py`/`gate_guard.py`: dowód mieszany + testy obejścia, niezależna recenzja       | ✅ (PR #80) |
+| 4   | `fix/E3-obraz-alembic`             | `alembic.ini` i migracje w obrazie; test `upgrade head` z obrazu                           | ⏳          |
 | 5   | `ci/E3-narzedzia-iac`              | Terraform, tflint, ansible-lint, trivy config w `make tools`/`audit`                       | ⬜          |
 | 6   | `feat/E3-tf-oci-siec`              | VCN, podsieci, Security Lists (443 tylko z Cloudflare, bez 22)                             | ⬜          |
 | 7   | `feat/E3-tf-oci-maszyny`           | A1 2/12, wolumen, mikro-VM, zarezerwowane IP                                               | ⬜          |
