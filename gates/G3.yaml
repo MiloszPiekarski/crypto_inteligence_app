@@ -4,10 +4,11 @@
 # (plan w docs/stan-pracy.md). Dopóki celu nie ma, sprawdzenie jest FAIL („No rule to make
 # target”), więc bramka jest czerwona, a nie pusta.
 #
-# Tu są sprawdzenia, które działają w CI (dowód: przebieg ci.yml na main). Sprawdzenia na
-# prawdziwej infrastrukturze (wdrożenie z rollbackiem, tygodniowy test odtworzenia kopii,
-# nmap i Lynis, alerty < 5 min, odtworzenie od zera < 30 min) dochodzą razem z typem dowodu
-# „mixed” w gate_guard (ADR-0007, punkt 5; PR ci/E3-dowod-mieszany).
+# `checks` działają w CI (część `ci` dowodu: przebieg ci.yml na main). Sprawdzenia na
+# prawdziwej infrastrukturze są w bloku `evidence` (ADR-0007, punkt 5): bramka z tym blokiem
+# przyjmuje WYŁĄCZNIE dowód typu mixed (scripts/gate_guard.py), więc nie da się jej zaliczyć
+# samym przebiegiem CI. Workflow z `evidence.workflows` powstają w kolejnych PR-ach E3;
+# do tego czasu dowodu mixed nie da się utworzyć (gate_pass.py odmawia).
 gate: G3
 stage: E3
 criteria: >-
@@ -35,6 +36,40 @@ checks:
     run: make -s backup-restore-test
     skip_on_ci_os: [macOS]
     reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
+evidence:
+  # Przebiegi workflow na main: ten plik, jedno z tych zdarzeń, sukces przebiegu i joba `job`,
+  # commit nie starszy niż commit części `ci` dowodu. pull_request jest niedozwolony.
+  # Workflow z tej listy nie mogą mieć continue-on-error w jobie `job` ani wejść, które
+  # osłabiają sprawdzenie (test statyczny w PR, który dodaje dany workflow).
+  workflows:
+    deploy:
+      workflow: .github/workflows/deploy-staging.yml
+      job: deploy
+      events: [push]
+      what: "commit na main wdraża staging: test dymny zielony, rollback sprawdzony"
+    restore-test:
+      workflow: .github/workflows/restore-test.yml
+      job: restore-test
+      events: [schedule, workflow_dispatch]
+      what: "kopia z R2 odtworzona do czystej instancji, 100% tabel zgodnych, PITR (F-02)"
+    external-scan:
+      workflow: .github/workflows/external-scan.yml
+      job: external-scan
+      events: [schedule, workflow_dispatch]
+      what: "nmap z zewnątrz: otwarty tylko 443 przez Cloudflare; Lynis: 0 Warnings"
+    alert-drill:
+      workflow: .github/workflows/alert-drill.yml
+      job: alert-drill
+      events: [workflow_dispatch]
+      what: "zapełnienie dysku i zatrzymanie kontenera: powiadomienie < 5 min (F-03)"
+  # Raporty lokalne właściciela w docs/gates/G3/: pierwsza linia „Raport G3 <id> | commit
+  # <sha> | <czas> | local” (commit nie starszy niż część ci), żadnej linii FAIL, ostatnia
+  # linia pasuje do pass_line, a czas z grupy `seconds` nie przekracza max_seconds.
+  local:
+    rebuild:
+      pass_line: "== G3 rebuild \\(local\\): PASS, (?P<seconds>[0-9]+) s, 0 manual steps =="
+      max_seconds: 1800
+      what: "terraform destroy/apply + Ansible od zera < 30 min bez ręcznych kroków (F-01)"
 reports:
   - docs/gates/G3.md
   - docs/adr/0007-infrastruktura-staging.md

@@ -1,5 +1,6 @@
 # Pliki dowodów bramek i reguły bramek zmienia tylko właściciel (zakładka Testy, sekcja 3).
-/docs/gates/*.passed.json @MiloszPiekarski
+/docs/gates/ @MiloszPiekarski
+/.github/ @MiloszPiekarski
 /gates/ @MiloszPiekarski
 /scripts/gate_guard.py @MiloszPiekarski
 /scripts/gate_pass.py @MiloszPiekarski
