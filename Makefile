@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 G ?=
 
-.PHONY: help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
+.PHONY: help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test iac-lint event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
 
 help: ## Lista komend
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -45,6 +45,9 @@ test: ## Testy jednostkowe z pokryciem
 
 db-migration-test: ## Migracje w obie strony na czystym Postgresie z Timescale (Docker; bramka G2)
 	uv run pytest -m migration services/platform/tests/migrations
+
+iac-lint: ## Terraform (fmt, validate, tflint), trivy config, ansible-lint; autotest na wzorcach (G3)
+	./scripts/iac-lint.sh
 
 image-migration-test: ## Obraz platformy uruchamia migracje na Postgresie z Timescale (Docker; bramka G3)
 	uv run pytest -m image services/platform/tests/image

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # scripts/ci/install-tools.sh KATALOG: instaluje narzędzia bramek do KATALOG/bin
 # w przypiętych wersjach, sprawdzając sumy SHA-256 (Linux x64 i macOS arm64).
-# Sumy pochodzą z plików checksums wydawców (gitleaks, sops, actionlint, hadolint);
+# Sumy pochodzą z plików checksums wydawców (gitleaks, sops, actionlint, hadolint; od E3:
+# terraform (SHA256SUMS HashiCorp), tflint (checksums.txt), trivy (trivy_*_checksums.txt));
 # dla age, shellcheck i zizmor (bez pliku sum; age ma tylko dowody .proof) z pierwszego
 # pobrania 22.11.2026. Każda suma musi mieć 64 znaki i być sprawdzona w trybie --strict.
 set -euo pipefail
@@ -18,6 +19,9 @@ case "$(uname -s)-$(uname -m)" in
     hd=hadolint-linux-x86_64;                     hd_sha=6bf226944684f56c84dd014e8b979d27425c0148f61b3bd99bcc6f39e9dc5a47
     al=actionlint_1.7.12_linux_amd64.tar.gz;      al_sha=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
     zz=zizmor-x86_64-unknown-linux-gnu.tar.gz;    zz_sha=bb110cc765eca9cd7efb2e284a956be5974c60027b0970f16397d86208a9957b
+    tf=terraform_1.17.2_linux_amd64.zip;          tf_sha=e6f16b2f0b137ee5729caa8c4e79a3bae4ee261acd198a1fcfa8584a6296605b
+    tl=tflint_linux_amd64.zip;                    tl_sha=d4c545ed2e29d6338604b586f34f544f380f70f243aa72f7b484713835eaec61
+    tv=trivy_0.76.1_Linux-64bit.tar.gz;           tv_sha=c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0
     ;;
   Darwin-arm64)
     gl=gitleaks_8.30.1_darwin_arm64.tar.gz;       gl_sha=b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5
@@ -27,6 +31,9 @@ case "$(uname -s)-$(uname -m)" in
     hd=hadolint-macos-arm64;                      hd_sha=3625e2e9f43dcfe7bd38738a5f5520ed50ce39ed28485266e6803dd7bc197b10
     al=actionlint_1.7.12_darwin_arm64.tar.gz;     al_sha=aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f
     zz=zizmor-aarch64-apple-darwin.tar.gz;        zz_sha=6efed18c4539a663fd3c851a2be9533fd8456c4e646d9416206da059154a0d3c
+    tf=terraform_1.17.2_darwin_arm64.zip;         tf_sha=da0c7ef278a911347862758e7573a5907365e66485c2637cf5c217c5e227992e
+    tl=tflint_darwin_arm64.zip;                   tl_sha=5a71c63481ba56760864298011fdb7317a9ae80a0bbaeceefa35883c7f62ac71
+    tv=trivy_0.76.1_macOS-ARM64.tar.gz;           tv_sha=11a9b6cd2752011b54f01ea4bd0dbfa9f0c41dc6538d5a3f9d23955f471bf4e5
     ;;
   *) echo "Nieobsługiwany system: $(uname -s)-$(uname -m)"; exit 1 ;;
 esac
@@ -44,13 +51,18 @@ fetch "$sc" "$gh/koalaman/shellcheck/releases/download/v0.11.0/$sc"
 fetch "$hd" "$gh/hadolint/hadolint/releases/download/v2.14.0/$hd"
 fetch "$al" "$gh/rhysd/actionlint/releases/download/v1.7.12/$al"
 fetch "$zz" "$gh/zizmorcore/zizmor/releases/download/v1.32.0/$zz"
-for h in "$gl_sha" "$so_sha" "$ag_sha" "$sc_sha" "$hd_sha" "$al_sha" "$zz_sha"; do
+fetch "$tf" "https://releases.hashicorp.com/terraform/1.17.2/$tf"
+fetch "$tl" "$gh/terraform-linters/tflint/releases/download/v0.65.0/$tl"
+fetch "$tv" "$gh/aquasecurity/trivy/releases/download/v0.76.1/$tv"
+for h in "$gl_sha" "$so_sha" "$ag_sha" "$sc_sha" "$hd_sha" "$al_sha" "$zz_sha" \
+         "$tf_sha" "$tl_sha" "$tv_sha"; do
   [ "${#h}" -eq 64 ] || { echo "Niepoprawna suma SHA-256: '$h'"; exit 1; }
 done
 # --strict: wiersz z pustą lub uciętą sumą to błąd, a nie ostrzeżenie z kodem 0.
 sum() { if command -v sha256sum >/dev/null; then sha256sum --strict -c -; else shasum -a 256 --strict -c -; fi; }
 printf '%s  %s\n' "$gl_sha" "$gl" "$so_sha" "$so" "$ag_sha" "$ag" "$sc_sha" "$sc" \
-  "$hd_sha" "$hd" "$al_sha" "$al" "$zz_sha" "$zz" | sum
+  "$hd_sha" "$hd" "$al_sha" "$al" "$zz_sha" "$zz" "$tf_sha" "$tf" "$tl_sha" "$tl" \
+  "$tv_sha" "$tv" | sum
 tar -xzf "$gl" -C bin gitleaks
 tar -xzf "$ag" --strip-components=1 -C bin age/age age/age-keygen
 tar -xJf "$sc" --strip-components=1 -C bin shellcheck-v0.11.0/shellcheck
@@ -59,4 +71,16 @@ install -m 0755 "$so" bin/sops
 install -m 0755 "$hd" bin/hadolint
 tar -xzf "$zz" -C bin zizmor
 bin/zizmor --version | grep -q '1.32.0' || { echo "zizmor: zła wersja"; exit 1; }
+unzip -o -q "$tf" terraform -d bin
+unzip -o -q "$tl" tflint -d bin
+tar -xzf "$tv" -C bin trivy
+# Wynik najpierw do zmiennej: `cmd | grep -q` z pipefail pada, gdy grep zamknie potok
+# wcześniej (SIGPIPE), np. tflint dopisuje komunikat o nowszej wersji.
+version_is() {
+  local out; out="$("$1" "$2" 2>&1)" || true
+  case "$out" in *"$3"*) ;; *) echo "$1: zła wersja (oczekiwano $3)"; exit 1 ;; esac
+}
+version_is bin/terraform version 'v1.17.2'
+version_is bin/tflint --version '0.65.0'
+version_is bin/trivy --version '0.76.1'
 echo "Zainstalowano w $dest/bin:"; ls "$dest/bin"
