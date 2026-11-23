@@ -74,9 +74,9 @@ Decyzje właściciela do planu (22.11.2026):
 - Logo w README (PR #28, poza planem E2, zgłoszone przez właściciela).
 - Migracja 0001 (PR 3): `make db-migration-test` wymaga Dockera (u właściciela Docker Desktop,
   w CI job G2 na ubuntu); w `make test` test migracji jest wyłączony markerem `migration`.
-- Do akceptacji właściciela: progi oznaczone `source: doprecyzowanie` w `docs/wymagania.yaml`
-  (F-02, F-03, F-08, F-13, F-14, F-20, F-23, F-24, NF-06; roadmapa podaje tam kryterium bez
-  liczby). Po akceptacji: zmiana na `source: roadmapa` albo nowy próg w osobnym PR.
+- Progi `source: doprecyzowanie` w `docs/wymagania.yaml` zaakceptowane lub zmienione przez
+  właściciela 23.11.2026 (pole `accepted` i `note`, wymagane przez `make requirements-check`);
+  F-23 rozdzielone na F-23 (pułapka z przyszłą ceną) i F-36 (przeuczenie: DSR/PBO).
 - Zgłoszenie #25 (`tech-debt`): brak ponowień `curl` w `install-tools.sh` (403 z GitHub
   Releases w CI).
 - Ryzyko przyjęte (G2.md): PR może zmienić `ci.yml`; ochrona przez przegląd `.github/`,

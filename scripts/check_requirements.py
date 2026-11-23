@@ -2,6 +2,8 @@
 
 Sprawdza `docs/wymagania.yaml` względem dokumentacji:
 - każde F-xx i NF-xx ma unikalny identyfikator, tytuł, sposób pomiaru, próg z liczbą i źródło;
+- próg `source: doprecyzowanie` (inny niż w roadmapie) ma akceptację właściciela
+  (`accepted`, data RRRR-MM-DD) i wyjaśnienie różnicy (`note`);
 - każde F-xx ma etap, który istnieje w roadmapie, a jego bramka to bramka tego etapu albo
   jednej z jego faz z tabeli bramek w testy.md (E14 -> G14a/b/c; etap bez bramki: null);
 - każdy etap od E3 wzwyż ma co najmniej jedno F-xx (nic nie zostało pominięte);
@@ -22,6 +24,7 @@ TESTS = ROOT / "docs/dokumentacja/testy.md"
 FIELDS_F = ("id", "stage", "title", "measure", "target", "gate", "source")
 FIELDS_NF = ("id", "title", "measure", "target", "gate", "source")
 SOURCES = ("roadmapa", "doprecyzowanie")
+OPTIONAL = ("accepted", "note")
 
 
 def stage_key(stage: str) -> tuple[int, str]:
@@ -47,6 +50,20 @@ def roadmap_nf_ids(text: str) -> set[str]:
     return set(re.findall(r"^\| (NF-\d{2})\s+\|", text, flags=re.MULTILINE))
 
 
+def source_errors(rid: str, item: dict[str, Any]) -> list[str]:
+    """Próg spoza roadmapy wymaga akceptacji właściciela i wyjaśnienia różnicy."""
+    if item.get("source") != "doprecyzowanie":
+        return (
+            [f"{rid}: accepted dotyczy tylko source: doprecyzowanie"] if "accepted" in item else []
+        )
+    errors: list[str] = []
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(item.get("accepted", ""))):
+        errors.append(f"{rid}: doprecyzowanie bez akceptacji właściciela (accepted: RRRR-MM-DD)")
+    if not str(item.get("note", "")).strip():
+        errors.append(f"{rid}: doprecyzowanie bez wyjaśnienia różnicy od roadmapy (note)")
+    return errors
+
+
 def check(data: dict[str, Any], roadmap: str, tests: str) -> list[str]:
     errors: list[str] = []
     stages = roadmap_stages(roadmap)
@@ -70,7 +87,8 @@ def check(data: dict[str, Any], roadmap: str, tests: str) -> list[str]:
             errors.append(f"{rid}: próg bez liczby (niemierzalny): {item.get('target')!r}")
         if item.get("source") not in SOURCES:
             errors.append(f"{rid}: source musi być jednym z {SOURCES}")
-        extra = set(item) - set(fields)
+        errors.extend(source_errors(rid, item))
+        extra = set(item) - set(fields) - set(OPTIONAL)
         if extra:
             errors.append(f"{rid}: nieznane pola {sorted(extra)}")
         return rid
