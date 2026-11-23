@@ -1,6 +1,6 @@
 # ADR-0006: Izolacja executora bota
 
-- **Status:** proponowana (zatwierdzenie: scalenie PR `docs/E2-adr`)
+- **Status:** zatwierdzona 2026-11-22 (scalenie PR #24, commit `2e4cb62`)
 - **Data:** 2026-11-22
 - **Etap:** E2
 - **Źródło:** roadmapa E14 („Architektura executora”), Fundamenty sekcje 2 i 8 (klasy

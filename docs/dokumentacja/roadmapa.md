@@ -347,15 +347,16 @@ Przeglądarka → Cloudflare → Next.js (sesja Better Auth, ciasteczko HttpOnly
 
 ### Testy
 
-| Co sprawdzamy       | Jak                                                                             | Narzędzie                 | Wynik poprawny                                      | Przy niepowodzeniu                 |
-| ------------------- | ------------------------------------------------------------------------------- | ------------------------- | --------------------------------------------------- | ---------------------------------- |
-| Zgodność z OpenAPI  | Generowanie tysięcy zapytań ze specyfikacji                                     | Schemathesis              | 0 odpowiedzi niezgodnych ze schematem, 0 błędów 500 | Poprawić endpoint lub specyfikację |
-| Autoryzacja         | Każdy endpoint wywołany bez tokena, z wygasłym, z podrobionym, z cudzym zasobem | pytest (parametryzowane)  | 401 lub 403 we wszystkich przypadkach               | Blokada G6                         |
-| IDOR                | Użytkownik A próbuje odczytać i zmienić zasoby B                                | pytest                    | 0 sukcesów                                          | Blokada G6                         |
-| Przepływy kont      | Rejestracja, weryfikacja, 2FA, reset, passkey                                   | Playwright (minimalny UI) | Wszystkie przechodzą                                | Poprawić konfigurację Better Auth  |
-| Limity              | Seria zapytań ponad limit                                                       | k6                        | 429 po przekroczeniu, poprawne nagłówki             | Poprawić limiter                   |
-| Skan bezpieczeństwa | Skan aktywny staging                                                            | OWASP ZAP (baseline)      | 0 alertów wysokich                                  | Poprawić i powtórzyć               |
-| Migracje            | Migracja w górę i w dół z danymi                                                | pytest + testcontainers   | Bez utraty danych                                   | Poprawić migrację                  |
+| Co sprawdzamy       | Jak                                                                             | Narzędzie                    | Wynik poprawny                                        | Przy niepowodzeniu                    |
+| ------------------- | ------------------------------------------------------------------------------- | ---------------------------- | ----------------------------------------------------- | ------------------------------------- |
+| Zgodność z OpenAPI  | Generowanie tysięcy zapytań ze specyfikacji                                     | Schemathesis                 | 0 odpowiedzi niezgodnych ze schematem, 0 błędów 500   | Poprawić endpoint lub specyfikację    |
+| Autoryzacja         | Każdy endpoint wywołany bez tokena, z wygasłym, z podrobionym, z cudzym zasobem | pytest (parametryzowane)     | 401 lub 403 we wszystkich przypadkach                 | Blokada G6                            |
+| IDOR                | Użytkownik A próbuje odczytać i zmienić zasoby B                                | pytest                       | 0 sukcesów                                            | Blokada G6                            |
+| Przepływy kont      | Rejestracja, weryfikacja, 2FA, reset, passkey                                   | Playwright (minimalny UI)    | Wszystkie przechodzą                                  | Poprawić konfigurację Better Auth     |
+| Limity              | Seria zapytań ponad limit                                                       | k6                           | 429 po przekroczeniu, poprawne nagłówki               | Poprawić limiter                      |
+| Skan bezpieczeństwa | Skan aktywny staging                                                            | OWASP ZAP (baseline)         | 0 alertów wysokich                                    | Poprawić i powtórzyć                  |
+| Migracje            | Migracja w górę i w dół z danymi                                                | pytest + testcontainers      | Bez utraty danych                                     | Poprawić migrację                     |
+| Schemat Better Auth | `getMigrations()` Better Auth na bazie po `alembic upgrade head` (ADR-0004)     | Better Auth + testcontainers | Pusty wynik: brak tabel, kolumn i indeksów do dodania | Migracja Alembic dopasowująca schemat |
 
 ## E7. Agenci analityczni rdzenia, tablica dowodów i Forecast Ledger
 

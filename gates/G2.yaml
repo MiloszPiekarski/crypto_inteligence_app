@@ -16,11 +16,8 @@ checks:
     # dowodu bramki) i u właściciela sprawdzenie zawsze się wykonuje (scripts/gate.py).
     skip_on_ci_os: [macOS]
     reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026)
-  - id: auth-schema-drift
-    name: "schemat Better Auth z migracji = schemat wymagany przez przypiętą wersję Better Auth"
-    run: make -s auth-schema-drift
-    skip_on_ci_os: [macOS]
-    reason: porównanie na bazie w kontenerze; brak Dockera na runnerach macOS w GitHub Actions
+  # Porównanie schematu Better Auth z migracją (ADR-0004) jest w E6/G6, razem z konfiguracją
+  # Better Auth; roadmapa nie wymaga go w G2 (decyzja z 22.11.2026, docs/gates/G2.md).
   - id: event-schemas
     name: "schematy zdarzeń: poprawne przykłady przechodzą, błędne są odrzucane (jsonschema)"
     run: make -s event-schemas-test

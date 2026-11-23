@@ -1,6 +1,6 @@
 # ADR-0003: Magistrala zdarzeń (Valkey Streams)
 
-- **Status:** proponowana (zatwierdzenie: scalenie PR `docs/E2-adr`)
+- **Status:** zatwierdzona 2026-11-22 (scalenie PR #24, commit `2e4cb62`)
 - **Data:** 2026-11-22
 - **Etap:** E2
 - **Źródło:** roadmapa E2 („Kontrakty”), Fundamenty sekcja 2 (procesy, przepływy 1–5), ADR-0001
