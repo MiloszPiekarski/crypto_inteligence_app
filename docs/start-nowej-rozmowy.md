@@ -29,16 +29,18 @@ Kontynuujemy projekt GoatCash. Zaczynamy etap E<nr>. Odpowiadaj po polsku.
 
 W trybie lokalnym asystent działa na komputerze właściciela, z jego `gh` i dostępem do jego
 plików. Obietnica „nie zaglądam do kluczy” nie wystarcza, więc w ustawieniach Claude Code
-**poza repo** (`~/.claude/settings.json`, obowiązują we wszystkich projektach na tym Macu)
-są dwie warstwy blokad. Zmienia je tylko właściciel: oba pliki są objęte regułą `deny`
-dla narzędzi edycji, a hook odrzuca komendy, które ich dotyczą.
+**tylko tego projektu**, poza historią git (`.claude/settings.local.json` i
+`.claude/hooks/goatcash-guard.py` w katalogu projektu, wykluczone przez `.git/info/exclude`),
+są dwie warstwy blokad. Nie działają w żadnym innym projekcie na tym Macu (ustawienia
+globalne `~/.claude` są nietknięte). Zmienia je tylko właściciel: katalog `.claude/` jest
+objęty regułą `deny` dla narzędzi edycji, a hook odrzuca komendy, które go dotyczą.
 
 1. **Reguły `permissions.deny`** (narzędzia Read, Edit/Write, Grep): `Read` i `Edit` dla
    `//**/.env.local`, `~/.oci/**`, `~/.ssh/**`, `~/.config/sops/age/**`
-   (`Read` także `~/Library/Application Support/sops/age/**`); `Edit` dla
-   `~/.claude/settings.json` i `~/.claude/hooks/**`; `Bash` dla `gh pr merge *`,
-   `terraform apply *`, `terraform destroy *` (i tak samo `tofu`).
-2. **Hook `PreToolUse`** `~/.claude/hooks/goatcash-guard.py`: sprawdza całą treść każdej
+   (`Read` także `~/Library/Application Support/sops/age/**`); `Edit` dla `/.claude/**`
+   (katalog `.claude` projektu); `Bash` dla `gh pr merge *`, `terraform apply *`,
+   `terraform destroy *` (i tak samo `tofu`).
+2. **Hook `PreToolUse`** `.claude/hooks/goatcash-guard.py`: sprawdza całą treść każdej
    komendy Bash (także wewnątrz `sh -c`, `$(…)` i łańcuchów `&&`). Blokuje wzmianki
    o ścieżkach z sekretami (`.env.local`, `.oci`, `.ssh`, `sops/age`, `keys.txt`, klucz
    podpisu) i `gh auth token`; `terraform|tofu … apply|destroy` (także z `-chdir=`);
@@ -51,7 +53,11 @@ Próba z 23.11.2026 (rozmowa E3): Read `.env.local`, `~/.ssh`, `~/.oci`,
 `~/.config/sops/age` i Write wabika `.env.local` → odmowa; `gh pr merge`,
 `terraform -chdir=… apply`, `git push origin HEAD:main`, `sh -c 'cat ~/.oci/…'`,
 Edit `settings.json` → odmowa; `git push --dry-run origin HEAD:claude/…` → dozwolone.
-Hook ma też test 27 przypadków (18 blokowanych, 9 dozwolonych).
+Hook ma też test 27 przypadków (18 blokowanych, 9 dozwolonych). Tego samego dnia blokady
+przeniesiono z `~/.claude` (pierwsza wersja działała globalnie, błąd asystenta) do projektu
+i poprawiono fałszywy alarm `2>&1` po `git push`; ponowna próba na żywo (także z worktree
+w `.git/claude-wt/`): Read `~/.ssh`, push na `main`, `gh pr merge`, Edit
+`.claude/settings.local.json` → odmowa; `git push --dry-run … HEAD:claude/… 2>&1` → dozwolone.
 
 **Czego te blokady nie łapią (to nie jest izolacja):**
 
@@ -67,13 +73,13 @@ Hook ma też test 27 przypadków (18 blokowanych, 9 dozwolonych).
 - trybu `bypassPermissions` i zmian ustawień przez samego właściciela.
 
 Hook daje też fałszywe alarmy (w bezpieczną stronę): blokuje każdą komendę, której tekst
-zawiera np. `.env.local`, a `2>&1` po `git push` bierze za nazwę gałęzi.
+zawiera np. `.env.local` (asystent zmienia wtedy plik narzędziem Edit, nie z powłoki).
 
 Mocniejsza warstwa (do decyzji właściciela): sandbox Claude Code (`sandbox.enabled`,
 `sandbox.filesystem.denyRead`, `allowUnsandboxedCommands: false`) blokuje odczyt na poziomie
-systemu dla komend Bash. Domyślnie odcina jednak sieć (lista domen), działa we wszystkich
-projektach i wymaga wyjątków dla `gh` i `git push` przez SSH. Pełna izolacja to osobny
-użytkownik macOS albo maszyna wirtualna.
+systemu dla komend Bash. Też można go włączyć tylko w ustawieniach tego projektu, ale
+domyślnie odcina sieć (lista dozwolonych domen) i wymaga wyjątków dla `gh` i `git push`
+przez SSH. Pełna izolacja to osobny użytkownik macOS albo maszyna wirtualna.
 
 ## Ograniczenia sesji asystenta w chmurze (stan po E2, 23.11.2026)
 
