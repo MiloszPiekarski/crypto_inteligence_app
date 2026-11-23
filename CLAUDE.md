@@ -4,7 +4,8 @@ GoatCash (goatcash.app): platforma analityczna rynku kryptowalut + bot, praca in
 (Politechnika Krakowska) i darmowy produkt publiczny. Dokumentacja źródłowa jest w repo:
 `docs/dokumentacja/` (fundamenty.md, roadmapa.md, testy.md; od 22.11.2026 źródło prawdy,
 wersja w Claude Docs to archiwum). **Na początku każdej rozmowy przeczytaj
-`docs/stan-pracy.md`** (gdzie jesteśmy, otwarte sprawy) i aktualizuj go po każdym kroku.
+`docs/stan-pracy.md`** (gdzie jesteśmy, otwarte sprawy) i aktualizuj go po każdym kroku,
+oraz `docs/lekcje.md` (błędy z poprzednich etapów, których nie powtarzamy).
 
 Zasady pracy:
 
@@ -57,8 +58,9 @@ Procedura zmian:
 7. **Dokumentacja na bieżąco:** stan w `roadmapa.md` i `testy.md` (✅ tylko z dowodem,
    ⚠️ brak dowodu, ⏳ w toku, ⬜ nie rozpoczęto); `docs/stan-pracy.md` aktualizowany w każdej
    łatce; bramka etapu = raport `docs/gates/G<nr>.md` + `G<nr>.passed.json` z `gate_pass.py`;
-   przy zamknięciu etapu także status i komendy w `README.md` i `README.pl.md` (pilnuje
-   `scripts/tests/test_readme_status.py`).
+   przy zamknięciu etapu także tabela „Stan realizacji E<nr>” w `roadmapa.md`, status
+   i komendy w `README.md` i `README.pl.md` (pilnuje `scripts/tests/test_readme_status.py`)
+   oraz nowe pozycje w `docs/lekcje.md`.
 8. **Nowa rozmowa na każdy etap** (bez kompaktowania); wszystko, co ustalimy, ląduje w repo.
    Prompt na start: `docs/start-nowej-rozmowy.md`.
 
@@ -78,3 +80,8 @@ Zachowanie asystenta:
 - Przed użyciem akcji GitHub lub wersji narzędzia: sprawdzić, że istnieje (`git ls-remote`),
   i przypiąć do SHA. Przed odejściem od dokumentacji: sprawdzić, co mówi dokumentacja.
   Wyjątków w skanerach nie dodajemy bez dowodu, że są potrzebne.
+- Prawdziwe zasoby (od E3): przed każdą operacją, która kosztuje albo jest nieodwracalna
+  (`terraform apply`/`destroy`, zmiany DNS, płatne usługi, usuwanie danych lub zasobów),
+  asystent pisze dokładnie, co się stanie (plan, koszt, czy da się cofnąć), i czeka na zgodę.
+- Kroki w konsolach (Oracle, Cloudflare, Grafana, Better Stack itd.) wykonuje właściciel;
+  asystent prowadzi go klik po kliku, z oczekiwanym wynikiem i punktem STOP.
