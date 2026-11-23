@@ -4,15 +4,22 @@ Bramka zaliczona w CI na `main` (typ ci), np. po zielonym przebiegu ci.yml:
     uv run python scripts/gate_pass.py 1 --run 45027155138
 Bramka wyłącznie lokalna (typ local, np. G0), po `make gate G=0` na `main`:
     uv run python scripts/gate_pass.py 0 --local reports/gates/G0-20261122T140000Z.log
+Bramka z blokiem `evidence` (typ mixed, np. G3; ADR-0007): przebieg ci.yml oraz przebiegi
+i raporty lokalne wymagane w gates/G<nr>.yaml (raporty już w docs/gates/G<nr>/):
+    uv run python scripts/gate_pass.py 3 --run 45300000000 \
+        --workflow deploy=45300000001 --workflow restore-test=45300000002 \
+        --local-report rebuild=docs/gates/G3/rebuild-20261201T100000Z.log
 
 Skrypt niczego nie przyjmuje na słowo: dla typu ci pobiera przebieg z GitHuba (`gh api`)
 i odmawia, jeśli nie jest to zielony `push` na `main`; dla typu local odmawia, jeśli raport
-ma FAIL albo SKIP. Wynik i tak sprawdza ponownie gate-guard w każdym PR etapu.
+ma FAIL albo SKIP; dla typu mixed sprawdza każdy przebieg i raport tymi samymi funkcjami co
+gate-guard. Wynik i tak sprawdza ponownie gate-guard w każdym PR etapu.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -20,6 +27,8 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
+
+import gate_guard
 
 ROOT = Path(__file__).resolve().parent.parent
 HEADER_RE = re.compile(
@@ -57,6 +66,48 @@ def ci_proof(gate: str, run_id: int, job: str) -> dict[str, object]:
     }
 
 
+def gh_get(path: str) -> dict[str, object]:
+    return cast(dict[str, object], json.loads(run("gh", "api", path)))
+
+
+def _pairs(items: list[str], what: str) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for item in items:
+        key, sep, value = item.partition("=")
+        if not sep or not key or not value or key in out:
+            raise SystemExit(f"{what}: oczekiwano unikalnych par id=wartość, jest {item!r}")
+        out[key] = value
+    return out
+
+
+def mixed_proof(
+    gate: str, ci: dict[str, object], workflows: list[str], reports: list[str]
+) -> dict[str, object]:
+    """Dowód mixed; odmawia, jeśli cokolwiek nie przejdzie sprawdzeń gate-guard."""
+    repo = run("gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
+    proof: dict[str, object] = {
+        "gate": gate,
+        "type": "mixed",
+        "ci": {k: ci[k] for k in ("run_id", "commit", "job", "url")},
+        "workflows": {
+            key: {"run_id": int(value)} for key, value in _pairs(workflows, "--workflow").items()
+        },
+        "local": {
+            key: {
+                "path": value,
+                "sha256": hashlib.sha256((ROOT / value).read_bytes()).hexdigest(),
+            }
+            for key, value in _pairs(reports, "--local-report").items()
+        },
+        "recorded_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    # Raporty lokalne muszą być już w commicie, który trafi na main (sprawdzamy na HEAD).
+    problems = gate_guard.verify_mixed(gate, proof, repo, "HEAD", gh_get)
+    if problems:
+        raise SystemExit("Dowód mixed odrzucony:\n" + "\n".join(problems))
+    return proof
+
+
 def local_proof(gate: str, report: Path) -> dict[str, object]:
     text = report.read_text(encoding="utf-8")
     header = HEADER_RE.search(text)
@@ -84,9 +135,27 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--job", help="nazwa joba bramki (domyślnie: 8 bramka G<nr> (ubuntu-latest))"
     )
+    parser.add_argument(
+        "--workflow", action="append", default=[], help="typ mixed: id=ID przebiegu workflow"
+    )
+    parser.add_argument(
+        "--local-report", action="append", default=[], help="typ mixed: id=ścieżka raportu"
+    )
     args = parser.parse_args(argv[1:])
     gate = f"G{args.nr}"
-    if args.run is not None:
+    mixed = gate_guard.gate_evidence(gate) is not None
+    if mixed and args.run is None:
+        raise SystemExit(f"{gate} ma blok evidence: wymagany typ mixed (--run i dowody)")
+    if not mixed and (args.workflow or args.local_report):
+        raise SystemExit(f"{gate} nie ma bloku evidence: --workflow/--local-report niedozwolone")
+    if mixed:
+        ci = ci_proof(
+            gate, cast(int, args.run), cast(str, args.job or f"8 bramka {gate} (ubuntu-latest)")
+        )
+        proof = mixed_proof(
+            gate, ci, cast(list[str], args.workflow), cast(list[str], args.local_report)
+        )
+    elif args.run is not None:
         proof = ci_proof(
             gate, cast(int, args.run), cast(str, args.job or f"8 bramka {gate} (ubuntu-latest)")
         )
