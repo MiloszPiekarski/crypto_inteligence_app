@@ -1,0 +1,23 @@
+# Reguły Spectral dla specyfikacji API (bramka G2: 0 błędów i 0 ostrzeżeń).
+extends: ["spectral:oas"]
+rules:
+  # Wszystkie ścieżki publicznego API są wersjonowane (roadmapa: `/v1`).
+  goatcash-paths-v1:
+    description: Ścieżki zaczynają się od /v1/
+    severity: error
+    given: "$.paths"
+    then:
+      field: "@key"
+      function: pattern
+      functionOptions:
+        match: "^/v1/"
+  # Każda operacja ma identyfikator (z niego powstają nazwy w kliencie TS).
+  goatcash-operation-id:
+    description: Operacja ma operationId w camelCase
+    severity: error
+    given: "$.paths[*][*]"
+    then:
+      field: operationId
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-zA-Z0-9]*$"

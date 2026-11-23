@@ -1,0 +1,23 @@
+{
+  "name": "@goatcash/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "openapi-typescript openapi/openapi.json --output src/api.ts",
+    "lint:openapi": "spectral lint openapi/openapi.json --ruleset openapi/.spectral.yaml --fail-severity=warn",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "@stoplight/spectral-cli": "6.17.1",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  }
+}
