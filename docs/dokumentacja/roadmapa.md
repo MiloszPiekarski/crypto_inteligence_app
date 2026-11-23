@@ -188,6 +188,21 @@ Etap kończy się, gdy model danych, kontrakty API i zdarzeń oraz wymagania nie
 | OpenAPI             | Lint specyfikacji                                                                        | Spectral                | 0 błędów                                       | Poprawić specyfikację |
 | Kompletność wymagań | Skrypt sprawdzający, że każde F-xx ma etap i kryterium                                   | Python                  | 100% wymagań przypisanych                      | Uzupełnić             |
 
+### Stan realizacji E2 (✅ zrobione z dowodem)
+
+| Punkt                                                  | Stan | Dowód                                                                                                     |
+| ------------------------------------------------------ | ---- | --------------------------------------------------------------------------------------------------------- |
+| 1. ADR-002…006                                         | ✅   | `docs/adr/0002`…`0006`, zatwierdzone scaleniem PR #24; zmiana ADR-0004 (drift Better Auth w E6/G6) PR #27 |
+| 2. Schemat bazy (migracja Alembic 0001)                | ✅   | `goatcash.migrations` (0001, 0002 `regime_view`), PR #30 i #34; test `migration` w G2 (29 testów)         |
+| 3. JSON Schema zdarzeń (8, z `schema_version`)         | ✅   | `packages/contracts/events/`, PR #32; test `event-schemas` w G2                                           |
+| 4. Kontrakt `Evidence` v1                              | ✅   | `packages/contracts/evidence/`, PR #34; test `evidence-v1` w G2                                           |
+| 5. Szkic OpenAPI 3.1 (`/v1`) i klient TS               | ✅   | `packages/contracts/openapi/openapi.json`, `goatcash.http_api`, PR #36; Spectral 0 błędów w G2            |
+| 6. Wymagania F-xx i NF-xx z etapem i kryterium         | ✅   | `docs/wymagania.yaml` (36 F, 7 NF), PR #40; progi zaakceptowane PR #64 i #68; `make requirements-check`   |
+| 7. Model zagrożeń STRIDE (API, executor, panel admina) | ✅   | `docs/architektura/stride.md`, PR #43                                                                     |
+| 8. Diagram C4 (kontekst, kontenery)                    | ✅   | `docs/architektura/c4.md` (Mermaid), PR #44; renderowanie na GitHubie potwierdzone przez właściciela      |
+
+Bramka **G2: zaliczona** · dowód: `docs/gates/G2.md`, `docs/gates/G2.passed.json` (przebieg 45144539739, sprawdzany przez `gate-guard`). **Jawne odstępstwa i rozszerzenia** (zapisane w `G2.md`): test migracji w CI tylko na ubuntu (runnery macOS bez Dockera); sprawdzenie rozjazdu schematu Better Auth w E6/G6; `gate-guard` przez `pull_request_target` (PR #46, #48). Do uwzględnienia w E3: obraz platformy bez `alembic.ini` (migracje nie ruszą z obrazu).
+
 ## E3. Infrastruktura bazowa
 
 **Status:** ⬜ nie rozpoczęto

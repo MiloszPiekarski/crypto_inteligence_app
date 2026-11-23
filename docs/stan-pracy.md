@@ -40,7 +40,12 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 | 8   | `docs/E2-stride`           | model zagrożeń STRIDE: API, executor, panel administratora                                   | ✅ (PR #43)      |
 | 9   | `docs/E2-c4`               | diagram C4 (kontekst, kontenery) w Mermaid                                                   | ✅ (PR #44)      |
 | 10a | `ci/E2-gate-guard-target`  | luka: PR mógł podmienić `gate-guard.yml`; `pull_request_target` (dowód: szkice #50, #51)     | ✅ (PR #46, #48) |
-| 10  | `docs/E2-g2`               | bramka na `main`, raport `G2.md`, `G2.passed.json`                                           | ✅ (ten PR)      |
+| 10  | `docs/E2-g2`               | bramka na `main`, raport `G2.md`, `G2.passed.json`                                           | ✅ (PR #54)      |
+
+Domknięcie E2 (po G2): PR #58 (prompt nowej rozmowy, ograniczenia sesji), #59 (ponowienia
+`curl` w `make tools`, zamyka #25), #64 (progi wymagań zaakceptowane, F-36), #66 (README
+po E2 i test aktualności), #68 (NF-06 zgodne z roadmapą), PR z tabelą „Stan realizacji E2”
+w roadmapie i `docs/lekcje.md`.
 
 Decyzje właściciela do planu (22.11.2026):
 
@@ -60,11 +65,14 @@ Decyzje właściciela do planu (22.11.2026):
   (osobny PR E0, klucze tylko do odczytu w `.env.local`); Resend ma na razie tylko konto,
   domena `goatcash.app` w Resend, klucz API i sprawdzenie dochodzą w E13 (do tego czasu ⚠️).
 - Sentry na koncie prywatnym: przepiąć na konto projektu w E3/E6.
-- Stary ruleset „Protect main” (id 27548795) nadal aktywny; do usunięcia przez właściciela
-  (zastąpiony przez `main-protection`).
-- Do potwierdzenia przez właściciela: ustawienia Actions („Require approval for all external
-  contributors”, „Require actions to be pinned to a full-length commit SHA”) i wygląd
-  diagramów `docs/architektura/c4.md` na GitHubie.
+- Błędy asystenta z E0–E2 i jak ich unikamy: `docs/lekcje.md`.
+- Stary ruleset „Protect main” usunięty przez właściciela (API 23.11.2026: aktywny tylko
+  `main-protection`).
+- Potwierdzone przez właściciela 23.11.2026: ustawienia Actions („Require approval for all
+  external contributors”, „Require actions to be pinned to a full-length commit SHA”)
+  i poprawne renderowanie `docs/architektura/c4.md` na GitHubie.
+- Zgłoszenia `tech-debt` otwarte: #60 (uszkodzony plik dowodu → wyjątek w `gate_guard`),
+  #61 (paginacja jobów > 100), #62 (stary `coverage.xml` w progu pokrycia).
 - Nowy klucz Anthropic przed 19.02.2027.
 - Graphify: uwagi z PR #12 i #13 przejrzane przez konektor 23.11.2026 (Graphify udostępnia
   5 najważniejszych z 18; triaż w rozmowie o domknięciu E2, drobiazgi jako zgłoszenia
@@ -79,8 +87,7 @@ Decyzje właściciela do planu (22.11.2026):
   F-23 rozdzielone na F-23 (pułapka z przyszłą ceną) i F-36 (przeuczenie: DSR/PBO).
 - NF-06: `source: roadmapa` (WCAG 2.2 AA oznacza w axe 0 critical i 0 serious); wiersz
   „Dostępność UI” w `testy.md` ujednolicony.
-- Zgłoszenie #25 (`tech-debt`): brak ponowień `curl` w `install-tools.sh` (403 z GitHub
-  Releases w CI).
+- Zgłoszenie #25 (`tech-debt`, ponowienia `curl` w `install-tools.sh`) zamknięte przez PR #59.
 - Ryzyko przyjęte (G2.md): PR może zmienić `ci.yml`; ochrona przez przegląd `.github/`,
   zatwierdzanie workflow z forków (zalecane: „Require approval for all external
   contributors”) i `gate-guard` z `main`.
