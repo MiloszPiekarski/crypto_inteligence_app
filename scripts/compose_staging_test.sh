@@ -28,10 +28,13 @@ printf 'services:\n  postgres:\n    volumes:\n      - %s:/test-repo\n' "$WORK/re
 export COMPOSE_PROJECT_NAME="$PROJECT" GOATCASH_HTTPS_PORT="$PORT" GOATCASH_TLS_DIR="$WORK/tls" \
   GOATCASH_METRICS_DIR="$WORK/metrics" GOATCASH_SKIP_PULL=1
 dc() { (cd "$WORK/compose" && GOATCASH_IMAGE_TAG="${TAG:-$GOOD}" docker compose "$@"); }
+# Sprzątanie nie zmienia wyniku testu. Pliki repozytorium kopii należą do użytkownika
+# kontenera (uid 1000): na Linuksie runner ich nie usunie, więc usuwa je kontener.
 cleanup() {
+  dc run --rm --no-deps -T --entrypoint sh postgres -c 'rm -rf /test-repo/*' >/dev/null 2>&1 || true
   dc down -v --remove-orphans >/dev/null 2>&1 || true
   docker image rm "$REPO_IMAGE:$GOOD" "$REPO_IMAGE:$BAD" >/dev/null 2>&1 || true
-  rm -rf "$WORK"
+  rm -rf "$WORK" || true
 }
 trap cleanup EXIT
 
