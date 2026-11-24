@@ -17,6 +17,28 @@
     update_cache: true
     cache_valid_time: 3600
 
+# Świeży obraz jest starszy niż poprawki, a unattended-upgrades działa raz na dobę: zaległe
+# aktualizacje od razu (Lynis PKGS-7392 „vulnerable packages”, external-scan 45485727014).
+- name: Zaległe aktualizacje pakietów
+  ansible.builtin.apt:
+    upgrade: safe
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Czy system wymaga restartu po aktualizacjach
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: base_reboot_required
+
+# Kontenery mają restart: unless-stopped, Tailscale startuje z systemd, więc po restarcie
+# serwer wraca sam; Ansible czeka na ponowne połączenie przez Tailscale.
+- name: Restart po aktualizacjach (tylko gdy wymagany)
+  ansible.builtin.reboot:
+    reboot_timeout: 900
+    msg: "GoatCash: restart po aktualizacjach bezpieczeństwa (Ansible)"
+  when: base_reboot_required.stat.exists
+  tags: [reboot] # test w kontenerze pomija restart (--skip-tags reboot)
+
 - name: Automatyczne aktualizacje bezpieczeństwa
   ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/20auto-upgrades
@@ -34,6 +56,41 @@
     shell: /bin/bash
     password_lock: true
     create_home: true
+
+# Lynis PKGS-7388 („brak repozytorium bezpieczeństwa”) na arm64 to fałszywy alarm: poprawki
+# przychodzą z ports.ubuntu.com (suite <wydanie>-security), a Lynis szuka security.ubuntu.com
+# (na amd64 tego ostrzeżenia nie ma; external-scan 45485727014). Wyjątek tylko z dowodem:
+# najpierw sprawdzamy, że suite -security jest w źródłach apt, inaczej przebieg pada.
+- name: Źródła apt (dowód repozytorium bezpieczeństwa na arm64)
+  ansible.builtin.slurp:
+    src: /etc/apt/sources.list.d/ubuntu.sources
+  register: base_apt_sources
+  when: ansible_architecture == 'aarch64'
+
+- name: Repozytorium bezpieczeństwa jest skonfigurowane
+  ansible.builtin.assert:
+    that: >-
+      (base_apt_sources.content | b64decode) is search('(?m)^Suites:.*\\b' ~ ansible_distribution_release ~ '-security\\b')
+    fail_msg: "Brak suite {{ ansible_distribution_release }}-security w ubuntu.sources: wyjątek Lynis PKGS-7388 niedozwolony"
+    quiet: true
+  when: ansible_architecture == 'aarch64'
+
+- name: Profil Lynis (wyjątek PKGS-7388 tylko na arm64, z dowodem wyżej)
+  ansible.builtin.copy:
+    dest: /etc/lynis/custom.prf
+    content: |
+      # Zarządzane przez Ansible (roles/base). Uzasadnienie: komentarz w tasks/main.yml.
+      skip-test=PKGS-7388
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_architecture == 'aarch64'
+
+- name: Brak wyjątków Lynis na pozostałych architekturach
+  ansible.builtin.file:
+    path: /etc/lynis/custom.prf
+    state: absent
+  when: ansible_architecture != 'aarch64'
 
 - name: Sonda tylko do odczytu (jedyne polecenie klucza goatcash-staging-probe)
   ansible.builtin.copy:
