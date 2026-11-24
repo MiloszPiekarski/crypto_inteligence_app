@@ -75,3 +75,6 @@ infra/ansible/collections/
 # Pliki planu Terraform (terraform plan -out): lokalne, mogą zawierać wartości wrażliwe
 *.plan
 *.tfplan
+
+# Certyfikat Cloudflare Origin CA (publiczny; klucz prywatny tylko w SOPS i Bitwardenie)
+!infra/tls/origin.pem
