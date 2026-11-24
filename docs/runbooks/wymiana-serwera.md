@@ -10,7 +10,7 @@ maszynę, potem tworzy nową; nigdy nie twórz drugiej A1 „obok”.
 ## Przed startem (raz)
 
 - Klucze chmury w `.env.local` (OCI, Cloudflare, Tailscale: klient OAuth z zakresami
-  `auth_keys` i `devices:core`), `gh` zalogowany, `make tools`.
+  `auth_keys` i `devices:core`, tag `tag:goatcash-terraform`), `gh` zalogowany, `make tools`.
 - Kopie w R2 aktualne: ostatni `restore-test` zielony.
 - Środowisko GitHub `staging` bez wymaganego recenzenta (inaczej Ansible i wdrożenie czekają
   na kliknięcie, czyli ręczny krok).

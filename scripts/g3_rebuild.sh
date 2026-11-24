@@ -15,7 +15,8 @@
 #   6. https://api.goatcash.app/v1/health z internetu.
 # Raport: docs/gates/G3/rebuild-<czas>.log (nagłówek i ostatnia linia wg gates/G3.yaml).
 # Wymaga: terraform, gh (zalogowany), curl, python3; zmiennych TAILSCALE_OAUTH_CLIENT_ID,
-# TAILSCALE_OAUTH_CLIENT_SECRET (klient z zakresami auth_keys i devices:core).
+# TAILSCALE_OAUTH_CLIENT_SECRET (klient z zakresami auth_keys i devices:core,
+# jedyny tag: tag:goatcash-terraform, właściciel tagów serwerów; ADR-0007 pkt 6).
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 if [ -d .tools/bin ]; then PATH="$PWD/.tools/bin:$PATH"; fi
@@ -25,9 +26,13 @@ die() { echo "FAIL $*"; exit 1; }
 git fetch -q origin main || die "git fetch"
 SHA="$(git rev-parse HEAD)"
 [ "$SHA" = "$(git rev-parse origin/main)" ] || die "HEAD to nie origin/main"
-for v in TAILSCALE_OAUTH_CLIENT_ID TAILSCALE_OAUTH_CLIENT_SECRET; do
+for v in TAILSCALE_OAUTH_CLIENT_ID TAILSCALE_OAUTH_CLIENT_SECRET CLOUDFLARE_ACCOUNT_ID; do
   [ -n "${!v:-}" ] || die "brak zmiennej $v (.env.local)"
 done
+[ -f infra/terraform/oci/staging.tfvars ] || die "brak infra/terraform/oci/staging.tfvars (lokalny, poza git)"
+# Namespace bucketu stanu (częściowa konfiguracja backendu) i zmienne modułu cloudflare.
+NS="$(oci os ns get --query data --raw-output)" || die "oci os ns get"
+export TF_VAR_state_namespace="$NS" TF_VAR_account_id="$CLOUDFLARE_ACCOUNT_ID"
 
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p docs/gates/G3
@@ -41,8 +46,9 @@ REPLACE=(-replace=oci_core_instance.platform -replace=oci_core_instance.executor
          -replace=tailscale_tailnet_key.platform -replace=tailscale_tailnet_key.executor)
 PLAN="$(mktemp)"
 trap 'rm -f "$PLAN" "$PLAN.txt"' EXIT
-terraform -chdir="$OCI" init -input=false >/dev/null || die "terraform init"
-terraform -chdir="$OCI" plan -input=false -no-color "${REPLACE[@]}" -out="$PLAN" > "$PLAN.txt" || die "terraform plan"
+terraform -chdir="$OCI" init -input=false -backend-config="namespace=$NS" >/dev/null || die "terraform init"
+terraform -chdir="$OCI" plan -input=false -no-color -var-file=staging.tfvars "${REPLACE[@]}" -out="$PLAN" > "$PLAN.txt" ||
+  { tail -20 "$PLAN.txt"; die "terraform plan"; }
 grep -E '^Plan:' "$PLAN.txt" || die "brak podsumowania planu"
 grep -E '# .* (will be|must be) (destroyed|replaced)' "$PLAN.txt" | sed 's/^ */  /'
 echo "Wpisz tak, żeby zastąpić maszyny i wolumen danych (dane wrócą z kopii w R2):"
@@ -80,7 +86,8 @@ terraform -chdir="$OCI" apply -input=false -no-color "$PLAN" | tail -3
 [ "${PIPESTATUS[0]}" -eq 0 ] || die "terraform apply"
 
 step "3. DNS api./app. na nowe IP (Cloudflare)"
-terraform -chdir=infra/terraform/cloudflare init -input=false >/dev/null || die "terraform init cloudflare"
+terraform -chdir=infra/terraform/cloudflare init -input=false -backend-config="namespace=$NS" >/dev/null ||
+  die "terraform init cloudflare"
 terraform -chdir=infra/terraform/cloudflare apply -input=false -no-color -auto-approve \
   -target=cloudflare_dns_record.api -target=cloudflare_dns_record.app | tail -2
 [ "${PIPESTATUS[0]}" -eq 0 ] || die "terraform apply cloudflare (DNS)"
