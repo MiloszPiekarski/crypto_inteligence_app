@@ -1,0 +1,42 @@
+# backup-now (roadmapa E3, zakres 5; runbook odtworzenie-z-kopii): pełna kopia pgBackRest do R2
+# na żądanie, tym samym skryptem co timer systemd (backup.sh full, użytkownik deploy).
+# Kiedy: przed ryzykowną zmianą, przed odtworzeniem od zera (g3_rebuild.sh), na świeżym
+# serwerze, zanim timer zrobi pierwszą kopię (02:30 UTC). Tylko ręcznie, środowisko `staging`.
+name: backup-now
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: backup-staging
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write # Tailscale OIDC
+    steps:
+      - uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:goatcash-ci
+          use-cache: "false"
+          ping: goatcash-staging
+      - name: klucz SSH wdrożeń
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf 'Host goatcash-*\n  User deploy\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' > ~/.ssh/config
+      - name: pełna kopia pgBackRest do R2 (backup.sh full)
+        run: ssh goatcash-staging '/srv/goatcash/compose/backup.sh full'
