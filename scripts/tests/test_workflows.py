@@ -1,0 +1,145 @@
+"""Workflow dowodu G3 (gates/G3.yaml, `evidence.workflows`): istnieją, job o nazwie z reguły
+nie może przejść „na niby” (bez continue-on-error, bez wejść osłabiających sprawdzenie), sekrety
+są tylko w środowiskach z właściwymi ograniczeniami. Plus sonda serwera i odczyt alertów."""
+
+from __future__ import annotations
+
+import importlib.machinery
+import importlib.util
+import json
+from pathlib import Path
+from types import ModuleType
+from typing import cast
+
+import pg_checksums
+import pytest
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2]
+WF = ROOT / ".github" / "workflows"
+
+
+def load_wf(name: str) -> dict[str, object]:
+    data = yaml.safe_load((WF / name).read_text(encoding="utf-8"))
+    # PyYAML czyta klucz `on` jako True.
+    if True in data:
+        data["on"] = data.pop(True)
+    return cast(dict[str, object], data)
+
+
+def evidence_rules() -> dict[str, dict[str, object]]:
+    gate = yaml.safe_load((ROOT / "gates" / "G3.yaml").read_text(encoding="utf-8"))
+    return cast(dict[str, dict[str, object]], gate["evidence"]["workflows"])
+
+
+def job_by_name(wf: dict[str, object], name: str) -> dict[str, object]:
+    jobs = cast(dict[str, dict[str, object]], wf["jobs"])
+    found = [j for j in jobs.values() if j.get("name") == name]
+    assert len(found) == 1, f"dokładnie jeden job o nazwie {name}"
+    return found[0]
+
+
+@pytest.mark.parametrize("key", sorted(evidence_rules()))
+def test_evidence_workflow_cannot_pass_by_accident(key: str) -> None:
+    rule = evidence_rules()[key]
+    wf = load_wf(Path(str(rule["workflow"])).name)
+    job = job_by_name(wf, str(rule["job"]))
+    assert "continue-on-error" not in job
+    steps = cast(list[dict[str, object]], job["steps"])
+    assert all("continue-on-error" not in s for s in steps)
+    # Każdy krok z `if` to tylko sprzątanie (always), nie pomijanie sprawdzeń.
+    assert all(s.get("if") in (None, "always()") for s in steps)
+    triggers = cast(dict[str, object], wf["on"])
+    assert set(triggers) <= set(cast(list[str], rule["events"]))
+    dispatch = triggers.get("workflow_dispatch")
+    inputs = cast(dict[str, object], dispatch).get("inputs") if isinstance(dispatch, dict) else None
+    assert not inputs, "bez wejść ręcznych"
+    assert wf["permissions"] == {}, "uprawnienia tylko na poziomie joba"
+
+
+def test_deploy_waits_for_ci_and_verifies_signature() -> None:
+    wf = load_wf("deploy-staging.yml")
+    job = job_by_name(wf, "deploy")
+    assert job["environment"] == "staging"
+    assert cast(dict[str, object], wf["concurrency"])["cancel-in-progress"] is False
+    runs = "\n".join(str(s.get("run", "")) for s in cast(list[dict[str, object]], job["steps"]))
+    assert "wait-for-ci.sh" in runs
+    assert "cosign verify" in runs
+    assert ".github/workflows/ci.yml@refs/heads/main" in runs
+    assert "--certificate-oidc-issuer https://token.actions.githubusercontent.com" in runs
+    assert "printf 'sha-%s\\n' \"$GITHUB_SHA\"" in runs
+    assert 'deploy.sh "$tag"' in runs
+
+
+def test_ci_signs_images_by_digest_on_main_only() -> None:
+    job = cast(dict[str, dict[str, object]], load_wf("ci.yml")["jobs"])["images"]
+    assert cast(dict[str, str], job["permissions"])["id-token"] == "write"
+    steps = cast(list[dict[str, object]], job["steps"])
+    sign = [s for s in steps if "cosign sign" in str(s.get("run", ""))]
+    assert len(sign) == 1
+    assert sign[0]["if"] == "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+    assert "@${DIGEST}" in str(sign[0]["run"])
+
+
+@pytest.mark.parametrize("name", ["restore-test.yml", "external-scan.yml"])
+def test_scheduled_workflows_use_only_probe_key(name: str) -> None:
+    """Harmonogram = środowisko bez recenzenta, więc bez klucza wdrożeń i bez klucza age."""
+    text = (WF / name).read_text(encoding="utf-8")
+    job = next(iter(cast(dict[str, dict[str, object]], load_wf(name)["jobs"]).values()))
+    assert job["environment"] == "staging-readonly"
+    assert "STAGING_SSH_KEY" not in text
+    assert "SOPS_AGE_KEY" not in text
+    assert "STAGING_PROBE_SSH_KEY" in text
+
+
+def test_secrets_only_in_job_with_environment() -> None:
+    for path in WF.glob("*.yml"):
+        wf = load_wf(path.name)
+        for job_id, job in cast(dict[str, dict[str, object]], wf["jobs"]).items():
+            uses_secret = "secrets." in yaml.safe_dump(job).replace("secrets.GITHUB_TOKEN", "")
+            if uses_secret and path.name != "ci.yml":
+                assert "environment" in job, f"{path.name}:{job_id} sekrety bez środowiska"
+
+
+def load_script(path: Path) -> ModuleType:
+    loader = importlib.machinery.SourceFileLoader(path.name.replace("-", "_"), str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+PROBE = ROOT / "infra" / "ansible" / "roles" / "base" / "files" / "goatcash-probe"
+
+
+def test_probe_uses_same_sql_as_pg_checksums() -> None:
+    probe = load_script(PROBE)
+    assert probe.TABLES == pg_checksums.TABLES
+    assert probe.ROW_SUM == pg_checksums.ROW_SUM
+
+
+@pytest.mark.parametrize("cmd", ["", "bash", "restore-point; id", "lynis && id", "LYNIS"])
+def test_probe_rejects_other_commands(
+    cmd: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    probe = load_script(PROBE)
+    monkeypatch.setenv("SSH_ORIGINAL_COMMAND", cmd)
+
+    def no_run(*_a: object, **_k: object) -> None:
+        pytest.fail("uruchomiono")
+
+    monkeypatch.setattr(probe.subprocess, "run", no_run)
+    assert probe.main() == 2
+    assert "niedozwolone" in capsys.readouterr().err
+
+
+def test_alert_reader_counts_only_active() -> None:
+    wfa = load_script(ROOT / "scripts" / "ci" / "wait-for-alerts.py")
+    body = json.dumps(
+        [
+            {"labels": {"alertname": "A"}, "status": {"state": "active"}},
+            {"labels": {"alertname": "B"}, "status": {"state": "suppressed"}},
+        ]
+    )
+    assert wfa.active_names(body) == {"A"}

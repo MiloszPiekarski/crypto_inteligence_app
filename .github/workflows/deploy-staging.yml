@@ -1,0 +1,88 @@
+# deploy-staging (roadmapa E3, zakres 7; dowód G3 `deploy`): każdy commit na main wdraża staging.
+#   1. czeka na zielony `ci-ok` tego commitu (obraz zbudowany, Trivy, podpis cosign w GHCR);
+#   2. sprawdza podpis obrazu (cosign keyless: tylko ci.yml z main tego repozytorium);
+#   3. łączy się przez Tailscale (OIDC, bez stałego klucza; tag goatcash-ci ma tylko tcp:22);
+#   4. kopiuje pliki Compose, odszyfrowuje sekrety na serwerze (klucz age nie opuszcza serwera),
+#      uruchamia deploy.sh: migracje, healthchecki, test dymny przez Caddy, rollback przy błędzie;
+#   5. test dymny z internetu przez Cloudflare (https://api.goatcash.app/v1/health).
+# Środowisko `staging`: tylko gałąź main, bez wymaganego recenzenta (decyzja właściciela 24.11.2026:
+# wdrożenie po commicie na main ma być automatyczne, roadmapa E3 i G3).
+# Statyczne wymagania (bez continue-on-error, bez wejść osłabiających): scripts/tests/test_workflows.py.
+name: deploy-staging
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    environment: staging
+    permissions:
+      contents: read
+      actions: read # wait-for-ci.sh: wynik ci-ok tego commitu
+      id-token: write # Tailscale OIDC i weryfikacja w Sigstore
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: zielone CI tego commitu
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: ./scripts/ci/wait-for-ci.sh "$GITHUB_SHA"
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: v3.1.4
+      - name: podpis obrazu platform (cosign keyless, ci.yml z main)
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/goatcash-platform:sha-${GITHUB_SHA}"
+          cosign verify "$image" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/ci.yml@refs/heads/main" \
+            > /dev/null
+          echo "podpis OK: $image"
+      - uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:goatcash-ci
+          use-cache: "false"
+          ping: goatcash-staging
+      - name: klucz SSH wdrożeń
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Host w sieci Tailscale (tożsamość węzła potwierdza Tailscale); świeży runner,
+          # więc pierwszy klucz hosta jest przyjmowany (accept-new).
+          printf 'Host goatcash-*\n  User deploy\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' > ~/.ssh/config
+      - name: pliki wdrożenia (Compose, sekrety SOPS, certyfikat Origin CA)
+        run: |
+          rsync -rlt --delete --exclude env/ --exclude env.example/ --exclude .image-tag \
+            --exclude staging.enc.yaml infra/compose/staging/ goatcash-staging:/srv/goatcash/compose/
+          rsync -t infra/secrets/staging.enc.yaml goatcash-staging:/srv/goatcash/compose/staging.enc.yaml
+          rsync -t infra/tls/origin.pem goatcash-staging:/srv/goatcash/tls/origin.pem
+      - name: wdrożenie (migracje, test dymny, automatyczny rollback)
+        run: |
+          # Tag przez stdin: polecenie zdalne jest stałe (bez rozwijania zmiennych runnera).
+          printf 'sha-%s\n' "$GITHUB_SHA" | ssh goatcash-staging \
+            'read -r tag && sudo -n /usr/local/bin/goatcash-render-env && /srv/goatcash/compose/deploy.sh "$tag"'
+      - name: test dymny z internetu (Cloudflare → Caddy → api)
+        run: |
+          for i in $(seq 1 20); do
+            body="$(curl -fsS --max-time 10 https://api.goatcash.app/v1/health 2>/dev/null || true)"
+            if grep -q '"status":"ok"' <<<"$body"; then echo "test dymny z internetu: OK (próba $i)"; exit 0; fi
+            sleep 6
+          done
+          echo "test dymny z internetu: BŁĄD"; exit 1
