@@ -39,7 +39,10 @@ out="$(docker run --rm "${PGBR[@]}" -v "$ID:/home/postgres/pgdata" --entrypoint 
 echo "  PASS pgbackrest restore (punkt $POINT)"
 
 port=55432
-docker run -d --name "$ID" -e POSTGRES_PASSWORD="$PW" -p "127.0.0.1:$port:5432" \
+# Odtwarzanie WAL do punktu (restore_command = pgbackrest archive-get) potrzebuje tej samej
+# konfiguracji i dostępu do R2 co restore (bez tego obraz szuka domyślnego pliku konfiguracji:
+# restore-test 45499232635). archive_mode=off: odtworzona instancja nic nie zapisuje do R2.
+docker run -d --name "$ID" "${PGBR[@]}" -e POSTGRES_PASSWORD="$PW" -p "127.0.0.1:$port:5432" \
   -v "$ID:/home/postgres/pgdata" "$IMAGE" postgres -c archive_mode=off >/dev/null
 ready=0
 for _ in $(seq 1 150); do
