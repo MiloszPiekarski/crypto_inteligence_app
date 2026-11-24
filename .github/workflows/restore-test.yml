@@ -1,0 +1,63 @@
+# restore-test (roadmapa E3, zakres 5; dowód G3 `restore-test`, F-02): co tydzień kopia staging
+# z R2 odtworzona do czystej instancji na runnerze, 100% tabel zgodnych, do punktu w czasie.
+#   1. sonda na serwerze (klucz z wymuszonym poleceniem `goatcash-probe`, tylko do odczytu):
+#      sumy kontrolne wszystkich tabel, nazwany punkt przywracania, WAL do R2;
+#   2. pgBackRest z R2 (token tylko do odczytu) odtwarza najnowszą kopię + WAL do tego punktu;
+#   3. sumy z odtworzonej instancji == sumy z serwera (scripts/restore_from_r2.sh).
+# Środowisko `staging-readonly` (bez recenzentów, bo uruchamia je harmonogram; tylko main):
+# klucz sondy nie daje powłoki ani Dockera, token R2 nie pozwala zapisywać ani usuwać kopii.
+name: restore-test
+
+on:
+  schedule:
+    - cron: "17 4 * * 1" # poniedziałek 04:17 UTC, po nocnej kopii
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: restore-test
+  cancel-in-progress: false
+
+jobs:
+  restore-test:
+    name: restore-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: staging-readonly
+    permissions:
+      contents: read
+      id-token: write # Tailscale OIDC
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - run: uv sync --frozen
+      - uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:goatcash-ci
+          use-cache: "false"
+          ping: goatcash-staging
+      - name: klucz sondy (tylko polecenie goatcash-probe)
+        env:
+          SSH_KEY: ${{ secrets.STAGING_PROBE_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+      - name: sumy kontrolne i punkt przywracania na serwerze
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes deploy@goatcash-staging restore-point \
+            > "$RUNNER_TEMP/probe.json"
+          python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); json.dump(d["checksums"], open(sys.argv[2],"w")); open(sys.argv[3],"w").write(d["restore_point"]); print("punkt:", d["restore_point"], "tabel:", len(d["checksums"]))' \
+            "$RUNNER_TEMP/probe.json" "$RUNNER_TEMP/expected.json" "$RUNNER_TEMP/point.txt"
+      - name: odtworzenie z R2 do czystej instancji i porównanie sum
+        env:
+          PGBACKREST_REPO1_S3_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          PGBACKREST_REPO1_S3_KEY: ${{ secrets.R2_RESTORE_ACCESS_KEY_ID }}
+          PGBACKREST_REPO1_S3_KEY_SECRET: ${{ secrets.R2_RESTORE_SECRET_ACCESS_KEY }}
+          PGBACKREST_REPO1_CIPHER_PASS: ${{ secrets.PGBACKREST_CIPHER_PASS }}
+        run: ./scripts/restore_from_r2.sh "$(cat "$RUNNER_TEMP/point.txt")" "$RUNNER_TEMP/expected.json"

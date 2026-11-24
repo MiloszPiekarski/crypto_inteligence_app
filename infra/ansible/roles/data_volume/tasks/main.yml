@@ -1,0 +1,16 @@
+---
+# Wolumen danych 100 GB (ADR-0007, D2): Docker (obrazy, wolumeny Postgresa i Valkey) i pliki
+# wdrożenia na /srv/goatcash. Urządzenie podłączone przez Terraform (oci_core_volume_attachment).
+- name: System plików ext4 na wolumenie danych (tylko gdy pusty)
+  community.general.filesystem:
+    dev: /dev/oracleoci/oraclevdb
+    fstype: ext4
+    opts: -L goatcash-data
+
+- name: Montowanie wolumenu danych w /srv/goatcash
+  ansible.posix.mount:
+    path: /srv/goatcash
+    src: LABEL=goatcash-data
+    fstype: ext4
+    opts: defaults,_netdev,nofail,noatime
+    state: mounted

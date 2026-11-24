@@ -1,0 +1,66 @@
+---
+# Zapora (roadmapa E3; ADR-0007 pkt 3): domyślnie wszystko przychodzące zablokowane, ruch
+# administracyjny tylko przez Tailscale, 443 tylko z Cloudflare (serwer platformy). Druga linia
+# obrony po NSG w OCI. Obrazy Ubuntu w OCI mają własne reguły iptables (REJECT po porcie 22),
+# które usuwamy, żeby jedynym źródłem reguł był ufw.
+- name: Usunięcie trwałych reguł iptables z obrazu OCI
+  ansible.builtin.apt:
+    name: [netfilter-persistent, iptables-persistent]
+    state: absent
+    purge: true
+
+- name: Usunięcie zapisanych reguł iptables z obrazu OCI
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: [/etc/iptables/rules.v4, /etc/iptables/rules.v6]
+
+- name: Reguły REJECT z obrazu OCI w bieżącym jądrze
+  ansible.builtin.command:
+    cmd: iptables -S
+  register: firewall_iptables
+  changed_when: false
+
+- name: Usunięcie reguł REJECT z obrazu OCI (INPUT i FORWARD)
+  ansible.builtin.command:
+    cmd: "iptables -D {{ item }} -j REJECT --reject-with icmp-host-prohibited"
+  loop: [INPUT, FORWARD]
+  when: ("-A " + item + " -j REJECT --reject-with icmp-host-prohibited") in firewall_iptables.stdout
+  changed_when: true
+
+- name: Ufw domyślnie blokuje ruch przychodzący
+  community.general.ufw:
+    default: deny
+    direction: incoming
+
+- name: Ufw domyślnie przepuszcza ruch wychodzący
+  community.general.ufw:
+    default: allow
+    direction: outgoing
+
+- name: Ruch z sieci Tailscale (administracja, SSH; zakres reguł ustala polityka Tailscale)
+  community.general.ufw:
+    rule: allow
+    interface: tailscale0
+    direction: in
+
+- name: HTTPS tylko z Cloudflare (serwer platformy)
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "443"
+    src: "{{ item }}"
+  loop: "{{ firewall_cloudflare_ipv4 }}"
+  when: inventory_hostname in groups['platform']
+
+- name: Porty kontenerów Dockera tylko z Cloudflare (Docker omija reguły INPUT ufw)
+  ansible.builtin.blockinfile:
+    path: /etc/ufw/after.rules
+    marker: "# {mark} GOATCASH DOCKER-USER (Ansible)"
+    block: "{{ lookup('ansible.builtin.template', 'docker-user.rules.j2') }}"
+  when: inventory_hostname in groups['platform']
+  notify: Reload ufw
+
+- name: Włączenie ufw
+  community.general.ufw:
+    state: enabled

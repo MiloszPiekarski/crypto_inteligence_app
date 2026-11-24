@@ -134,6 +134,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # podpis cosign keyless (Sigstore), tylko push na main
     strategy:
       fail-fast: false
       matrix:
@@ -172,6 +173,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: build linux/arm64 + linux/amd64 (push do GHCR tylko z main)
+        id: push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -180,6 +182,18 @@ jobs:
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ${{ env.IMAGE }}:sha-${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
+      - name: cosign (tylko main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: v3.1.4
+      # Podpis keyless po digeście (nie po tagu): deploy-staging.yml weryfikuje, że obraz
+      # podpisał ten workflow z main tego repozytorium (roadmapa E3, zakres 7).
+      - name: podpis obrazu (cosign keyless, tylko main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
 
   coverage:
     name: 7 raport pokrycia

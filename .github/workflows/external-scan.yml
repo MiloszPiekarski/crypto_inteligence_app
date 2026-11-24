@@ -1,0 +1,74 @@
+# external-scan (roadmapa E3, zakres 2 i 3; dowód G3 `external-scan`): z zewnątrz otwarty tylko
+# 443 przez Cloudflare; Lynis bez ostrzeżeń (D6: „0 Warnings”).
+#   1. nmap z runnera GitHub (spoza Cloudflare) na publiczne IP serwerów: wszystkie porty TCP
+#      zamknięte albo filtrowane (443 platformy przyjmuje tylko zakresy Cloudflare);
+#   2. nmap na api.goatcash.app (Cloudflare): 443 otwarty, test dymny /v1/health;
+#   3. Lynis na obu serwerach przez sondę (klucz z wymuszonym poleceniem, sudo tylko na Lynis).
+# Adresy publiczne: zmienne środowiska `staging-readonly` (wyjścia `terraform output`).
+name: external-scan
+
+on:
+  schedule:
+    - cron: "41 5 * * 1" # poniedziałek 05:41 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: external-scan
+  cancel-in-progress: false
+
+jobs:
+  external-scan:
+    name: external-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: staging-readonly
+    permissions:
+      contents: read
+      id-token: write # Tailscale OIDC (tylko do Lynis, po skanie z zewnątrz)
+    steps:
+      - name: nmap
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq nmap > /dev/null && nmap --version | head -1
+      - name: publiczne IP serwerów bez otwartych portów (wszystkie 65535 TCP)
+        env:
+          PLATFORM_IP: ${{ vars.STAGING_PLATFORM_PUBLIC_IP }}
+          EXECUTOR_IP: ${{ vars.STAGING_EXECUTOR_PUBLIC_IP }}
+        run: |
+          fail=0
+          for ip in "$PLATFORM_IP" "$EXECUTOR_IP"; do
+            [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Brak/niepoprawny adres: '$ip'"; exit 1; }
+            out="$(sudo nmap -Pn -sS -p- --max-retries 2 --min-rate 1500 -oG - "$ip")"
+            open="$(grep -o '[0-9]*/open/[a-z]*' <<<"$out" || true)"
+            if [ -n "$open" ]; then echo "FAIL $ip: otwarte porty: $open"; fail=1; else echo "PASS $ip: 0 otwartych portów TCP"; fi
+          done
+          exit "$fail"
+      - name: api.goatcash.app przez Cloudflare (443 otwarty, /v1/health ok)
+        run: |
+          out="$(nmap -Pn -sT -p 443 -oG - api.goatcash.app)"
+          grep -q '443/open/' <<<"$out" || { echo "FAIL 443 przez Cloudflare nie jest otwarty"; exit 1; }
+          body="$(curl -fsS --max-time 10 https://api.goatcash.app/v1/health)"
+          grep -q '"status":"ok"' <<<"$body" || { echo "FAIL /v1/health"; exit 1; }
+          echo "PASS 443 przez Cloudflare, /v1/health ok"
+      - uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:goatcash-ci
+          use-cache: "false"
+          ping: goatcash-staging,goatcash-executor
+      - name: klucz sondy (tylko polecenie goatcash-probe)
+        env:
+          SSH_KEY: ${{ secrets.STAGING_PROBE_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+      - name: Lynis na obu serwerach (0 Warnings)
+        run: |
+          fail=0
+          for host in goatcash-staging goatcash-executor; do
+            echo "== $host"
+            ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes "deploy@$host" lynis || fail=1
+          done
+          exit "$fail"

@@ -62,3 +62,15 @@ jak tego unikamy.
 - Po resecie katalogu powłoki komendy gita asystenta trafiły do głównego katalogu
   właściciela (przełączona gałąź, zmieniony plik) zamiast do worktree → każda komenda gita
   asystenta ma jawną ścieżkę (`git -C <worktree>`), a `git status` sprawdzamy przed commitem.
+- `cmd | grep -q` przy `set -o pipefail` dawało losowe błędy (SIGPIPE, gdy `grep` kończy
+  wcześniej) → wynik najpierw do zmiennej, potem `grep -q <<<"$zmienna"`.
+- Blokada sesji (hook) reaguje na tekst komendy, nie na jej skutek: edycja pliku przez
+  powłokę z nazwą polecenia Terraform w treści została zablokowana → zmiany treści plików
+  narzędziami Edit/Write, a nie heredociem w Bash.
+- Środowisko GitHub z wymaganym recenzentem a workflow z harmonogramem lub automatycznym
+  wdrożeniem: przebieg czeka na kliknięcie, czyli „automat” ma ręczny krok → przed
+  ustawieniem ochrony środowiska sprawdzamy, które workflow z niego korzystają i jak
+  są uruchamiane.
+- Nowy serwer z pustą bazą i istniejącą stanzą pgBackRest w R2: `stanza-create` odrzuca
+  obcą instancję → odtworzenie od zera musi najpierw odtworzyć bazę z kopii (`deploy.sh`,
+  test w `make compose-staging-test`).

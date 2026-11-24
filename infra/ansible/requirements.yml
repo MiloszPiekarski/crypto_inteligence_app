@@ -1,0 +1,7 @@
+---
+# Kolekcje w przypiętych wersjach (sprawdzone w Galaxy 24.11.2026).
+collections:
+  - name: community.general
+    version: "13.5.1"
+  - name: ansible.posix
+    version: "2.2.2"

@@ -1,0 +1,105 @@
+---
+# Przygotowanie wdrożeń (roadmapa E3, zakres 5 i 7): katalogi, sops + klucz age `staging`
+# (tylko root), skrypt odszyfrowujący sekrety do ./env (jedyne polecenie, które deploy może
+# uruchomić przez sudo), timery kopii pgBackRest.
+- name: Katalogi wdrożenia
+  ansible.builtin.file:
+    path: "{{ goatcash_root }}/{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: compose, owner: deploy, mode: "0750" }
+    - { path: tls, owner: deploy, mode: "0750" }
+    - { path: metrics, owner: deploy, mode: "0755" }
+
+- name: Katalog konfiguracji GoatCash (klucz age, tylko root)
+  ansible.builtin.file:
+    path: /etc/goatcash
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Klucz prywatny age `staging` (z sekretu środowiska GitHub, nigdy w logach)
+  ansible.builtin.copy:
+    dest: /etc/goatcash/age.key
+    content: "{{ lookup('ansible.builtin.env', 'GOATCASH_AGE_KEY_STAGING') }}\n"
+    owner: root
+    group: root
+    mode: "0400"
+  no_log: true
+  when: lookup('ansible.builtin.env', 'GOATCASH_AGE_KEY_STAGING') | length > 0
+
+- name: Sops (przypięta wersja, suma SHA-256 wydawcy)
+  ansible.builtin.get_url:
+    url: "{{ goatcash_sops_base }}/sops-v{{ goatcash_sops_version }}.linux.{{ goatcash_sops_arch }}"
+    dest: /usr/local/bin/sops
+    checksum: "sha256:{{ goatcash_sops_sha256[ansible_architecture] }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Skrypt odszyfrowujący sekrety staging do plików .env
+  ansible.builtin.copy:
+    src: goatcash-render-env
+    dest: /usr/local/bin/goatcash-render-env
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Użytkownik deploy może uruchomić przez sudo tylko odszyfrowanie sekretów
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/goatcash-deploy
+    content: "deploy ALL=(root) NOPASSWD: /usr/local/bin/goatcash-render-env\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Usługa kopii pgBackRest (full/incr)
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/goatcash-backup@.service
+    content: |
+      [Unit]
+      Description=GoatCash: kopia pgBackRest (%i)
+      After=docker.service
+      [Service]
+      Type=oneshot
+      User=deploy
+      WorkingDirectory={{ goatcash_root }}/compose
+      Environment=GOATCASH_METRICS_DIR={{ goatcash_root }}/metrics
+      ExecStart={{ goatcash_root }}/compose/backup.sh %i
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Timery kopii (pełna w niedzielę, przyrostowa w pozostałe dni)
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/goatcash-backup-{{ item.type }}.timer"
+    content: |
+      [Unit]
+      Description=GoatCash: kopia {{ item.type }}
+      [Timer]
+      OnCalendar={{ item.when }}
+      Persistent=true
+      Unit=goatcash-backup@{{ item.type }}.service
+      [Install]
+      WantedBy=timers.target
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - { type: full, when: "Sun *-*-* 02:30:00 UTC" }
+    - { type: incr, when: "Mon..Sat *-*-* 02:30:00 UTC" }
+  notify: Reload systemd
+
+- name: Włączenie timerów kopii
+  ansible.builtin.systemd_service:
+    name: "goatcash-backup-{{ item }}.timer"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop: [full, incr]

@@ -1,0 +1,9 @@
+*filter
+:DOCKER-USER - [0:0]
+-A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j RETURN
+{% for cidr in firewall_cloudflare_ipv4 %}
+-A DOCKER-USER -i {{ ansible_default_ipv4.interface }} -s {{ cidr }} -p tcp -m conntrack --ctorigdstport 443 -j RETURN
+{% endfor %}
+-A DOCKER-USER -i {{ ansible_default_ipv4.interface }} -m conntrack --ctstate NEW -j DROP
+-A DOCKER-USER -j RETURN
+COMMIT

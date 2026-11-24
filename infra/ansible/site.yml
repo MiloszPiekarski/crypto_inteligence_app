@@ -1,0 +1,19 @@
+---
+# Konfiguracja serwerów staging (roadmapa E3, zakres prac 3): użytkownik bez roota, SSH tylko
+# kluczem, fail2ban, automatyczne aktualizacje bezpieczeństwa, zapora ufw (443 tylko
+# z Cloudflare, administracja tylko przez Tailscale), swap, limity journald; na serwerze
+# platformy także wolumen danych, Docker i przygotowanie wdrożeń (sops + klucz age staging).
+- name: Wszystkie serwery staging
+  hosts: all
+  become: true
+  roles:
+    - role: base
+    - role: firewall
+
+- name: Serwer platformy
+  hosts: platform
+  become: true
+  roles:
+    - role: data_volume
+    - role: docker
+    - role: goatcash

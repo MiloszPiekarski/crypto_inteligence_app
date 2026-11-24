@@ -1,0 +1,15 @@
+#cloud-config
+# Pierwsze uruchomienie maszyny (ADR-0007 punkt 3): tylko Tailscale z jednorazowym kluczem
+# (ważny 1 h, wstępnie zatwierdzony, z tagiem). Resztę konfiguracji robi Ansible przez
+# Tailscale (infra/ansible). Klucz w metadanych jest po dołączeniu do sieci bezużyteczny.
+hostname: ${hostname}
+package_update: true
+packages: [curl, ca-certificates, gnupg]
+runcmd:
+  - install -m 0755 -d /usr/share/keyrings
+  - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+  - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list
+  - apt-get update
+  - apt-get install -y tailscale
+  - systemctl enable --now tailscaled
+  - tailscale up --auth-key='${tailscale_auth_key}' --hostname='${hostname}' --advertise-tags='${tags}'

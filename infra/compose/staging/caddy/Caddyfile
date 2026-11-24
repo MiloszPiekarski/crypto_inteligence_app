@@ -1,0 +1,20 @@
+# Caddy staging (roadmapa E3): TLS certyfikatem Cloudflare Origin CA (pliki w /etc/caddy/tls,
+# poza repo; Cloudflare w trybie Full (strict) sprawdza ten certyfikat). Bez automatycznego
+# ACME: ruch przychodzi tylko przez Cloudflare (NSG i ufw wpuszczają 443 z zakresów Cloudflare).
+{
+	auto_https off
+	admin off
+}
+
+api.goatcash.app:443 {
+	tls /etc/caddy/tls/origin.pem /etc/caddy/tls/origin.key
+	encode zstd gzip
+	header -Server
+	reverse_proxy api:8000
+}
+
+app.goatcash.app:443 {
+	tls /etc/caddy/tls/origin.pem /etc/caddy/tls/origin.key
+	header -Server
+	respond "GoatCash: aplikacja w budowie (etap E12)." 503
+}
