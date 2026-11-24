@@ -74,3 +74,11 @@ jak tego unikamy.
 - Nowy serwer z pustą bazą i istniejącą stanzą pgBackRest w R2: `stanza-create` odrzuca
   obcą instancję → odtworzenie od zera musi najpierw odtworzyć bazę z kopii (`deploy.sh`,
   test w `make compose-staging-test`).
+- Nazwy limitów w polityce Oracle podane z pamięci (`standard-a1-core-count`), a A1 liczy
+  też limit regionalny → A1 zablokowana dwa razy → nazwy limitów bierzemy z tabeli
+  „Limits, quotas and usage” (kolumna Limit Name) i ustawiamy wszystkie, które dotyczą zasobu.
+- Diagnoza błędu API Tailscale testem, który zmieniał dwie rzeczy naraz → wniosek był
+  fałszywy → test zmienia jedną zmienną albo od razu całą macierz kombinacji.
+- Sprzątanie testu Docker na Linuksie: pliki tworzone przez kontener (inny uid) nie dają
+  się usunąć z runnera, a błąd w pułapce EXIT przy `set -e` zmienia wynik testu → pliki
+  kontenera usuwa kontener, sprzątanie nie wpływa na wynik.

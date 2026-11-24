@@ -71,3 +71,10 @@ infra/ansible/collections/
 
 # Cache import-lintera (Biome nie czyta .gitignore z wnętrza tego katalogu)
 .import_linter_cache/
+
+# Pliki planu Terraform (terraform plan -out): lokalne, mogą zawierać wartości wrażliwe
+*.plan
+*.tfplan
+
+# Certyfikat Cloudflare Origin CA (publiczny; klucz prywatny tylko w SOPS i Bitwardenie)
+!infra/tls/origin.pem

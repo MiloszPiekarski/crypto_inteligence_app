@@ -116,12 +116,15 @@ Decyzje właściciela do planu (22.11.2026):
 
 ## Otwarte sprawy
 
-- E3, do zrobienia przez właściciela po dużym PR (instrukcja w rozmowie 24.11.2026):
-  klucz sondy `goatcash_staging_probe` (`.pub` do repo), CSR Origin CA, `staging.enc.yaml`,
-  token R2 dla pgBackRest (zapis) i dla testu kopii (odczyt), sekrety i zmienne środowisk
-  `staging` i `staging-readonly`, potem Terraform (plan, zgoda, uruchomienie) kolejno:
-  `oci-trwale`, `oci` (maszyny; sprawdzić koszt zarezerwowanego IP), `cloudflare`,
-  `observability`; `ansible-staging.yml`; pierwsze `deploy-staging.yml` (zgoda).
+- E3, stan 24.11.2026: duży PR scalony (#90; `deploy-staging` czerwony na kroku Tailscale,
+  bo brak sekretów, zgodnie z planem). Utworzone przez właściciela (plan → zgoda → apply):
+  `oci-trwale` (Vault, klucz HSM), `oci` (A1 `84.235.173.6`, executor z zarezerwowanym IP
+  `158.101.201.247`, wolumen 100 GB; oba serwery w Tailscale z tagami), `cloudflare`
+  (DNS `api.`/`app.`, SSL strict, WAF, limit, Origin CA, bucket R2). Do zrobienia:
+  tokeny R2 (zapis dla pgBackRest, odczyt dla testu kopii), `staging.enc.yaml`, sekrety
+  i zmienne środowisk `staging` i `staging-readonly`, `observability`, `ansible-staging.yml`,
+  PR konfiguracyjny (`origin.pem`, `staging.enc.yaml`) = pierwsze wdrożenie, potem dowody G3
+  i PR zamykający E3.
 - E3: środowisko `staging` **bez wymaganego recenzenta, tylko gałąź `main`** (decyzja
   właściciela 24.11.2026): recenzent blokował automatyczne wdrożenie z `main`
   i odtworzenie „bez ręcznych kroków” (G3); roadmapa wymaga zatwierdzania tylko dla

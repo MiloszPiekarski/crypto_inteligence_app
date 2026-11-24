@@ -176,8 +176,21 @@ osobnych (**jawne odstępstwo od „jedna rzecz na PR”**). Ustalenia z realiza
 - **Test kopii (F-02, `restore-test.yml`):** sonda liczy sumy wszystkich tabel na serwerze
   i zakłada nazwany punkt przywracania; runner odtwarza kopię z R2 do tego punktu i porównuje
   sumy (100% tabel). Zgodnie z punktem 1: odtworzenie w kontenerze na runnerze, bez drugiej A1.
-- **Do sprawdzenia przy `terraform plan` maszyn:** koszt zarezerwowanego publicznego IP
-  executora (w razie opłaty: rezygnacja z rezerwacji, jawna decyzja).
+- **Zarezerwowane publiczne IP executora: 0 zł** (sprawdzone 24.11.2026): limit konta
+  `reserved-public-ip-count` 50 (użycie 0 przed utworzeniem), cennik Oracle (sekcja
+  Networking) nie ma pozycji za publiczne IP, Oracle przy wprowadzeniu funkcji: bez opłat.
+  Zabezpieczenie: alarm budżetu 1 USD.
+- **Polityka limitów `goatcash-always-free` (poprawiona 24.11.2026):** Oracle sprawdza A1
+  według limitu zwykłego **i** regionalnego (`standard-a1-core-count` oraz
+  `standard-a1-core-regional-count`, tak samo pamięć), a `zero compute-core quotas` zeruje
+  oba; polityka ustawia więc obie pary (2 rdzenie, 12 GB). Pierwsza wersja miała tylko
+  zwykłe nazwy i zablokowała A1 (błąd `QuotaExceeded`, bez kosztów).
+- **Tailscale, klucze serwerów:** klient OAuth z tagami może tworzyć klucze tylko
+  z kompletem swoich tagów (sprawdzone 12 kombinacjami 24.11.2026), a serwer i executor
+  potrzebują osobnych tagów. Rozwiązanie z dokumentacji Tailscale: tag-właściciel
+  `tag:goatcash-terraform` (`tagOwners`: właściciel `tag:goatcash-server`
+  i `tag:goatcash-executor`); klient `goatcash-terraform` ma tylko ten tag oraz zakresy
+  Auth Keys i Devices Core (zapis).
 - **Domena:** wygasa 21.11.2027; Cloudflare pokazuje odnowienie (auto-renew) 22.10.2027.
 
 ## Rozważane alternatywy
