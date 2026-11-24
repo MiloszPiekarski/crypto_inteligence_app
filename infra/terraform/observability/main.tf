@@ -112,8 +112,10 @@ resource "grafana_rule_group" "infra" {
         to   = 0
       }
       model = jsonencode({
-        refId = "A"
-        expr  = "max(100 * (1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\"}))"
+        refId   = "A"
+        instant = true
+        range   = false
+        expr    = "max(100 * (1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\"}))"
       })
     }
     data {
@@ -142,8 +144,10 @@ resource "grafana_rule_group" "infra" {
         to   = 0
       }
       model = jsonencode({
-        refId = "A"
-        expr  = "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))"
+        refId   = "A"
+        instant = true
+        range   = false
+        expr    = "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))"
       })
     }
     data {
@@ -174,8 +178,10 @@ resource "grafana_rule_group" "infra" {
         to   = 0
       }
       model = jsonencode({
-        refId = "A"
-        expr  = "(time() - max(goatcash_backup_last_success_timestamp_seconds)) / 3600"
+        refId   = "A"
+        instant = true
+        range   = false
+        expr    = "(time() - max(goatcash_backup_last_success_timestamp_seconds)) / 3600"
       })
     }
     data {
@@ -205,7 +211,7 @@ resource "grafana_rule_group" "infra" {
         from = 300
         to   = 0
       }
-      model = jsonencode({ refId = "A", expr = "min(min(pg_up) or vector(0), min(redis_up) or vector(0))" })
+      model = jsonencode({ refId = "A", instant = true, range = false, expr = "(min(pg_up) or vector(0)) * (min(redis_up) or vector(0))" })
     }
     data {
       ref_id         = "C"
@@ -234,7 +240,7 @@ resource "grafana_rule_group" "infra" {
         from = 300
         to   = 0
       }
-      model = jsonencode({ refId = "A", expr = "min(probe_success{job=\"goatcash-staging-health\"})" })
+      model = jsonencode({ refId = "A", instant = true, range = false, expr = "min(probe_success{job=\"goatcash-staging-health\"})" })
     }
     data {
       ref_id         = "C"
