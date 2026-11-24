@@ -61,6 +61,16 @@
       restrict,command="/usr/local/bin/goatcash-probe" {{ lookup('ansible.builtin.file', playbook_dir + '/../ssh/goatcash_staging_probe.pub') }}
     exclusive: true
 
+# `sshd -t` wymaga /run/sshd; przy uruchamianiu SSH na żądanie (ssh.socket, Ubuntu 24.04)
+# katalog może nie istnieć, dopóki usługa nie wystartuje.
+- name: Katalog separacji uprawnień sshd
+  ansible.builtin.file:
+    path: /run/sshd
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: SSH tylko kluczem, bez roota i haseł
   ansible.builtin.template:
     src: sshd-goatcash.conf.j2
@@ -83,6 +93,15 @@
     group: root
     mode: "0644"
   notify: Restart fail2ban
+
+# Świeży obraz Ubuntu 24.04 w OCI nie ma katalogu journald.conf.d (przebieg 45472289719).
+- name: Katalog konfiguracji journald
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 
 - name: Limity journald (rozmiar i czas przechowywania logów)
   ansible.builtin.copy:
