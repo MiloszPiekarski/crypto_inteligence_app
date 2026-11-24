@@ -8,6 +8,7 @@
 #   3. sprawdza, że nie zostało żadne WSTAW_ ani pusta wartość, szyfruje regułą
 #      z infra/secrets/.sops.yaml i usuwa wersję jawną.
 # Istniejącego pliku nie nadpisuje (zmiany: `sops infra/secrets/staging.enc.yaml`).
+# Na końcu ustawia sekret PGBACKREST_CIPHER_PASS w środowisku GitHub staging-readonly (gh).
 # Użycie: ./scripts/sops_staging_init.sh   (sops z `make tools`, czyli .tools/bin).
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -90,4 +91,15 @@ PY
 sops --config infra/secrets/.sops.yaml --encrypt --filename-override infra/secrets/staging.enc.yaml \
   --input-type yaml --output-type yaml "$CLEAN" > "$OUT.tmp"
 mv "$OUT.tmp" "$OUT"
-echo "Zapisano $OUT (zaszyfrowany kluczem age staging). Wersja jawna usunięta."
+echo "Zapisano $OUT (zaszyfrowany kluczem age staging)."
+
+# Hasło szyfrowania kopii potrzebuje też restore-test.yml (środowisko staging-readonly):
+# prosto z pliku tymczasowego do sekretu GitHub, bez wyświetlania.
+if [ "${GOATCASH_SKIP_GH:-0}" != 1 ]; then
+  uv run --frozen python -c 'import sys, yaml; sys.stdout.write(yaml.safe_load(open(sys.argv[1]))["postgres"]["PGBACKREST_REPO1_CIPHER_PASS"])' \
+    "$CLEAN" > "$TMP/cipher"
+  gh secret set PGBACKREST_CIPHER_PASS --env staging-readonly < "$TMP/cipher" &&
+    echo "Ustawiono sekret PGBACKREST_CIPHER_PASS w środowisku staging-readonly." ||
+    echo "UWAGA: nie udało się ustawić sekretu PGBACKREST_CIPHER_PASS (gh); plik SOPS jest zapisany."
+fi
+echo "Wersja jawna zostanie usunięta."
