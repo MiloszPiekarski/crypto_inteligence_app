@@ -47,7 +47,14 @@ docker compose up -d --wait
 ```
 
 Po PITR baza zaczyna nową oś czasu (timeline); pgBackRest archiwizuje ją dalej. Zrób od razu
-pełną kopię: `sudo systemctl start goatcash-backup@full.service`.
+pełną kopię: GitHub → Actions → **backup-now** → Run workflow (bez Tailscale na komputerze)
+albo na serwerze `sudo systemctl start goatcash-backup@full.service`.
+
+## D. Kopia na żądanie
+
+GitHub → Actions → **backup-now** → Run workflow (`main`): pełna kopia tym samym skryptem co
+timer (`backup.sh full`), metryka wieku kopii odświeża się w Grafanie. Przed ryzykowną zmianą,
+przed odtworzeniem od zera i na świeżym serwerze przed pierwszą kopią z timera (02:30 UTC).
 
 ## Gdy coś nie działa
 
