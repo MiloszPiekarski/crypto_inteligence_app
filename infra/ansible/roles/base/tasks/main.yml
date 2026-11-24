@@ -1,0 +1,138 @@
+---
+- name: Pakiety bazowe (aktualizacje bezpieczeństwa, fail2ban, ufw)
+  ansible.builtin.apt:
+    name:
+      [
+        unattended-upgrades,
+        apt-listchanges,
+        fail2ban,
+        ufw,
+        needrestart,
+        curl,
+        ca-certificates,
+        python3,
+        lynis,
+      ]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Automatyczne aktualizacje bezpieczeństwa
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Użytkownik deploy (bez hasła, logowanie tylko kluczem, bez sudo poza jednym skryptem)
+  ansible.builtin.user:
+    name: deploy
+    shell: /bin/bash
+    password_lock: true
+    create_home: true
+
+- name: Sonda tylko do odczytu (jedyne polecenie klucza goatcash-staging-probe)
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop: [goatcash-probe, goatcash-lynis]
+
+- name: Użytkownik deploy może uruchomić przez sudo audyt Lynis
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/goatcash-lynis
+    content: "deploy ALL=(root) NOPASSWD: /usr/local/bin/goatcash-lynis\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Klucze SSH użytkownika deploy (klucz CI; klucz sondy tylko z wymuszonym poleceniem)
+  ansible.posix.authorized_key:
+    user: deploy
+    key: |-
+      {{ lookup('ansible.builtin.file', playbook_dir + '/../ssh/goatcash_staging_ci.pub') }}
+      restrict,command="/usr/local/bin/goatcash-probe" {{ lookup('ansible.builtin.file', playbook_dir + '/../ssh/goatcash_staging_probe.pub') }}
+    exclusive: true
+
+- name: SSH tylko kluczem, bez roota i haseł
+  ansible.builtin.template:
+    src: sshd-goatcash.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-goatcash.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Restart ssh
+
+- name: Fail2ban dla SSH
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/goatcash.local
+    content: |
+      [sshd]
+      enabled = true
+      maxretry = 5
+      bantime = 1h
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart fail2ban
+
+- name: Limity journald (rozmiar i czas przechowywania logów)
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/goatcash.conf
+    content: |
+      [Journal]
+      SystemMaxUse=500M
+      MaxRetentionSec=14day
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart journald
+
+- name: Plik wymiany (swap)
+  ansible.builtin.command:
+    cmd: "fallocate -l {{ swap_size_mb }}M /swapfile"
+    creates: /swapfile
+
+- name: Uprawnienia pliku wymiany
+  ansible.builtin.file:
+    path: /swapfile
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Format pliku wymiany (tylko raz)
+  ansible.builtin.command:
+    cmd: mkswap /swapfile
+  register: base_mkswap
+  changed_when: base_mkswap.rc == 0
+  when: ansible_swaptotal_mb | int == 0
+
+- name: Włączenie pliku wymiany przy starcie
+  ansible.posix.mount:
+    path: none
+    src: /swapfile
+    fstype: swap
+    opts: sw
+    state: present
+
+- name: Włączenie pliku wymiany teraz
+  ansible.builtin.command:
+    cmd: swapon /swapfile
+  register: base_swapon
+  changed_when: base_swapon.rc == 0
+  when: ansible_swaptotal_mb | int == 0
+
+- name: Niska skłonność do wymiany
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "10"
+    sysctl_file: /etc/sysctl.d/90-goatcash.conf
+    state: present

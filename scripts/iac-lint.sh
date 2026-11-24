@@ -71,7 +71,7 @@ expect reject "ansible-lint: zadanie bez nazwy, command bez changed_when" ansibl
 echo "== IaC projektu"
 # Moduły główne Terraform (ADR-0007) i playbook Ansible. Dochodzą w kolejnych PR-ach E3;
 # do tego czasu sprawdzenie jest czerwone (plan w docs/stan-pracy.md).
-for dir in infra/terraform/oci infra/terraform/cloudflare; do
+for dir in infra/terraform/oci infra/terraform/oci-trwale infra/terraform/cloudflare infra/terraform/observability; do
   if ! ls "$dir"/*.tf >/dev/null 2>&1; then bad "brak modułu Terraform: $dir/*.tf"; continue; fi
   expect pass "terraform fmt: $dir" tf_fmt "$dir"
   expect pass "terraform validate: $dir" tf_validate "$dir"
@@ -83,6 +83,11 @@ if ls infra/terraform/oci/*.tf >/dev/null 2>&1; then
   expect pass "lista IP Cloudflare zgodna z api.cloudflare.com" py scripts/check_cloudflare_ips.py infra/terraform/oci/cloudflare_ips.tf
 fi
 if [ -f infra/ansible/site.yml ]; then
+  # Kolekcje w wersjach z requirements.yml (community.general, ansible.posix) do katalogu
+  # tymczasowego; bez nich ansible-lint offline nie rozpozna modułów i odrzuci playbook.
+  export ANSIBLE_COLLECTIONS_PATH="$work/collections"
+  expect pass "ansible-galaxy: kolekcje z requirements.yml" \
+    ansible-galaxy collection install -r infra/ansible/requirements.yml -p "$work/collections"
   expect pass "ansible-lint: infra/ansible" ansible_lint infra/ansible/site.yml
 else
   bad "brak playbooka Ansible: infra/ansible/site.yml"

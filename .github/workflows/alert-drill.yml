@@ -1,0 +1,68 @@
+# alert-drill (roadmapa E3, zakres 6; dowód G3 `alert-drill`, F-03): ćwiczenie alertów na staging.
+#   1. zapełnia wolumen danych powyżej 80% (fallocate, plik usuwany na końcu);
+#   2. zatrzymuje kontener Valkey (podnoszony na końcu);
+#   3. czeka, aż oba alerty będą aktywne w Alertmanagerze Grafany (wysłane na e-mail i Telegram);
+#      limit 300 s od rozpoczęcia awarii (scripts/ci/wait-for-alerts.py).
+# Sprzątanie w kroku `if: always()`. Tylko ręcznie, środowisko `staging` (tylko main).
+# Dotarcie wiadomości na telefon właściciel potwierdza zrzutem w docs/gates/G3.md.
+name: alert-drill
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: alert-drill
+  cancel-in-progress: false
+
+jobs:
+  alert-drill:
+    name: alert-drill
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write # Tailscale OIDC
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:goatcash-ci
+          use-cache: "false"
+          ping: goatcash-staging
+      - name: klucz SSH wdrożeń
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf 'Host goatcash-*\n  User deploy\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' > ~/.ssh/config
+      - name: "awaria: dysk > 80% i zatrzymany Valkey"
+        run: |
+          ssh goatcash-staging 'set -euo pipefail
+            f=/srv/goatcash/compose/.alert-drill.fill
+            read -r size used <<<"$(df -B1 --output=size,used /srv/goatcash | tail -1)"
+            need=$(( size * 85 / 100 - used ))
+            if [ "$need" -gt 0 ]; then fallocate -l "$need" "$f"; fi
+            df -h /srv/goatcash | tail -1
+            cd /srv/goatcash/compose && GOATCASH_IMAGE_TAG="$(cat .image-tag)" docker compose stop valkey'
+      - name: alerty aktywne w Grafanie (limit 300 s)
+        env:
+          GRAFANA_URL: ${{ vars.GRAFANA_URL }}
+          GRAFANA_TOKEN: ${{ secrets.GRAFANA_DRILL_TOKEN }}
+        run: |
+          python3 scripts/ci/wait-for-alerts.py 300 \
+            "Dysk zajety > 80%" "Kontener bazy lub Valkey niedostepny"
+      - name: sprzątanie (plik usunięty, Valkey z powrotem)
+        if: always()
+        run: |
+          ssh goatcash-staging 'rm -f /srv/goatcash/compose/.alert-drill.fill
+            cd /srv/goatcash/compose && GOATCASH_IMAGE_TAG="$(cat .image-tag)" docker compose up -d --wait valkey
+            df -h /srv/goatcash | tail -1'

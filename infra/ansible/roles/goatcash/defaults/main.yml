@@ -1,0 +1,9 @@
+---
+goatcash_root: /srv/goatcash
+# sops 3.13.3 (ta sama wersja co make tools); sumy z sops-v3.13.3.checksums.txt wydawcy.
+goatcash_sops_version: "3.13.3"
+goatcash_sops_sha256:
+  aarch64: 53b0abacd38ef1b12a66d6c100956691b9cefce018d91f81e73ddf7438b94d77
+  x86_64: e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b
+goatcash_sops_base: "https://github.com/getsops/sops/releases/download/v{{ goatcash_sops_version }}"
+goatcash_sops_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"

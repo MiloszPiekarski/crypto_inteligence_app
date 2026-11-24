@@ -65,3 +65,9 @@ infra/secrets/*
 !infra/secrets/*.enc.yaml
 !infra/secrets/.sops.yaml
 !infra/secrets/README.md
+
+# Kolekcje Ansible instalowane w CI (ansible-galaxy -p)
+infra/ansible/collections/
+
+# Cache import-lintera (Biome nie czyta .gitignore z wnętrza tego katalogu)
+.import_linter_cache/

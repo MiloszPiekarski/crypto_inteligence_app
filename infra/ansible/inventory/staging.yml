@@ -1,0 +1,15 @@
+---
+# Hosty staging w sieci Tailscale (nazwy MagicDNS ustawia cloud-init: infra/terraform/oci).
+all:
+  vars:
+    ansible_user: ubuntu
+    goatcash_admin_users: [ubuntu, deploy]
+  children:
+    platform:
+      hosts:
+        goatcash-staging:
+          swap_size_mb: 4096
+    executor:
+      hosts:
+        goatcash-executor:
+          swap_size_mb: 2048

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# goatcash-lynis: audyt Lynis (D6: „0 Warnings”). Wywołuje go tylko goatcash-probe przez sudo
+# (external-scan.yml). Wypisuje ostrzeżenia z raportu i ostatnią linię
+# „Lynis: <n> warnings, hardening index <i>”; kod 1, gdy ostrzeżeń jest więcej niż 0.
+set -euo pipefail
+report=/var/log/lynis-report.dat
+lynis audit system --quick --no-colors --report-file "$report" >/dev/null 2>&1
+warnings="$(grep '^warning\[\]=' "$report" || true)"
+count=0
+[ -z "$warnings" ] || count="$(printf '%s\n' "$warnings" | wc -l | tr -d ' ')"
+[ -z "$warnings" ] || printf '%s\n' "$warnings" | sed 's/^warning\[\]=/  WARNING /'
+index="$(sed -n 's/^hardening_index=//p' "$report")"
+echo "Lynis: ${count} warnings, hardening index ${index:-?}"
+[ "$count" -eq 0 ]

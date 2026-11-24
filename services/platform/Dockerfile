@@ -23,4 +23,7 @@ COPY --chown=goatcash:goatcash services/platform/alembic.ini /app/alembic.ini
 ENV PATH="/app/.venv/bin:${PATH}" PYTHONUNBUFFERED=1
 USER goatcash
 WORKDIR /app
+EXPOSE 8000
+# Domyślnie wypisuje wersję; proces api uruchamia Compose (infra/compose/staging/compose.yaml):
+#   uvicorn --factory goatcash.http_api.app:create_app --host 0.0.0.0 --port 8000
 CMD ["python", "-m", "goatcash"]

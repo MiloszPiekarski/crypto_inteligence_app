@@ -3,7 +3,7 @@
 Ten plik pozwala wznowić pracę w nowej rozmowie z asystentem AI bez utraty kontekstu:
 na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku.
 
-**Ostatnia aktualizacja:** 2026-11-23
+**Ostatnia aktualizacja:** 2026-11-24
 
 ## Gdzie jesteśmy
 
@@ -16,6 +16,17 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
   - Wymagane checki `main`: `ci-ok` (od teraz z bramkami G1 i G2) i `gate-guard`
     (przez `pull_request_target`, z `main`).
 - **E3: w toku** (infrastruktura bazowa; wymaga G2, spełnione). Plan i decyzje niżej.
+  - Sieć OCI utworzona przez właściciela (Terraform, 28 zasobów: VCN, podsieci,
+    Security Lists, NSG 443 tylko z Cloudflare); polityka limitów `goatcash-always-free`.
+  - Konta i tokeny zewnętrzne zweryfikowane (HTTP 200): R2, Cloudflare, Tailscale (ACL
+    z testami, federacja OIDC dla CI), Grafana Cloud, Better Stack, bot Telegram.
+  - **Duży PR E3 (24.11.2026, jawne odstępstwo od „jedna rzecz na PR”):** właściciel:
+    „zróbmy PR naraz, trzeba przyspieszyć, testować będziemy na końcu”. PR 7–18 z planu
+    w jednej gałęzi `claude/E3-infra-staging` (Terraform maszyn, Vault, Cloudflare,
+    obserwowalność; Ansible; Compose; pgBackRest; workflow deploy/ansible/restore/scan/
+    alert-drill; cosign; runbooki). Szczegóły i odstępstwa: ADR-0007, punkt 6.
+    Molecule (wpis w PR 10 planu, nie w roadmapie) pominięte: role sprawdza ansible-lint
+    (profil production), prawdziwy przebieg `ansible-staging.yml` i Lynis w `external-scan`.
 - **Do uwzględnienia w planie E3** (wynik przeglądu E2):
   - obraz platformy bez `alembic.ini` (migracje nie ruszały z obrazu): naprawa w PR 4,
     test `make image-migration-test` (sprawdzenie `image-migrations` w G3);
@@ -55,18 +66,18 @@ Decyzje właściciela (23.11.2026, propozycje asystenta zaakceptowane bez zmian)
 | 4   | `fix/E3-obraz-alembic`             | `alembic.ini` i migracje w obrazie; test `upgrade head` z obrazu                           | ✅ (PR #82) |
 | 5   | `ci/E3-narzedzia-iac`              | Terraform, tflint, ansible-lint, trivy config w `make tools`/`audit`                       | ✅ (PR #84) |
 | 6   | `feat/E3-tf-oci-siec`              | VCN, podsieci, Security Lists (443 tylko z Cloudflare, bez 22)                             | ✅ (PR #86) |
-| 7   | `feat/E3-tf-oci-maszyny`           | A1 2/12, wolumen, mikro-VM, zarezerwowane IP                                               | ⬜          |
-| 8   | `feat/E3-tf-oci-vault`             | Vault, klucz główny, polityka instancji executora                                          | ⬜          |
-| 9   | `feat/E3-tf-cloudflare`            | `api.`/`app.`, proxy, SSL Full strict, WAF, limit zapytań, R2, Origin CA, tokeny           | ⬜          |
-| 10  | `feat/E3-ansible-hardening`        | użytkownik, SSH kluczem, fail2ban, aktualizacje, ufw, swap, journald; Molecule             | ⬜          |
-| 11  | `feat/E3-ansible-docker-tailscale` | Docker, Tailscale, ACL                                                                     | ⬜          |
-| 12  | `feat/E3-compose-staging`          | Postgres 17 + Timescale + pgvector, Valkey AOF, Caddy, otel, exportery, `api`              | ⬜          |
-| 13  | `feat/E3-pgbackrest`               | pełna/przyrostowa/WAL, szyfrowanie, retencja 30 dni; test w CI (MinIO, PITR, sumy)         | ⬜          |
-| 14  | `ci/E3-test-odtworzenia`           | cotygodniowe odtworzenie z R2 do czystej instancji, 100% tabel (F-02)                      | ⬜          |
-| 15  | `feat/E3-obserwowalnosc`           | OTel → Grafana Cloud, pulpity, 3 alerty, e-mail i Telegram, Better Stack                   | ⬜          |
-| 16  | `ci/E3-deploy-staging`             | `deploy-staging.yml`: Tailscale, cosign, pull/up, migracje, test dymny, rollback           | ⬜          |
-| 17  | `docs/E3-runbooki`                 | odtworzenie z kopii, rotacja sekretów, wymiana serwera                                     | ⬜          |
-| 18  | `docs/E3-g3`                       | bramka, raport, dowód, „Stan realizacji E3”, README, lekcje                                | ⬜          |
+| 7   | `feat/E3-tf-oci-maszyny`           | A1 2/12, wolumen, mikro-VM, zarezerwowane IP                                               | ⏳ duży PR  |
+| 8   | `feat/E3-tf-oci-vault`             | Vault, klucz główny, polityka instancji executora                                          | ⏳ duży PR  |
+| 9   | `feat/E3-tf-cloudflare`            | `api.`/`app.`, proxy, SSL Full strict, WAF, limit zapytań, R2, Origin CA, tokeny           | ⏳ duży PR  |
+| 10  | `feat/E3-ansible-hardening`        | użytkownik, SSH kluczem, fail2ban, aktualizacje, ufw, swap, journald; Molecule             | ⏳ duży PR  |
+| 11  | `feat/E3-ansible-docker-tailscale` | Docker, Tailscale, ACL                                                                     | ⏳ duży PR  |
+| 12  | `feat/E3-compose-staging`          | Postgres 17 + Timescale + pgvector, Valkey AOF, Caddy, otel, exportery, `api`              | ⏳ duży PR  |
+| 13  | `feat/E3-pgbackrest`               | pełna/przyrostowa/WAL, szyfrowanie, retencja 30 dni; test w CI (MinIO, PITR, sumy)         | ⏳ duży PR  |
+| 14  | `ci/E3-test-odtworzenia`           | cotygodniowe odtworzenie z R2 do czystej instancji, 100% tabel (F-02)                      | ⏳ duży PR  |
+| 15  | `feat/E3-obserwowalnosc`           | OTel → Grafana Cloud, pulpity, 3 alerty, e-mail i Telegram, Better Stack                   | ⏳ duży PR  |
+| 16  | `ci/E3-deploy-staging`             | `deploy-staging.yml`: Tailscale, cosign, pull/up, migracje, test dymny, rollback           | ⏳ duży PR  |
+| 17  | `docs/E3-runbooki`                 | odtworzenie z kopii, rotacja sekretów, wymiana serwera                                     | ⏳ duży PR  |
+| 18  | `docs/E3-g3`                       | bramka, raport, dowód, „Stan realizacji E3”, README, lekcje                                | ⏳ duży PR  |
 
 ## Plan E2 (zrealizowany; PR-y z etykietą `E2`, jedna rzecz na PR)
 
@@ -105,6 +116,18 @@ Decyzje właściciela do planu (22.11.2026):
 
 ## Otwarte sprawy
 
+- E3, do zrobienia przez właściciela po dużym PR (instrukcja w rozmowie 24.11.2026):
+  klucz sondy `goatcash_staging_probe` (`.pub` do repo), CSR Origin CA, `staging.enc.yaml`,
+  token R2 dla pgBackRest (zapis) i dla testu kopii (odczyt), sekrety i zmienne środowisk
+  `staging` i `staging-readonly`, potem Terraform (plan, zgoda, uruchomienie) kolejno:
+  `oci-trwale`, `oci` (maszyny; sprawdzić koszt zarezerwowanego IP), `cloudflare`,
+  `observability`; `ansible-staging.yml`; pierwsze `deploy-staging.yml` (zgoda).
+- E3: środowisko `staging` **bez wymaganego recenzenta, tylko gałąź `main`** (decyzja
+  właściciela 24.11.2026): recenzent blokował automatyczne wdrożenie z `main`
+  i odtworzenie „bez ręcznych kroków” (G3); roadmapa wymaga zatwierdzania tylko dla
+  `production`. Ochrona: ruleset `main` (tylko właściciel scala), środowiska tylko z `main`.
+- E3: Grafana Cloud w okresie próbnym do ok. 6.12.2026: sprawdzić, że stos przechodzi
+  na plan Free (bez karty), i że limity Free wystarczają (metryki, logi).
 - ⚠️ E0: R2, Resend i bot Telegram założone (według właściciela, 22.11.2026), w repo brak
   dowodu, w `.env.local` brak kluczy. Decyzja: R2 i Telegram dostają sprawdzenie w `doctor.sh`
   (osobny PR E0, klucze tylko do odczytu w `.env.local`); Resend ma na razie tylko konto,

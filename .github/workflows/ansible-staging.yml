@@ -1,0 +1,53 @@
+# ansible-staging (roadmapa E3, zakres 3): konfiguracja serwerów staging przez Tailscale
+# (D5: SSH tylko w sieci Tailscale; Mac właściciela nie ma Tailscale). Uruchamia właściciel
+# (workflow_dispatch) po `terraform apply` oraz w odtworzeniu od zera (scripts/g3_rebuild.sh).
+# Klucz age `staging` trafia z sekretu środowiska prosto do /etc/goatcash/age.key (no_log).
+name: ansible-staging
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ansible-staging
+  cancel-in-progress: false
+
+jobs:
+  ansible:
+    name: ansible
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write # Tailscale OIDC
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - name: Ansible (wersja z uv.lock) i kolekcje z requirements.yml
+        run: |
+          uv sync --frozen
+          uv run --frozen ansible-galaxy collection install -r infra/ansible/requirements.yml -p infra/ansible/collections
+      - uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:goatcash-ci
+          use-cache: "false"
+          ping: goatcash-staging,goatcash-executor
+      - name: klucz SSH
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+      - name: ansible-playbook site.yml
+        working-directory: infra/ansible
+        env:
+          GOATCASH_AGE_KEY_STAGING: ${{ secrets.SOPS_AGE_KEY_STAGING }}
+          ANSIBLE_FORCE_COLOR: "1"
+        run: uv run --frozen ansible-playbook site.yml

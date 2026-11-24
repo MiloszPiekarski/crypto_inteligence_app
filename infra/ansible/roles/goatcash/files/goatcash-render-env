@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""goatcash-render-env: odszyfrowuje /srv/goatcash/compose/staging.enc.yaml (SOPS, klucz age
+/etc/goatcash/age.key, dostępny tylko dla roota) do plików /srv/goatcash/compose/env/<plik>.env
+(tryb 600, właściciel deploy) i klucza TLS /srv/goatcash/tls/origin.key.
+
+Struktura pliku SOPS: mapa <plik> -> {ZMIENNA: wartość}; klucz `tls` -> {ORIGIN_KEY: PEM}.
+Wartości nie są nigdzie wypisywane. Uruchamia go deploy-staging.yml (sudo, tylko ten skrypt).
+"""
+
+import contextlib
+import json
+import os
+import pwd
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path("/srv/goatcash")
+SRC = ROOT / "compose" / "staging.enc.yaml"
+NAME_RE = re.compile(r"[a-z0-9-]+")
+VAR_RE = re.compile(r"[A-Z][A-Z0-9_]*")
+
+
+NOFOLLOW_DIR = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+
+
+def open_dir(*parts: str, create: bool = False) -> int:
+    """Deskryptor katalogu ROOT/parts bez podążania za dowiązaniami (skrypt działa jako root,
+    a katalogi `compose`, `env`, `tls` należą do deploy: podstawione dowiązanie do /etc
+    nie może przekierować zapisu)."""
+    fd = os.open(ROOT, NOFOLLOW_DIR)
+    for part in parts:
+        if create:
+            with contextlib.suppress(FileExistsError):
+                os.mkdir(part, 0o750, dir_fd=fd)
+        nxt = os.open(part, NOFOLLOW_DIR, dir_fd=fd)
+        os.close(fd)
+        fd = nxt
+    return fd
+
+
+def write_private(dir_fd: int, name: str, text: str, uid: int, gid: int) -> None:
+    tmp = f".{name}.tmp"
+    with contextlib.suppress(FileNotFoundError):
+        os.unlink(tmp, dir_fd=dir_fd)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+    fd = os.open(tmp, flags, 0o600, dir_fd=dir_fd)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(text)
+        os.fchown(fh.fileno(), uid, gid)
+    os.replace(tmp, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+
+
+def main() -> int:
+    env = dict(os.environ, SOPS_AGE_KEY_FILE="/etc/goatcash/age.key")
+    out = subprocess.run(  # noqa: S603 - stała lista argumentów
+        ["/usr/local/bin/sops", "-d", "--output-type", "json", str(SRC)],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    if out.returncode != 0:
+        print("goatcash-render-env: nie udało się odszyfrować pliku sekretów", file=sys.stderr)
+        return 1
+    data = json.loads(out.stdout)
+    deploy = pwd.getpwnam("deploy")
+    uid, gid = deploy.pw_uid, deploy.pw_gid
+    env_fd = open_dir("compose", "env", create=True)
+    os.fchown(env_fd, uid, gid)
+    tls_fd = open_dir("tls")
+    written: list[str] = []
+    for name, values in data.items():
+        if name == "sops" or not isinstance(values, dict) or not NAME_RE.fullmatch(name):
+            continue
+        bad = [k for k, v in values.items() if not VAR_RE.fullmatch(k) or not isinstance(v, str)]
+        if bad:
+            print(f"goatcash-render-env: niepoprawne zmienne w {name}", file=sys.stderr)
+            return 1
+        if name == "tls":
+            write_private(tls_fd, "origin.key", values["ORIGIN_KEY"].strip() + "\n", uid, gid)
+            written.append("tls/origin.key")
+            continue
+        # Wartość z nową linią dopisałaby do pliku .env dodatkową zmienną.
+        if any("\n" in v or "\r" in v for v in values.values()):
+            print(f"goatcash-render-env: wartość wielolinijkowa w {name}", file=sys.stderr)
+            return 1
+        lines = [f"{k}={v}" for k, v in values.items()]
+        write_private(env_fd, f"{name}.env", "\n".join(lines) + "\n", uid, gid)
+        written.append(f"env/{name}.env")
+    print("goatcash-render-env: zapisano " + ", ".join(sorted(written)))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

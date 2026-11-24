@@ -127,6 +127,59 @@ Raport lokalny jest oświadczeniem właściciela (jak G0), dlatego ograniczamy g
 sprawdzenia, którego nie da się bezpiecznie przenieść do CI (klucze Oracle i Cloudflare
 zostają na komputerze właściciela).
 
+### 6. Realizacja i jawne odstępstwa (24.11.2026, duży PR E3)
+
+Właściciel 24.11.2026: „zróbmy PR naraz, trzeba przyspieszyć, testować będziemy na końcu”.
+Pozostała część E3 (plan PR 7–18 w `docs/stan-pracy.md`) trafia w jednym PR, a nie w
+osobnych (**jawne odstępstwo od „jedna rzecz na PR”**). Ustalenia z realizacji:
+
+- **Monitorowanie `/v1/health`:** Grafana Synthetic Monitoring co 60 s (Frankfurt, alert
+  po 2 min) **oraz** Better Stack co 180 s. Roadmapa: „Better Stack co minutę”; plan Free
+  Better Stack pozwala najczęściej co 3 min (lista wyboru: 3, 5, 10, 15, 30 min), więc
+  minutowe sprawdzenie robi Grafana (decyzja właściciela 24.11.2026). **Odstępstwo.**
+- **Warstwa trwała `infra/terraform/oci-trwale`:** Vault DEFAULT z kluczem HSM
+  (`prevent_destroy`) w osobnym module i stanie. Odtworzenie od zera zastępuje maszyny
+  i wolumen danych, a klucza executora nie dotyka (zniszczenie vaultu = 7–30 dni oczekiwania
+  i utrata kluczy).
+- **Tailscale nie jest instalowany na Macu właściciela** (komputer firmowy). Ansible
+  i wdrożenie działają wyłącznie z GitHub Actions: `tailscale/github-action` z federacją
+  OIDC (brak stałego sekretu Tailscale w GitHub; klient z tagiem `tag:goatcash-ci`). ACL:
+  `tag:goatcash-ci` → serwery tylko `tcp:22`; `tag:goatcash-executor` → serwer `tcp:5432`;
+  administrator → wszystkie porty; Tailscale SSH wyłączony.
+- **Sekrety staging:** `infra/secrets/staging.enc.yaml` (SOPS, klucz age `staging`).
+  Klucz prywatny age jest tylko w Bitwardenie, w sekrecie środowiska GitHub `staging`
+  (Ansible) i na serwerze (`/etc/goatcash/age.key`, 0400, root). Użytkownik `deploy`
+  odszyfrowuje sekrety przez `sudo goatcash-render-env` (jedyne polecenie w sudoers;
+  zapis bez podążania za dowiązaniami, test `scripts/tests/test_render_env.py`). **Granica
+  jest słaba i to wiemy:** `deploy` jest w grupie `docker`, czyli w praktyce ma uprawnienia
+  roota (może zamontować `/etc` w kontenerze). Tryb 0400 i sudoers chronią przed
+  przypadkowym ujawnieniem klucza (logi, kopie katalogu), nie przed przejętym kontem
+  `deploy`. Skutek przejęcia: wyciek sekretów **tylko staging** (osobny klucz age na
+  środowisko). Przed produkcją do rozważenia: rootless Docker albo rozdzielenie
+  użytkownika wdrożeń od grupy `docker`.
+- **Środowiska GitHub (tylko gałąź `main`, bez wymaganego recenzenta; decyzja właściciela
+  24.11.2026, bo recenzent blokowałby automatyczne wdrożenie i odtworzenie bez ręcznych
+  kroków; ręczne zatwierdzanie dopiero dla `production`):** `staging` (wdrożenie, Ansible, ćwiczenie
+  alertów: klucz SSH wdrożeń, klucz age) i `staging-readonly` (harmonogram: test kopii
+  i skan). `staging-readonly` dostaje **klucz sondy** z `restrict,command=` w
+  `authorized_keys` (tylko `goatcash-probe`: sumy kontrolne + punkt przywracania albo Lynis)
+  i token R2 tylko do odczytu, a więc ani powłoki, ani Dockera, ani zapisu kopii.
+- **Obrazy podpisane:** `ci.yml` podpisuje obrazy cosign keyless po digeście (tylko `main`);
+  `deploy-staging.yml` wdraża wyłącznie obraz podpisany przez `ci.yml@refs/heads/main` tego
+  repozytorium i tylko commit z zielonym `ci-ok`.
+- **Odtworzenie od zera (F-01):** `scripts/g3_rebuild.sh` (właściciel, klucze chmury
+  lokalnie): plan Terraform i jedno „tak” przed startem zegara, potem bez udziału człowieka:
+  usunięcie starych węzłów Tailscale, zastąpienie maszyn i wolumenu (najpierw usunięcie A1),
+  DNS na nowe IP, `ansible-staging.yml`, ponowienie wdrożenia HEAD. Pusty wolumen bazy
+  `deploy.sh` odtwarza z kopii w R2 (najnowsza kopia + cały WAL), co sprawdza
+  `make compose-staging-test`. RPO: `archive_timeout` 300 s, czyli do 5 min danych.
+- **Test kopii (F-02, `restore-test.yml`):** sonda liczy sumy wszystkich tabel na serwerze
+  i zakłada nazwany punkt przywracania; runner odtwarza kopię z R2 do tego punktu i porównuje
+  sumy (100% tabel). Zgodnie z punktem 1: odtworzenie w kontenerze na runnerze, bez drugiej A1.
+- **Do sprawdzenia przy `terraform plan` maszyn:** koszt zarezerwowanego publicznego IP
+  executora (w razie opłaty: rezygnacja z rezerwacji, jawna decyzja).
+- **Domena:** wygasa 21.11.2027; Cloudflare pokazuje odnowienie (auto-renew) 22.10.2027.
+
 ## Rozważane alternatywy
 
 | Opcja                                             | Za                         | Przeciw                                                                   |

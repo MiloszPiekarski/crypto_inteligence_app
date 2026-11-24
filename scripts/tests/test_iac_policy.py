@@ -8,6 +8,7 @@ from pathlib import Path
 import check_cloudflare_ips
 import iac_policy
 import pytest
+import yaml
 
 MODULE = Path(__file__).resolve().parents[2] / "infra" / "terraform" / "oci"
 
@@ -173,3 +174,14 @@ def test_cloudflare_list_comparison() -> None:
     assert any("1.2.3.0/24" in p for p in found)
     assert any(local[0] in p for p in found)
     assert check_cloudflare_ips.compare(local, '{"success": false}') != []
+
+
+def test_ansible_cloudflare_list_matches_terraform() -> None:
+    """ufw na serwerze (Ansible) i NSG (Terraform) muszą przepuszczać te same zakresy 443;
+    check_cloudflare_ips.py porównuje z API tylko listę Terraform."""
+    root = MODULE.parents[2]
+    tf = check_cloudflare_ips.local_ranges(MODULE / "cloudflare_ips.tf")
+    defaults = root / "infra" / "ansible" / "roles" / "firewall" / "defaults" / "main.yml"
+    ansible = yaml.safe_load(defaults.read_text(encoding="utf-8"))["firewall_cloudflare_ipv4"]
+    assert sorted(ansible) == sorted(tf)
+    assert len(tf) == len(set(tf))

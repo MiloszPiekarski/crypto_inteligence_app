@@ -1,0 +1,181 @@
+# Staging GoatCash (roadmapa E3, zakres prac 4; ADR-0007). Na serwerze: /srv/goatcash/compose,
+# uruchamia deploy.sh (wdrożenie z testem dymnym i rollbackiem). Sekrety w ./env/*.env
+# (odszyfrowane z infra/secrets/staging.enc.yaml przy wdrożeniu, tryb 600, poza repo).
+# Obrazy przypięte do digestów (warianty linux/arm64 dla A1 i linux/amd64 dla CI).
+#
+# Sieci: edge (Caddy <-> api), backend (wewnętrzna, bez wyjścia do internetu: baza, Valkey,
+# eksportery), egress (wyjście do internetu: kopie WAL na R2, telemetria do Grafana Cloud).
+# Z internetu dostępny jest tylko port 443 Caddy (i tylko z Cloudflare: NSG + ufw).
+name: goatcash
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  postgres:
+    # PostgreSQL 17 + TimescaleDB + pgvector + pgBackRest 2.60.1 (ten sam digest co test G2).
+    image: timescale/timescaledb-ha:pg17@sha256:c72b4cb8aaa0a52c0870c2b0a48173c595ee9bef0f3d8f92c3f546c69fef3567
+    restart: unless-stopped
+    env_file: [./env/postgres.env]
+    environment:
+      # Obraz Timescale domyślnie szuka konfiguracji pgBackRest w katalogu danych.
+      PGBACKREST_CONFIG: /etc/pgbackrest/pgbackrest.conf
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=pgbackrest --stanza=goatcash archive-push %p
+      # WAL wysyłany co najmniej co 5 min także przy małym ruchu (RPO ≪ 24 h).
+      - -c
+      - archive_timeout=300
+    shm_size: 256mb
+    volumes:
+      - pgdata:/home/postgres/pgdata
+      - ./postgres/pgbackrest.conf:/etc/pgbackrest/pgbackrest.conf:ro
+    networks: [backend, egress]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *logging
+
+  valkey:
+    image: valkey/valkey:9.0.8-alpine@sha256:139d21c97b1a956e42e29b1e4ede4752a6ff52d1a0db9ef0ff4954a570f23976
+    restart: unless-stopped
+    # AOF (roadmapa E3): zapis każdej operacji, fsync co sekundę; bez snapshotów RDB.
+    command: ["valkey-server", "--appendonly", "yes", "--appendfsync", "everysec", "--save", ""]
+    volumes:
+      - valkeydata:/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    logging: *logging
+
+  api:
+    image: ghcr.io/miloszpiekarski/goatcash-platform:${GOATCASH_IMAGE_TAG:?ustaw GOATCASH_IMAGE_TAG (sha-<commit>)}
+    restart: unless-stopped
+    command:
+      [
+        "uvicorn",
+        "--factory",
+        "goatcash.http_api.app:create_app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--proxy-headers",
+        "--forwarded-allow-ips",
+        "*",
+      ]
+    env_file: [./env/api.env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    networks: [edge, backend, egress]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/v1/health', timeout=3).status == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    logging: *logging
+
+  caddy:
+    image: caddy:2.11.9@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b45e84a75b
+    restart: unless-stopped
+    ports:
+      - "${GOATCASH_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${GOATCASH_TLS_DIR:-../tls}:/etc/caddy/tls:ro
+      - caddydata:/data
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [edge]
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *logging
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.165.0@sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/collector.yaml"]
+    env_file: [./env/otel.env]
+    user: "0:0" # odczyt logów kontenerów z /var/lib/docker/containers (tylko do odczytu)
+    volumes:
+      - ./otel/collector.yaml:/etc/otelcol/collector.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks: [backend, egress]
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otelcol/collector.yaml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *logging
+
+  node-exporter:
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --collector.textfile.directory=/textfile
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+)($|/)
+    volumes:
+      - /:/host:ro
+      - ${GOATCASH_METRICS_DIR:-../metrics}:/textfile:ro
+    networks: [backend]
+    logging: *logging
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e
+    restart: unless-stopped
+    env_file: [./env/postgres-exporter.env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+    logging: *logging
+
+  valkey-exporter:
+    image: oliver006/redis_exporter:v1.96.0@sha256:3d57b9eb142a62ffc600063606a41cd471cd53d81bed10be5b56b3a8918f2c26
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://valkey:6379
+    depends_on:
+      valkey:
+        condition: service_healthy
+    networks: [backend]
+    logging: *logging
+
+networks:
+  edge: {}
+  backend:
+    internal: true
+  egress: {}
+
+volumes:
+  pgdata: {}
+  valkeydata: {}
+  caddydata: {}

@@ -1,0 +1,10 @@
+# Zarządzane przez Ansible (infra/ansible/roles/base). SSH tylko kluczem; port 22 nie jest
+# dostępny z internetu (NSG i ufw), tylko przez Tailscale.
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+X11Forwarding no
+AllowTcpForwarding no
+MaxAuthTries 3
+AllowUsers {{ goatcash_admin_users | join(' ') }}

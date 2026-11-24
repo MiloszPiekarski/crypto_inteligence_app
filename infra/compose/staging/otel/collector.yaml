@@ -1,0 +1,75 @@
+# Kolektor OpenTelemetry (roadmapa E3, zakres 6): metryki z eksporterów (serwer, Postgres,
+# Valkey) i logi kontenerów do Grafana Cloud przez OTLP. Odstęp zbierania 60 s, żeby zmieścić
+# się w planie Free (10 tys. aktywnych serii). Dane logowania: ./env/otel.env (z SOPS).
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  basicauth/grafana:
+    client_auth:
+      username: ${env:GRAFANA_OTLP_INSTANCE_ID}
+      password: ${env:GRAFANA_OTLP_TOKEN}
+
+receivers:
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: node
+          scrape_interval: 60s
+          static_configs:
+            - targets: ["node-exporter:9100"]
+        - job_name: postgres
+          scrape_interval: 60s
+          static_configs:
+            - targets: ["postgres-exporter:9187"]
+        - job_name: valkey
+          scrape_interval: 60s
+          static_configs:
+            - targets: ["valkey-exporter:9121"]
+  filelog/containers:
+    include: [/var/lib/docker/containers/*/*-json.log]
+    start_at: end
+    operators:
+      - type: container
+        format: docker
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+  resource/goatcash:
+    attributes:
+      - key: deployment.environment
+        value: staging
+        action: upsert
+      - key: service.namespace
+        value: goatcash
+        action: upsert
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 256
+
+exporters:
+  otlphttp/grafana:
+    endpoint: ${env:GRAFANA_OTLP_ENDPOINT}
+    auth:
+      authenticator: basicauth/grafana
+
+service:
+  extensions: [health_check, basicauth/grafana]
+  pipelines:
+    metrics:
+      receivers: [prometheus, otlp]
+      processors: [memory_limiter, resource/goatcash, batch]
+      exporters: [otlphttp/grafana]
+    logs:
+      receivers: [filelog/containers, otlp]
+      processors: [memory_limiter, resource/goatcash, batch]
+      exporters: [otlphttp/grafana]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/goatcash, batch]
+      exporters: [otlphttp/grafana]
