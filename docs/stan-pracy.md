@@ -122,9 +122,10 @@ Decyzje właściciela do planu (22.11.2026):
   `staging` i `staging-readonly`, potem Terraform (plan, zgoda, uruchomienie) kolejno:
   `oci-trwale`, `oci` (maszyny; sprawdzić koszt zarezerwowanego IP), `cloudflare`,
   `observability`; `ansible-staging.yml`; pierwsze `deploy-staging.yml` (zgoda).
-- E3: środowisko `staging` z wymaganym recenzentem blokuje automatyczne wdrożenie z `main`
+- E3: środowisko `staging` **bez wymaganego recenzenta, tylko gałąź `main`** (decyzja
+  właściciela 24.11.2026): recenzent blokował automatyczne wdrożenie z `main`
   i odtworzenie „bez ręcznych kroków” (G3); roadmapa wymaga zatwierdzania tylko dla
-  `production`. Decyzja właściciela otwarta (rekomendacja: bez recenzenta, tylko `main`).
+  `production`. Ochrona: ruleset `main` (tylko właściciel scala), środowiska tylko z `main`.
 - E3: Grafana Cloud w okresie próbnym do ok. 6.12.2026: sprawdzić, że stos przechodzi
   na plan Free (bez karty), i że limity Free wystarczają (metryki, logi).
 - ⚠️ E0: R2, Resend i bot Telegram założone (według właściciela, 22.11.2026), w repo brak

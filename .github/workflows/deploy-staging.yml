@@ -5,7 +5,8 @@
 #   4. kopiuje pliki Compose, odszyfrowuje sekrety na serwerze (klucz age nie opuszcza serwera),
 #      uruchamia deploy.sh: migracje, healthchecki, test dymny przez Caddy, rollback przy błędzie;
 #   5. test dymny z internetu przez Cloudflare (https://api.goatcash.app/v1/health).
-# Środowisko `staging`: wymagany recenzent (właściciel), tylko gałąź main.
+# Środowisko `staging`: tylko gałąź main, bez wymaganego recenzenta (decyzja właściciela 24.11.2026:
+# wdrożenie po commicie na main ma być automatyczne, roadmapa E3 i G3).
 # Statyczne wymagania (bez continue-on-error, bez wejść osłabiających): scripts/tests/test_workflows.py.
 name: deploy-staging
 

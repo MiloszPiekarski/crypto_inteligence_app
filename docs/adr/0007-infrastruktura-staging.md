@@ -157,7 +157,9 @@ osobnych (**jawne odstępstwo od „jedna rzecz na PR”**). Ustalenia z realiza
   `deploy`. Skutek przejęcia: wyciek sekretów **tylko staging** (osobny klucz age na
   środowisko). Przed produkcją do rozważenia: rootless Docker albo rozdzielenie
   użytkownika wdrożeń od grupy `docker`.
-- **Środowiska GitHub (tylko gałąź `main`):** `staging` (wdrożenie, Ansible, ćwiczenie
+- **Środowiska GitHub (tylko gałąź `main`, bez wymaganego recenzenta; decyzja właściciela
+  24.11.2026, bo recenzent blokowałby automatyczne wdrożenie i odtworzenie bez ręcznych
+  kroków; ręczne zatwierdzanie dopiero dla `production`):** `staging` (wdrożenie, Ansible, ćwiczenie
   alertów: klucz SSH wdrożeń, klucz age) i `staging-readonly` (harmonogram: test kopii
   i skan). `staging-readonly` dostaje **klucz sondy** z `restrict,command=` w
   `authorized_keys` (tylko `goatcash-probe`: sumy kontrolne + punkt przywracania albo Lynis)

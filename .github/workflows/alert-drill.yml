@@ -3,7 +3,7 @@
 #   2. zatrzymuje kontener Valkey (podnoszony na końcu);
 #   3. czeka, aż oba alerty będą aktywne w Alertmanagerze Grafany (wysłane na e-mail i Telegram);
 #      limit 300 s od rozpoczęcia awarii (scripts/ci/wait-for-alerts.py).
-# Sprzątanie w kroku `if: always()`. Tylko ręcznie, środowisko `staging` z recenzentem.
+# Sprzątanie w kroku `if: always()`. Tylko ręcznie, środowisko `staging` (tylko main).
 # Dotarcie wiadomości na telefon właściciel potwierdza zrzutem w docs/gates/G3.md.
 name: alert-drill
 
