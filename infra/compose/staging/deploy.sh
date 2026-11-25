@@ -60,11 +60,29 @@ restore_if_empty() {
   fi
 }
 
+# Po odtworzeniu z kopii Postgres jest „zdrowy”, ale jeszcze odgrywa WAL (tryb recovery);
+# stanza-create i migracje wymagają serwera głównego (wdrożenie 45509198812: „are all
+# available clusters in recovery?”). Czekamy na koniec odtwarzania, najwyżej 15 min.
+wait_primary() {
+  local i r
+  for i in $(seq 1 180); do
+    r="$(compose "$1" exec -T postgres psql -U postgres -tAc "SELECT pg_is_in_recovery()" 2>/dev/null || true)"
+    if [ "$r" = f ]; then
+      [ "$i" -eq 1 ] || echo "baza poza trybem odtwarzania (po ${i}. próbie)"
+      return 0
+    fi
+    sleep 5
+  done
+  echo "baza nadal w trybie odtwarzania po 15 min"
+  return 1
+}
+
 echo "== wdrożenie $TAG (poprzedni: ${PREV:-brak})"
 # GOATCASH_SKIP_PULL=1 tylko w teście (obraz zbudowany lokalnie, nie w GHCR).
 [ "${GOATCASH_SKIP_PULL:-0}" = 1 ] || compose "$TAG" pull --quiet
 restore_if_empty "$TAG"
 compose "$TAG" up -d --wait postgres valkey
+wait_primary "$TAG"
 compose "$TAG" exec -T postgres pgbackrest --stanza=goatcash stanza-create
 compose "$TAG" exec -T postgres pgbackrest --stanza=goatcash check
 ./ensure-roles.sh "$TAG"
