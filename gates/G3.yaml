@@ -31,6 +31,11 @@ checks:
     run: make -s compose-staging-test
     skip_on_ci_os: [macOS]
     reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
+  - id: ansible
+    name: "Ansible: site.yml na świeżym Ubuntu 24.04 z systemd, drugi przebieg bez zmian, ufw, wolumen, Docker, Lynis 0 (zamiast Molecule)"
+    run: make -s ansible-test
+    skip_on_ci_os: [macOS]
+    reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
   - id: backup-restore
     name: "pgBackRest: pełna + przyrostowa + WAL, odtworzenie do czystej instancji i do punktu w czasie, 100% tabel zgodnych (F-02)"
     run: make -s backup-restore-test
