@@ -174,37 +174,46 @@
 
 - name: Plik wymiany (swap)
   ansible.builtin.command:
-    cmd: "fallocate -l {{ swap_size_mb }}M /swapfile"
-    creates: /swapfile
+    cmd: "fallocate -l {{ swap_size_mb }}M {{ base_swap_file }}"
+    creates: "{{ base_swap_file }}"
 
 - name: Uprawnienia pliku wymiany
   ansible.builtin.file:
-    path: /swapfile
+    path: "{{ base_swap_file }}"
     owner: root
     group: root
     mode: "0600"
 
-- name: Format pliku wymiany (tylko raz)
+# Warunek to „ten plik nie jest aktywny”, a nie „brak swapu w systemie”: inny swap (albo swap
+# hosta widoczny w kontenerze testowym) nie może sprawić, że plik zostanie pominięty.
+- name: Aktywne pliki wymiany
   ansible.builtin.command:
-    cmd: mkswap /swapfile
+    cmd: swapon --show=NAME --noheadings
+  register: base_swap_active
+  changed_when: false
+  check_mode: false
+
+- name: Format pliku wymiany (gdy nieaktywny)
+  ansible.builtin.command:
+    cmd: "mkswap {{ base_swap_file }}"
   register: base_mkswap
   changed_when: base_mkswap.rc == 0
-  when: ansible_swaptotal_mb | int == 0
+  when: base_swap_file not in base_swap_active.stdout_lines
 
 - name: Włączenie pliku wymiany przy starcie
   ansible.posix.mount:
     path: none
-    src: /swapfile
+    src: "{{ base_swap_file }}"
     fstype: swap
     opts: sw
     state: present
 
 - name: Włączenie pliku wymiany teraz
   ansible.builtin.command:
-    cmd: swapon /swapfile
+    cmd: "swapon {{ base_swap_file }}"
   register: base_swapon
   changed_when: base_swapon.rc == 0
-  when: ansible_swaptotal_mb | int == 0
+  when: base_swap_file not in base_swap_active.stdout_lines
 
 - name: Niska skłonność do wymiany
   ansible.posix.sysctl:
