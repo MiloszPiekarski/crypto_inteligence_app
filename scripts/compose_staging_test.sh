@@ -21,12 +21,13 @@ fail() { echo "  FAIL $*" >&2; exit 1; }
 ok() { echo "  PASS $*"; }
 
 cp -R infra/compose/staging "$WORK/compose"
-mkdir -p "$WORK/tls" "$WORK/metrics" "$WORK/compose/env" "$WORK/repo"
+mkdir -p "$WORK/tls" "$WORK/metrics" "$WORK/compose/env" "$WORK/repo" "$WORK/containers"
 chmod 0777 "$WORK/metrics" "$WORK/repo"
 # Repozytorium kopii poza wolumenem bazy (na serwerze: R2), żeby przeżyło usunięcie wolumenu.
 printf 'services:\n  postgres:\n    volumes:\n      - %s:/test-repo\n' "$WORK/repo" > "$WORK/compose/compose.override.yaml"
 export COMPOSE_PROJECT_NAME="$PROJECT" GOATCASH_HTTPS_PORT="$PORT" GOATCASH_TLS_DIR="$WORK/tls" \
-  GOATCASH_METRICS_DIR="$WORK/metrics" GOATCASH_SKIP_PULL=1
+  GOATCASH_METRICS_DIR="$WORK/metrics" GOATCASH_SKIP_PULL=1 \
+  GOATCASH_DOCKER_CONTAINERS_DIR="$WORK/containers"
 dc() { (cd "$WORK/compose" && GOATCASH_IMAGE_TAG="${TAG:-$GOOD}" docker compose "$@"); }
 # Sprzątanie nie zmienia wyniku testu. Pliki repozytorium kopii należą do użytkownika
 # kontenera (uid 1000): na Linuksie runner ich nie usunie, więc usuwa je kontener.
