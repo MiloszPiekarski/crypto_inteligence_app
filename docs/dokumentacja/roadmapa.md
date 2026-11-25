@@ -205,7 +205,7 @@ Bramka **G2: zaliczona** · dowód: `docs/gates/G2.md`, `docs/gates/G2.passed.js
 
 ## E3. Infrastruktura bazowa
 
-**Status:** ⏳ w toku (od 23.11.2026; plan PR-ów i decyzje: `docs/stan-pracy.md`, ADR-0007)
+**Status:** ✅ zrobione, bramka G3 zaliczona 25.11.2026 (plan PR-ów i decyzje: `docs/stan-pracy.md`, ADR-0007; raport `docs/gates/G3.md`)
 
 Etap kończy się, gdy środowisko `staging` na Oracle powstaje od zera jedną komendą, ma kopie zapasowe, które faktycznie da się odtworzyć, i wysyła metryki do Grafany.
 
@@ -243,6 +243,21 @@ Internet → Cloudflare (WAF, cache) → Caddy na VM → kontenery aplikacji. Ba
 | Konfiguracja serwera | Audyt hardeningu                                                                   | Lynis                            | Brak ostrzeżeń krytycznych                             | Poprawić role Ansible                        |
 | Alerty               | Sztuczne zapełnienie dysku, zatrzymanie kontenera                                  | ręcznie                          | Powiadomienie w < 5 min                                | Poprawić reguły alertów                      |
 | Wdrożenie            | Commit na `main`                                                                   | GitHub Actions                   | Nowa wersja na staging; test dymny zielony             | Automatyczny rollback do poprzedniego obrazu |
+
+### Stan realizacji E3 (✅ zrobione z dowodem)
+
+| Punkt                                                                                               | Stan | Dowód                                                                                                                       |
+| --------------------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------- |
+| 1. Terraform Oracle (sieć, A1 2/12, mikro-VM, wolumen, Vault)                                       | ✅   | `infra/terraform/oci`, `oci-trwale`, PR #86, #90; utworzone przez właściciela; wolumen 100 GB zamiast 150 GB (D2, ADR-0007) |
+| 2. Terraform Cloudflare (DNS, proxy, WAF, limit, R2, Origin CA)                                     | ✅   | `infra/terraform/cloudflare`, PR #90, #92; `external-scan`: 443 tylko przez Cloudflare                                      |
+| 3. Ansible (użytkownik, SSH kluczem, fail2ban, ufw, Docker, Tailscale, swap, journald)              | ✅   | `infra/ansible`, PR #90, #94, #96; `external-scan`: 0 otwartych portów, Lynis 0 warnings                                    |
+| 4. Docker Compose staging (Postgres 17 + Timescale + pgvector, Valkey AOF, Caddy, OTel, eksportery) | ✅   | `infra/compose/staging`, PR #90; `make compose-staging-test` w G3                                                           |
+| 5. Kopie pgBackRest (pełna, przyrostowa, WAL do R2, szyfrowanie, 30 dni)                            | ✅   | timery systemd, `backup-now.yml` (PR #98); `restore-test` 45502801764: 50/50 tabel, PITR                                    |
+| 6. Obserwowalność (OTel → Grafana Cloud, pulpity, alerty e-mail i Telegram, Better Stack)           | ✅   | `infra/terraform/observability`, PR #90, #96; `alert-drill` 45494553367: 138 s                                              |
+| 7. Wdrożenie `deploy-staging.yml` (cosign, migracje, test dymny, rollback)                          | ✅   | PR #90, #105; `deploy` 45489734491; rollback i odtworzenie pustej bazy w `make compose-staging-test`                        |
+| 8. Runbooki (odtworzenie z kopii, rotacja sekretów, wymiana serwera)                                | ✅   | `docs/runbooks/`; wymiana serwera sprawdzona w praktyce: `scripts/g3_rebuild.sh`, 1388 s                                    |
+
+Bramka **G3: zaliczona** · dowód: `docs/gates/G3.md`, `docs/gates/G3.passed.json` (typ mixed: CI 45489734328 i przebiegi deploy, restore-test, external-scan, alert-drill oraz raport lokalny `docs/gates/G3/rebuild-20261125T105824Z.log`, sprawdzane przez `gate-guard`). **Jawne odstępstwa** (zapisane w `G3.md` i ADR-0007 pkt 6): wolumen 100 GB; Better Stack co 3 min (co minutę Grafana Synthetic Monitoring); ćwiczenie alertów workflow zamiast ręcznie; Molecule zastąpione testem w kontenerze; duży PR zamiast PR 7–18.
 
 ## E4. Pozyskiwanie danych rynkowych i normalizacja
 

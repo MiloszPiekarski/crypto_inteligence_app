@@ -1,0 +1,38 @@
+Raport G3 rebuild | commit 9c8c9ad526a087dd6642dddc18f4816aa93c1ba3 | 20261125T105824Z | local
+Plan: 6 to add, 1 to change, 6 to destroy.
+  # oci_core_instance.executor will be replaced, as requested
+  # oci_core_instance.platform will be replaced, as requested
+  # oci_core_volume.data will be replaced, as requested
+  # oci_core_volume_attachment.data will be replaced, as requested
+  # tailscale_tailnet_key.executor will be replaced, as requested
+  # tailscale_tailnet_key.platform will be replaced, as requested
+Wpisz tak, żeby zastąpić maszyny i wolumen danych (dane wrócą z kopii w R2):
+== [1 s] 1. usunięcie starych węzłów z Tailscale
+  usunięto goatcash-executor
+  usunięto goatcash-staging
+== [2 s] 2a. usunięcie maszyn i wolumenu danych (czekanie na zwolnienie limitu dysków)
+  zarezerwowane IP executora: ocid1.publicip.oc1.eu-amsterdam-1.amaaaaaa3g42hgaasos25zo5iyiecckkjdqhxxgofrmc7b7xemkvvldtbiea (wyjęte ze stanu na czas odbudowy)
+Destroy complete! Resources: 4 destroyed.
+  wolumen danych: usunięty
+  dysk startowy A1: usunięty
+  dysk startowy executora: usunięty
+== [95 s] 2b. terraform apply (maszyny, wolumen, klucze Tailscale)
+Plan: 6 to add, 0 to change, 2 to destroy.
+private_subnet_id = "ocid1.subnet.oc1.eu-amsterdam-1.aaaaaaaa4npn6pxbpq5yqgonl66x5lsoalwgpovtbryic735npao447hm3uq"
+public_subnet_id = "ocid1.subnet.oc1.eu-amsterdam-1.aaaaaaaaf5uu3ka42jdl32czdooxc6vwfuoeuioe5bw2p4pa3amox2j2i65q"
+vcn_id = "ocid1.vcn.oc1.eu-amsterdam-1.amaaaaaa3g42hgaaa5vvcxcx2mvlllquckrpdih3c6mmtu466dx25bdlrzza"
+== [149 s] 2c. zarezerwowane IP z powrotem w stanie i na nowym executorze
+vcn_id = "ocid1.vcn.oc1.eu-amsterdam-1.amaaaaaa3g42hgaaa5vvcxcx2mvlllquckrpdih3c6mmtu466dx25bdlrzza"
+== [158 s] 3. DNS api./app. na nowe IP (Cloudflare)
+
+EOT
+  platforma: 143.47.189.234
+== [168 s] 4. węzły w Tailscale (cloud-init), potem Ansible
+  online: goatcash-executor goatcash-staging 
+https://github.com/MiloszPiekarski/crypto_inteligence_app/actions/runs/45601016267
+  przebieg 45601016267
+== [1097 s] 5. wdrożenie HEAD (deploy-staging.yml): odtworzenie bazy z R2, migracje, test dymny
+  przebieg 45598481664
+== [1386 s] 6. /v1/health z internetu
+  /v1/health: ok
+== G3 rebuild (local): PASS, 1388 s, 0 manual steps ==

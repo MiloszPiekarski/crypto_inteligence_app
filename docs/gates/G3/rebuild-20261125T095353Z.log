@@ -1,0 +1,37 @@
+Raport G3 rebuild | commit 6e977c705a4c1b883a2632b73c53459a1d423270 | 20261125T095353Z | local
+Plan: 6 to add, 1 to change, 6 to destroy.
+  # oci_core_instance.executor will be replaced, as requested
+  # oci_core_instance.platform will be replaced, as requested
+  # oci_core_volume.data will be replaced, as requested
+  # oci_core_volume_attachment.data will be replaced, as requested
+  # tailscale_tailnet_key.executor will be replaced, as requested
+  # tailscale_tailnet_key.platform will be replaced, as requested
+Wpisz tak, żeby zastąpić maszyny i wolumen danych (dane wrócą z kopii w R2):
+== [0 s] 1. usunięcie starych węzłów z Tailscale
+  usunięto goatcash-executor
+  usunięto goatcash-staging
+== [2 s] 2a. usunięcie A1 i wolumenu danych (czekanie na zwolnienie limitu)
+Destroy complete! Resources: 3 destroyed.
+  stary wolumen: TERMINATED
+== [89 s] 2b. terraform apply (A1, wolumen, executor, klucze Tailscale)
+Plan: 6 to add, 1 to change, 3 to destroy.
+
+Error: 400-QuotaExceeded, bootVolumeQuota Boot volume quota evaluation failed.
+Suggestion: Contact your administrator to increase limit for your account or compartment for this service: Core Instance
+Documentation: https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_instance 
+API Reference: https://docs.oracle.com/iaas/api/#/en/iaas/20160918/Instance/LaunchInstance 
+Request Target: POST https://iaas.eu-amsterdam-1.oraclecloud.com/20160918/instances 
+Provider version: 9.12.0, released on 2026-11-04. This provider is 3 Update(s) behind to current. 
+Service: Core Instance 
+Operation Name: LaunchInstance 
+OPC request ID: a4d05c37eee992e196b78be37bdf5f4f/72B3183DBED05325F3B0066B414D534B/D90B9C3ABC6582CA284F34DC6F21D7F7 
+
+
+  with oci_core_instance.executor,
+  on compute.tf line 89, in resource "oci_core_instance" "executor":
+  89: resource "oci_core_instance" "executor" {
+
+tailscale_tailnet_key.executor: Creating...
+tailscale_tailnet_key.executor: Creation complete after 0s [id=kc6sKC6qyN11CNTRL]
+oci_core_instance.executor: Creating...
+FAIL terraform apply (faza 2b)

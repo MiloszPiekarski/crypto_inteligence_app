@@ -8,7 +8,7 @@ Ten katalog zawiera tylko nazwy zmiennych, bez wartości. Klucze w pliku SOPS ma
 ```yaml
 postgres:
   POSTGRES_PASSWORD: …
-  PGBACKREST_REPO1_S3_ENDPOINT: <konto>.eu.r2.cloudflarestorage.com
+  PGBACKREST_REPO1_S3_ENDPOINT: <account_id>.r2.cloudflarestorage.com
   # … pozostałe zmienne z tabeli
 api:
   GOATCASH_DATABASE_URL: postgresql+psycopg://postgres:…@postgres:5432/postgres
