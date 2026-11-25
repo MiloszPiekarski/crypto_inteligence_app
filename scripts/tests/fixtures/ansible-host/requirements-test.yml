@@ -1,0 +1,5 @@
+---
+# Kolekcja potrzebna tylko testowi (połączenie Ansible z kontenerem przez docker exec).
+collections:
+  - name: community.docker
+    version: "5.4.1"

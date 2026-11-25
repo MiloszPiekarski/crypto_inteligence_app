@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 G ?=
 
-.PHONY: help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test iac-lint compose-staging-test backup-restore-test event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
+.PHONY: ansible-test help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test iac-lint compose-staging-test backup-restore-test event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
 
 help: ## Lista komend
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -54,6 +54,9 @@ compose-staging-test: ## Compose staging: wdrożenie, test dymny, kopia, rollbac
 
 backup-restore-test: ## pgBackRest: pełna+przyrostowa+WAL, odtworzenie i PITR, sumy wszystkich tabel (Docker; G3, F-02)
 	./scripts/backup_restore_test.sh
+
+ansible-test: ## Ansible site.yml na kontenerze Ubuntu 24.04 z systemd: 2 przebiegi, stan serwera (Docker; G3)
+	./scripts/ansible_test.sh
 
 image-migration-test: ## Obraz platformy uruchamia migracje na Postgresie z Timescale (Docker; bramka G3)
 	uv run pytest -m image services/platform/tests/image
