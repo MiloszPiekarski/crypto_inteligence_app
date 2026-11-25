@@ -1,0 +1,31 @@
+{
+  "gate": "G3",
+  "type": "mixed",
+  "ci": {
+    "run_id": 45489734328,
+    "commit": "d123bf14c2ecef56e093264567a6642a661e63c7",
+    "job": "8 bramka G3 (ubuntu-latest)",
+    "url": "https://github.com/MiloszPiekarski/crypto_inteligence_app/actions/runs/45489734328"
+  },
+  "workflows": {
+    "deploy": {
+      "run_id": 45489734491
+    },
+    "restore-test": {
+      "run_id": 45502801764
+    },
+    "external-scan": {
+      "run_id": 45492236610
+    },
+    "alert-drill": {
+      "run_id": 45494553367
+    }
+  },
+  "local": {
+    "rebuild": {
+      "path": "docs/gates/G3/rebuild-20261125T105824Z.log",
+      "sha256": "323b126122668ca881b9e272b08d5855cf4deb82b146aa3219756a50f9cc4fc1"
+    }
+  },
+  "recorded_at": "2026-11-25T11:29:07Z"
+}
