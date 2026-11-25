@@ -21,7 +21,9 @@
 # aktualizacje od razu (Lynis PKGS-7392 „vulnerable packages”, external-scan 45485727014).
 - name: Zaległe aktualizacje pakietów
   ansible.builtin.apt:
-    upgrade: safe
+    # dist (pełna): także poprawki wymagające nowych pakietów (np. jądro); `safe` je pomijało
+    # i Lynis zgłaszał PKGS-7392 po odtworzeniu od zera (external-scan 45714788437).
+    upgrade: dist
     update_cache: true
     cache_valid_time: 3600
 
@@ -39,16 +41,53 @@
   when: base_reboot_required.stat.exists
   tags: [reboot] # test w kontenerze pomija restart (--skip-tags reboot)
 
+# Poprawki bezpieczeństwa co godzinę, nie raz na dobę: Lynis „0 Warnings” (D6) nie może
+# zależeć od tego, czy skan trafi przed dobowym przebiegiem (external-scan 45714788437).
+# "always": apt.systemd.daily nie czeka doby od poprzedniego przebiegu; tempo wyznaczają timery.
 - name: Automatyczne aktualizacje bezpieczeństwa
   ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/20auto-upgrades
     content: |
-      APT::Periodic::Update-Package-Lists "1";
-      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::Update-Package-Lists "always";
+      APT::Periodic::Unattended-Upgrade "always";
       APT::Periodic::AutocleanInterval "7";
     owner: root
     group: root
     mode: "0644"
+
+- name: Restart po aktualizacjach jądra w nocy (po kopii o 02:30 UTC)
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52goatcash-unattended-upgrades
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "03:30";
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Katalogi nadpisań timerów apt
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}.timer.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: [apt-daily, apt-daily-upgrade]
+
+- name: Timery apt co godzinę (lista pakietów i aktualizacje bezpieczeństwa)
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item }}.timer.d/goatcash.conf"
+    content: |
+      [Timer]
+      OnCalendar=
+      OnCalendar=hourly
+      RandomizedDelaySec=300
+    owner: root
+    group: root
+    mode: "0644"
+  loop: [apt-daily, apt-daily-upgrade]
+  notify: Przeładowanie timerów apt
 
 - name: Użytkownik deploy (bez hasła, logowanie tylko kluczem, bez sudo poza jednym skryptem)
   ansible.builtin.user:
