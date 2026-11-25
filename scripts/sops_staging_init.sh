@@ -34,7 +34,7 @@ cat > "$PLAIN" <<EOF
 postgres:
   POSTGRES_PASSWORD: "$PG"
   # R2: token goatcash-pgbackrest (Object Read & Write). Endpoint BEZ https://,
-  # np. <id>.eu.r2.cloudflarestorage.com
+  # np. <account_id>.r2.cloudflarestorage.com (bucket bez jurysdykcji UE: bez .eu.)
   PGBACKREST_REPO1_S3_ENDPOINT: "WSTAW_R2_ENDPOINT"
   PGBACKREST_REPO1_S3_KEY: "WSTAW_R2_ACCESS_KEY_ID"
   PGBACKREST_REPO1_S3_KEY_SECRET: "WSTAW_R2_SECRET_ACCESS_KEY"

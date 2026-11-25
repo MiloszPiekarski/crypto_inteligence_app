@@ -14,8 +14,13 @@ repos:
       - id: check-toml
       - id: check-merge-conflict
       - id: detect-private-key
+      # Raporty lokalne bramek (docs/gates/G*/*.log) muszą zostać bajt w bajt takie, jak je
+      # zapisał skrypt: ich SHA-256 jest w dowodzie bramki. Kontrole bezpieczeństwa (klucze,
+      # gitleaks) nadal je sprawdzają; wyłączone są tylko poprawki formatu.
       - id: end-of-file-fixer
+        exclude: '^docs/gates/G[^/]+/[^/]+\.log$'
       - id: trailing-whitespace
+        exclude: '^docs/gates/G[^/]+/[^/]+\.log$'
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.6
     hooks:

@@ -78,3 +78,6 @@ infra/ansible/collections/
 
 # Certyfikat Cloudflare Origin CA (publiczny; klucz prywatny tylko w SOPS i Bitwardenie)
 !infra/tls/origin.pem
+
+# Raporty lokalne bramek (dowód mixed, scripts/gate_guard.py) są częścią repozytorium
+!docs/gates/G*/*.log
