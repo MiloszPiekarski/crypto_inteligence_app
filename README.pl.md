@@ -10,10 +10,11 @@ Otwarta platforma analityczna rynku kryptowalut: agenci analityczni, prognozy ro
 w Forecast Ledger, kalibracja i samouczenie z twardymi granicami, a w dalszych etapach
 bot handlowy w trybach o rosnącej autonomii.
 
-> **Status:** etapy **E0–E2** zakończone (bramki G0–G2 zaliczone: konta i narzędzia;
-> repozytorium, CI i sekrety; architektura szczegółowa, model danych i kontrakty). Następny:
-> **E3** (infrastruktura bazowa). Funkcje pojawiają się zgodnie z roadmapą E0–E18; każdy etap
-> kończy się bramką jakości sprawdzaną automatycznie. Bieżący stan: `docs/stan-pracy.md`.
+> **Status:** etapy **E0–E3** zakończone (bramki G0–G3 zaliczone: konta i narzędzia;
+> repozytorium, CI i sekrety; architektura, model danych i kontrakty; infrastruktura staging
+> odtwarzalna od zera, z kopiami i alertami). Następny: **E4** (pozyskiwanie danych rynkowych
+> i normalizacja). Funkcje pojawiają się zgodnie z roadmapą E0–E18; każdy etap kończy się
+> bramką jakości sprawdzaną automatycznie. Bieżący stan: `docs/stan-pracy.md`.
 
 ## Struktura
 
@@ -59,6 +60,20 @@ make openapi-lint        # OpenAPI zgodne z aplikacją, Spectral, klient TS aktu
 make openapi             # regeneracja OpenAPI i klienta TS po zmianie API
 make requirements-check  # każde wymaganie ma ID, etap, bramkę i mierzalny próg
 ```
+
+Infrastruktura staging (bramka G3; testy z Dockerem wymagają Docker Desktop):
+
+```bash
+make tools                 # Terraform, tflint, trivy, sops (przypięte wersje, sumy SHA-256)
+make iac-lint              # Terraform, trivy, polityka sieci OCI, ansible-lint
+make compose-staging-test  # stos staging: wdrożenie, test dymny, rollback, odtworzenie bazy
+make backup-restore-test   # pgBackRest: kopia, odtworzenie, PITR, sumy wszystkich tabel
+./scripts/g3_rebuild.sh    # odtworzenie staging od zera (klucze chmury, raport < 30 min)
+```
+
+Na prawdziwej infrastrukturze działają workflow GitHub Actions: `deploy-staging` (każdy
+commit na `main`), `ansible-staging`, `backup-now`, `restore-test` i `external-scan`
+(co tydzień), `alert-drill`. Runbooki: `docs/runbooks/`.
 
 ## Bezpieczeństwo
 

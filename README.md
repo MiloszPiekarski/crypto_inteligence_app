@@ -10,10 +10,11 @@ An open crypto market intelligence platform: analytical agents, forecasts settle
 Forecast Ledger, calibration and self-learning within hard limits, and, in later stages, a
 trading bot with gradually increasing autonomy.
 
-> **Status:** stages **E0–E2** are complete (gates G0–G2 passed: accounts and tools;
-> repository, CI and secrets; detailed architecture, data model and contracts). Next: **E3**
-> (base infrastructure). Features arrive according to the E0–E18 roadmap; every stage ends
-> with a quality gate that is checked automatically. Current state: `docs/stan-pracy.md`.
+> **Status:** stages **E0–E3** are complete (gates G0–G3 passed: accounts and tools;
+> repository, CI and secrets; architecture, data model and contracts; staging infrastructure
+> rebuildable from scratch, with backups and alerts). Next: **E4** (market data ingestion and
+> normalization). Features arrive according to the E0–E18 roadmap; every stage ends with a
+> quality gate that is checked automatically. Current state: `docs/stan-pracy.md`.
 
 ## Layout
 
@@ -59,6 +60,20 @@ make openapi-lint        # OpenAPI matches the app, Spectral, TS client up to da
 make openapi             # regenerate OpenAPI and the TS client after an API change
 make requirements-check  # every requirement has an ID, stage, gate and measurable target
 ```
+
+Staging infrastructure (gate G3; Docker tests need Docker Desktop):
+
+```bash
+make tools                 # Terraform, tflint, trivy, sops (pinned versions, SHA-256 sums)
+make iac-lint              # Terraform, trivy, OCI network policy, ansible-lint
+make compose-staging-test  # staging stack: deploy, smoke test, rollback, database restore
+make backup-restore-test   # pgBackRest: backup, restore, PITR, checksums of every table
+./scripts/g3_rebuild.sh    # rebuild staging from scratch (cloud keys, report < 30 min)
+```
+
+GitHub Actions workflows run against the real infrastructure: `deploy-staging` (every
+commit on `main`), `ansible-staging`, `backup-now`, `restore-test` and `external-scan`
+(weekly), `alert-drill`. Runbooks: `docs/runbooks/` (Polish).
 
 ## Security
 

@@ -1,7 +1,7 @@
 # ADR-0007: Infrastruktura staging: budżet zasobów, stan Terraform, dostęp i dowód G3
 
-- **Status:** proponowana (decyzje D2–D6 zaakceptowane przez właściciela 23.11.2026;
-  zatwierdzenie całości scaleniem PR)
+- **Status:** przyjęta (decyzje D2–D6 zaakceptowane przez właściciela 23.11.2026; punkt 6
+  uzupełniany do 25.11.2026; potwierdzona zaliczeniem G3, `docs/gates/G3.md`)
 - **Data:** 2026-11-23
 - **Etap:** E3
 - **Źródło:** roadmapa E3 (zakres prac 1–7, tabela testów), `docs/stan-pracy.md` (decyzje
@@ -169,10 +169,24 @@ osobnych (**jawne odstępstwo od „jedna rzecz na PR”**). Ustalenia z realiza
   repozytorium i tylko commit z zielonym `ci-ok`.
 - **Odtworzenie od zera (F-01):** `scripts/g3_rebuild.sh` (właściciel, klucze chmury
   lokalnie): plan Terraform i jedno „tak” przed startem zegara, potem bez udziału człowieka:
-  usunięcie starych węzłów Tailscale, zastąpienie maszyn i wolumenu (najpierw usunięcie A1),
-  DNS na nowe IP, `ansible-staging.yml`, ponowienie wdrożenia HEAD. Pusty wolumen bazy
-  `deploy.sh` odtwarza z kopii w R2 (najnowsza kopia + cały WAL), co sprawdza
-  `make compose-staging-test`. RPO: `archive_timeout` 300 s, czyli do 5 min danych.
+  usunięcie starych węzłów Tailscale; usunięcie obu maszyn i wolumenu oraz **czekanie, aż
+  Oracle usunie wszystkie trzy dyski** (dysk w stanie TERMINATING nadal zajmuje limit
+  200 GB: dwie próby padły na LimitExceeded i bootVolumeQuota); utworzenie maszyn i wolumenu;
+  zarezerwowane IP executora na czas odbudowy wyjęte ze stanu Terraform i zaimportowane
+  z powrotem (zależy od maszyny przez źródła danych, a nie może się zmienić); DNS na nowe IP,
+  `ansible-staging.yml`, ponowienie wdrożenia HEAD. Pusty wolumen bazy `deploy.sh` odtwarza
+  z kopii w R2 (najnowsza kopia + cały WAL) i czeka na koniec odtwarzania WAL przed
+  `stanza-create`; sprawdza to `make compose-staging-test`. Wynik: 1388 s, 0 ręcznych
+  kroków (25.11.2026). RPO: `archive_timeout` 300 s, czyli do 5 min danych.
+- **Subject OIDC Tailscale:** repozytorium ma niezmienny format subject
+  (`repo:MiloszPiekarski@109043317/crypto_inteligence_app@1455875058:environment:<env>`),
+  dwa klienty OIDC: dla `staging` i `staging-readonly`. Format sprawdzamy przez
+  `gh api repos/<repo>/actions/oidc/customization/sub`.
+- **Endpoint R2:** bucket ma wskazówkę lokalizacji EEUR, bez jurysdykcji UE, więc endpoint to
+  `<account_id>.r2.cloudflarestorage.com` (bez `.eu.`).
+- **Aktualizacje i Lynis:** Ansible instaluje zaległe aktualizacje i restartuje serwer, gdy
+  system tego wymaga; Lynis PKGS-7388 wyłączony tylko na arm64 i tylko gdy suite
+  `<wydanie>-security` jest w źródłach apt (fałszywy alarm, szczegóły w `G3.md`).
 - **Test kopii (F-02, `restore-test.yml`):** sonda liczy sumy wszystkich tabel na serwerze
   i zakłada nazwany punkt przywracania; runner odtwarza kopię z R2 do tego punktu i porównuje
   sumy (100% tabel). Zgodnie z punktem 1: odtworzenie w kontenerze na runnerze, bez drugiej A1.

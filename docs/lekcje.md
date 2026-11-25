@@ -82,3 +82,31 @@ jak tego unikamy.
 - Sprzątanie testu Docker na Linuksie: pliki tworzone przez kontener (inny uid) nie dają
   się usunąć z runnera, a błąd w pułapce EXIT przy `set -e` zmienia wynik testu → pliki
   kontenera usuwa kontener, sprzątanie nie wpływa na wynik.
+- Subject OIDC Tailscale wpisany w formacie z ogólnej dokumentacji, a repozytorium ma
+  niezmienny format (`repo:<właściciel>@<id>/<repo>@<id>:environment:<env>`) → 403
+  w CI → subject bierzemy z `gh api repos/<repo>/actions/oidc/customization/sub`.
+- Endpoint R2 podany z `.eu.`, a bucket ma tylko wskazówkę lokalizacji (EEUR), nie
+  jurysdykcję UE → przed podaniem adresu sprawdzamy jurysdykcję bucketu w Terraform.
+- Komendy dla właściciela z miejscem do wpisania („…”) zostały wklejone dosłownie, a `pbpaste`
+  bez wyjaśnienia wkleił przypadkową zawartość schowka → w komendach do wklejenia nie ma
+  miejsc do uzupełnienia; wartości ze schowka zawsze z kontrolą formatu przed `gh secret set`.
+- Edycja pliku SOPS uruchomiona z `!` w sesji asystenta pokazała odszyfrowaną treść
+  w rozmowie (dotarła tylko pierwsza linia) → komendy, które wypisują sekrety, tylko
+  w terminalu właściciela.
+- Gałąź właściciela utworzona wprost z gałęzi `claude/…` niosła niepodpisane commity
+  asystenta, a `main` wymaga podpisów → zawsze `merge --squash` i jeden podpisany commit.
+- Świeży Ubuntu 24.04 w OCI nie ma `/etc/systemd/journald.conf.d` ani `/run/sshd` (SSH
+  uruchamiany na żądanie) → playbook testujemy przed wdrożeniem w kontenerze Ubuntu 24.04
+  z systemd (wolumen z pętli jako `/dev/oracleoci/oraclevdb`), łącznie z drugim przebiegiem
+  (`changed=0`).
+- Reguły alertów Grafany bez zapytań `instant` i z błędnym PromQL przeszły `terraform
+  validate`, a padły dopiero na prawdziwych danych → zapytania sprawdzamy na danych przez
+  API źródła danych przed zmianą reguł; test pilnuje `instant`.
+- Oracle usuwa wolumeny i dyski startowe asynchronicznie, a przy Always Free (200 GB) każdy
+  usuwany dysk blokuje nowy → odtworzenie od zera czeka na usunięcie wszystkich dysków
+  (dwie nieudane próby; trzecia przeszła w 1388 s).
+- Po odtworzeniu z kopii Postgres jest „zdrowy”, ale jeszcze odgrywa WAL → przed
+  `stanza-create` i migracjami czekamy, aż `pg_is_in_recovery()` zwróci `f`.
+- Próba obejścia blokady sesji (rozbicie nazwy ścieżki `.ssh`) została zatrzymana przez
+  klasyfikator → blokad nie obchodzimy; gdy blokada przeszkadza w teście, pomijamy ten punkt
+  i mówimy o tym.
