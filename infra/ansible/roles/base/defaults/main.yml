@@ -1,0 +1,4 @@
+---
+# Plik wymiany. Na serwerach /swapfile; test w kontenerze (make ansible-test) podaje plik
+# na ext4 z pętli, bo Linux nie przyjmuje pliku wymiany na overlayfs kontenera.
+base_swap_file: /swapfile

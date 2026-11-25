@@ -16,7 +16,7 @@ IMAGE="goatcash-ansible-host:test"
 fail() { echo "  FAIL $*" >&2; exit 1; }
 ok() { echo "  PASS $*"; }
 cleanup() {
-  docker exec "$NAME" sh -c 'losetup -D' >/dev/null 2>&1 || true
+  docker exec "$NAME" sh -c 'swapoff -a; umount /mnt/swaptest; losetup -D' >/dev/null 2>&1 || true
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   rm -rf "$WORK" || true
 }
@@ -34,7 +34,9 @@ for _ in $(seq 1 30); do
 done
 case "$state" in running|degraded) ;; *) fail "systemd w kontenerze: ${state:-brak odpowiedzi}" ;; esac
 docker exec "$NAME" sh -c 'truncate -s 3G /data.img && L=$(losetup -f --show /data.img) &&
-  mkdir -p /dev/oracleoci && ln -sf "$L" /dev/oracleoci/oraclevdb' || fail "wolumen danych na pętli"
+  mkdir -p /dev/oracleoci && ln -sf "$L" /dev/oracleoci/oraclevdb &&
+  truncate -s 1G /swap.img && S=$(losetup -f --show /swap.img) && mkfs.ext4 -q "$S" &&
+  mkdir -p /mnt/swaptest && mount "$S" /mnt/swaptest' || fail "wolumen danych i system plików na swap (pętle)"
 ok "kontener z systemd ($state), wolumen danych jako /dev/oracleoci/oraclevdb"
 
 export ANSIBLE_COLLECTIONS_PATH="$WORK/collections" ANSIBLE_NOCOLOR=1
@@ -53,6 +55,8 @@ all:
       hosts:
         $NAME:
           swap_size_mb: 512
+          # Linux nie przyjmuje pliku wymiany na overlayfs kontenera: plik na ext4 z pętli.
+          base_swap_file: /mnt/swaptest/swapfile
     executor:
       hosts: {}
 EOF
@@ -94,6 +98,7 @@ check "klucz age: 0400 root" "stat -c '%a %U' /etc/goatcash/age.key" "^400 root$
 check "deploy: sudo tylko render-env i Lynis" "sudo -l -U deploy | grep -c NOPASSWD" "^2$"
 check "timery kopii (pełna i przyrostowa)" \
   "systemctl is-enabled goatcash-backup-full.timer goatcash-backup-incr.timer | tr '\n' ' '" "^enabled enabled"
+check "plik wymiany aktywny" "swapon --show=NAME --noheadings" "^/mnt/swaptest/swapfile$"
 check "SSH: bez logowania roota i haseł" "sshd -T | grep -E '^(permitrootlogin|passwordauthentication) '" \
   "passwordauthentication no"
 check "Lynis: 0 ostrzeżeń" "/usr/local/bin/goatcash-lynis | tail -1" "^Lynis: 0 warnings"
