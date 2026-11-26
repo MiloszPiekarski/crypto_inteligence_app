@@ -8,7 +8,16 @@ packages: [curl, ca-certificates, gnupg]
 runcmd:
   - install -m 0755 -d /usr/share/keyrings
   - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg
-  - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list
+  # Odcisk przypięty (ADR-0007; ten sam w infra/ansible/roles/base/defaults/main.yml). Inny
+  # klucz: plik usunięty i koniec skryptu, więc Tailscale się nie zainstaluje.
+  - |
+    fpr="$(gpg --homedir "$(mktemp -d)" --batch --quiet --show-keys --with-colons /usr/share/keyrings/tailscale-archive-keyring.gpg | awk -F: '$1 == "pub" { p = 1; next } p && $1 == "fpr" { print $10; p = 0 }')"
+    if [ "$fpr" != 2596A99EAAB33821893C0A79458CA832957F5868 ]; then
+      rm -f /usr/share/keyrings/tailscale-archive-keyring.gpg
+      echo "GOATCASH: klucz Tailscale ma inny odcisk ($fpr)" >&2
+      exit 1
+    fi
+  - echo 'deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu noble main' > /etc/apt/sources.list.d/tailscale.list
   - apt-get update
   - apt-get install -y tailscale
   - systemctl enable --now tailscaled

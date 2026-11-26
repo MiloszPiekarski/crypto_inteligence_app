@@ -8,10 +8,36 @@
     group: root
     mode: "0755"
 
-- name: Klucz repozytorium Docker
+# Klucz najpierw do osobnego pliku; apt dostaje go dopiero po sprawdzeniu odcisku (ADR-0007).
+- name: Klucz repozytorium Docker (pobrany, jeszcze nieużywany)
   ansible.builtin.get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc.pobrany
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [klucze]
+
+- name: Odcisk klucza repozytorium Docker
+  ansible.builtin.command:
+    cmd: /usr/local/bin/goatcash-key-fingerprint /etc/apt/keyrings/docker.asc.pobrany
+  register: docker_key_fpr
+  changed_when: false
+  check_mode: false
+  tags: [klucze]
+
+- name: Klucz Docker ma przypięty odcisk
+  ansible.builtin.assert:
+    that: docker_key_fpr.stdout_lines == [docker_repo_key_fingerprint]
+    fail_msg: "Klucz repozytorium Docker ma inny odcisk niż przypięty: {{ docker_key_fpr.stdout_lines }}"
+    quiet: true
+  tags: [klucze]
+
+- name: Klucz repozytorium Docker (sprawdzony)
+  ansible.builtin.copy:
+    src: /etc/apt/keyrings/docker.asc.pobrany
     dest: /etc/apt/keyrings/docker.asc
+    remote_src: true
     owner: root
     group: root
     mode: "0644"

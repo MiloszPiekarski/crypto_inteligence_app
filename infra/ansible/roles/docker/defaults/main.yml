@@ -1,0 +1,4 @@
+---
+# Odcisk klucza repozytorium Docker (ADR-0007). Źródło: plik z download.docker.com zgodny
+# z keyserver.ubuntu.com (26.11.2026). Zmiana klucza u Dockera = świadoma zmiana tutaj.
+docker_repo_key_fingerprint: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88

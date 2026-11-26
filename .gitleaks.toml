@@ -15,3 +15,16 @@ keywords = ["age-secret-key-1"]
 # Bez wyjątków dla infra/secrets/*.enc.yaml: szyfrogramy SOPS nie dają fałszywych alarmów
 # (sprawdzone na prawdziwych plikach z `sops -e`), a skanowanie ich wykrywa sekret wpisany
 # jako nazwa klucza, komentarz czy metadane. Budowę tych plików sprawdza scripts/sops_check.py.
+
+# Publiczne odciski kluczy GPG repozytoriów apt (ADR-0007), nie sekrety: reguła
+# generic-api-key zgłosiła odcisk Tailscale przez słowo „key” w nazwie zmiennej (pre-commit
+# 26.11.2026). Wyjątek tylko dla tej reguły i tylko dla dokładnie tych dwóch wartości;
+# każdy inny ciąg w tych samych plikach nadal jest skanowany.
+[[allowlists]]
+description = "Odciski kluczy GPG repozytoriów apt Docker i Tailscale (publiczne, keyserver.ubuntu.com)"
+targetRules = ["generic-api-key"]
+regexTarget = "secret"
+regexes = [
+  '''^2596A99EAAB33821893C0A79458CA832957F5868$''',
+  '''^9DC858229FC7DD38854AE2D88D81803C0EBFCD88$''',
+]

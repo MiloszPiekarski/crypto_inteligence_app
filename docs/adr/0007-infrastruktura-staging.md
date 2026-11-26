@@ -206,6 +206,30 @@ osobnych (**jawne odstępstwo od „jedna rzecz na PR”**). Ustalenia z realiza
   i `tag:goatcash-executor`); klient `goatcash-terraform` ma tylko ten tag oraz zakresy
   Auth Keys i Devices Core (zapis).
 - **Domena:** wygasa 21.11.2027; Cloudflare pokazuje odnowienie (auto-renew) 22.10.2027.
+- **Wersje pakietów systemowych, obraz Ubuntu i klucze repozytoriów (decyzja właściciela
+  26.11.2026, rozliczenie E3):**
+  - **Pakiety apt (docker-ce, tailscale, lynis, pakiety Ubuntu) nie są przypięte do wersji.**
+    **Jawne odstępstwo od zasady „przypięte wersje”** (ta obowiązuje dalej dla akcji GitHub,
+    obrazów kontenerów po digeście, narzędzi z sumą SHA-256 jak sops i zależności Pythona
+    w `uv.lock`). Powód: przypięte pakiety systemowe blokują poprawki bezpieczeństwa, a D6
+    („Lynis 0 Warnings”, PKGS-7392) i unattended-upgrades co godzinę wymagają aktualnych
+    pakietów. Ryzyko (nowa wersja coś psuje) ograniczają: `make ansible-test` na świeżym
+    Ubuntu 24.04 w każdym CI, test dymny i rollback w `deploy.sh` oraz restart tylko w nocy.
+  - **Obraz Ubuntu:** najnowszy „Canonical Ubuntu 24.04” dla A1 w chwili tworzenia maszyny,
+    a nowszy obraz nie wymusza odtworzenia (`ignore_changes` w `compute.tf`). Aktualność daje
+    `upgrade: dist` w Ansible, a powtarzalność odtworzenia potwierdza G3.
+  - **Klucze repozytoriów apt są przypięte odciskiem** (to, czemu ufa apt, jest stałe):
+    Docker `9DC858229FC7DD38854AE2D88D81803C0EBFCD88` (`roles/docker/defaults`), Tailscale
+    `2596A99EAAB33821893C0A79458CA832957F5868` (`roles/base/defaults` i
+    `cloud-init.yaml.tftpl`). Producenci nie publikują odcisków na stronach instalacji,
+    więc odciski sprawdziliśmy dwoma niezależnymi kanałami (26.11.2026): pliki
+    z download.docker.com i pkgs.tailscale.com (HTTPS) oraz klucze z keyserver.ubuntu.com
+    mają identyczne klucze główne, podklucze i identyfikatory (Docker od 2017, Tailscale
+    od 2020). Plik z innym albo dodatkowym kluczem głównym zatrzymuje Ansible, a w cloud-init
+    plik jest usuwany i Tailscale się nie instaluje. Źródło apt Tailscale ma stałą treść,
+    a nie plik pobrany z sieci. Sprawdza to `make ansible-test` (podmienione klucze
+    i fragment cloud-init) oraz `test_repo_key_fingerprints_pinned_consistently`. Zmiana
+    klucza u producenta to świadoma zmiana odcisku w repo.
 
 ## Rozważane alternatywy
 
