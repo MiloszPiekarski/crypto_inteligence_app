@@ -19,7 +19,7 @@ def rules() -> list[str]:
 
 def test_every_prometheus_query_is_instant() -> None:
     found = rules()
-    assert len(found) == 5
+    assert len(found) == 6
     for rule in found:
         query = rule.split('ref_id         = "C"')[0]
         assert "instant = true" in query, rule.splitlines()[1]
@@ -39,3 +39,19 @@ def test_alert_drill_names_exist() -> None:
     assert len(set(names)) == 2
     for name in set(names):
         assert f'name           = "{name}"' in text or f'name      = "{name}"' in text
+
+
+def test_retention_alert_matches_pgbackrest_config() -> None:
+    """Próg alertu retencji wynika z pgbackrest.conf: 30 dni + tydzień między pełnymi kopiami
+    + zapas. Zmiana retencji bez zmiany progu (albo odwrotnie) ma paść tutaj."""
+    conf = (ROOT / "infra/compose/staging/postgres/pgbackrest.conf").read_text(encoding="utf-8")
+    assert "repo1-retention-full-type=time\n" in conf
+    match = re.search(r"^repo1-retention-full=(\d+)$", conf, re.M)
+    assert match
+    days = int(match.group(1))
+    rule = next(r for r in rules() if '"Retencja kopii nie dziala"' in r)
+    assert "min(goatcash_backup_oldest_timestamp_seconds)) / 86400" in rule
+    assert f"params = [{days + 7 + 2}]" in rule
+    assert 'no_data_state  = "Alerting"' in rule
+    backup = (ROOT / "infra/compose/staging/backup.sh").read_text(encoding="utf-8")
+    assert "goatcash_backup_oldest_timestamp_seconds {oldest}" in backup
