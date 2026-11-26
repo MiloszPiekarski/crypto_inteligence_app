@@ -3,6 +3,9 @@
 # wszystkie w ci-ok (ochrona przed regresją). Bramka etapu w toku dochodzi jako osobny job
 # (gate-next, poza ci-ok), który pierwszy PR etapu dodaje, a PR zamykający przenosi do `gate`.
 # Kolejność wymuszona przez `needs`: każdy etap startuje dopiero po zielonym poprzednim.
+# Ścieżka pracy (ADR-0008, punkt 7): job `zmiany` decyduje, czy w PR budujemy obrazy
+# (zmiana zależności albo Dockerfile) i czy bramki idą też na macOS (zmiana skryptów
+# powłoki); na main i przy ręcznym uruchomieniu zawsze wszystko.
 name: ci
 
 on:
@@ -24,6 +27,25 @@ env:
   NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
+  zmiany:
+    name: 0 zmiany (obrazy, macOS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      obrazy: ${{ steps.wybor.outputs.obrazy }}
+      systemy: ${{ steps.wybor.outputs.systemy }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: wybór jobów według zmienionych plików
+        id: wybor
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: ./scripts/ci/zmiany.sh
+
   lint:
     name: 1 lint
     runs-on: ubuntu-latest
@@ -129,7 +151,8 @@ jobs:
 
   images:
     name: 5-6 obraz ${{ matrix.service }} (build + Trivy amd64 i arm64)
-    needs: gitleaks
+    needs: [gitleaks, zmiany]
+    if: needs.zmiany.outputs.obrazy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 40 # build arm64 przez QEMU do skanu Trivy
     permissions:
@@ -220,7 +243,7 @@ jobs:
 
   coverage:
     name: 7 raport pokrycia
-    needs: images
+    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -242,7 +265,7 @@ jobs:
     # Bramka na Linuksie (jak serwer i CI) oraz na macOS arm64 z systemowym /bin/bash 3.2
     # oraz systemowymi sort/stat (BSD) i make (GNU 3.81) na początku PATH, jak u właściciela.
     name: 8 bramka G${{ matrix.gate }} (${{ matrix.os }})
-    needs: lint
+    needs: [lint, zmiany]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30 # G3: testy Compose i kopii z Dockerem
     env:
@@ -250,7 +273,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-15]
+        os: ${{ fromJSON(needs.zmiany.outputs.systemy) }}
         gate: ["1", "2", "3"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -298,11 +321,14 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [lint, types, test, gitleaks, images, coverage, gate]
+    needs: [zmiany, lint, types, test, gitleaks, images, coverage, gate]
     runs-on: ubuntu-latest
     steps:
+      # Pominięcie (skipped) wolno tylko obrazom i tylko wtedy, gdy job `zmiany` (zielony)
+      # uznał je za zbędne; każdy inny wynik niż success = czerwone.
       - name: wszystkie etapy zielone
         env:
           NEEDS: ${{ toJSON(needs) }}
+          OBRAZY: ${{ needs.zmiany.outputs.obrazy }}
         run: |
-          printf '%s' "$NEEDS" | python3 -c 'import json,sys; d=json.load(sys.stdin); bad=[k for k,v in d.items() if v["result"]!="success"]; print("czerwone:", bad) if bad else print("OK"); sys.exit(1 if bad else 0)'
+          printf '%s' "$NEEDS" | python3 -c 'import json,os,sys; d=json.load(sys.stdin); ok=lambda k,r: r=="success" or (k=="images" and r=="skipped" and d["zmiany"]["result"]=="success" and os.environ["OBRAZY"]=="false"); bad=[k for k,v in d.items() if not ok(k,v["result"])]; print("czerwone:", bad) if bad else print("OK"); sys.exit(1 if bad else 0)'

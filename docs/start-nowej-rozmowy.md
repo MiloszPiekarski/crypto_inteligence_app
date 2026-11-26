@@ -1,8 +1,68 @@
 # Start nowej rozmowy z asystentem (każdy etap w nowej rozmowie)
 
-Wklej poniższy tekst na początku rozmowy, zmieniając numer etapu. Zasady pracy są w
-`CLAUDE.md` (sekcja „Zasady współpracy”), stan i otwarte sprawy w `docs/stan-pracy.md`;
-ten plik ich nie powtarza.
+Zasady pracy są w `CLAUDE.md`, stan i otwarte sprawy w `docs/stan-pracy.md`; ten plik ich
+nie powtarza. **Teraz obowiązuje ścieżka pracy inżynierskiej** (ADR-0008): używaj promptu
+z sekcji „Ścieżka pracy”. Prompt z sekcji „Ścieżka produktu” wraca po przełączeniu
+(sekcja „Przełączenie na ścieżkę produktu”).
+
+## Ścieżka pracy (teraz): krótki prompt na etap
+
+Kolejność etapów: E4 → E5 → E6 → E12a → E7 → E8 → E9 → E11 → E12b (tabela „Kolejność prac”
+w `docs/dokumentacja/roadmapa.md`). Rozmowa działa jako sesja w chmurze z repozytorium,
+bez dostępu do Maca właściciela, w trybie z `CLAUDE.md`, sekcja „Tryb ścieżki pracy”.
+Wklej poniższy tekst, zamieniając `E<nr>` na etap (np. `E5`) i `G<nr>p` na jego bramkę pracy
+(np. `G5p`; dla E12a i E12b: `G12p`).
+
+```text
+GoatCash: etap E<nr> w ścieżce pracy inżynierskiej, bramka G<nr>p. Odpowiadaj po polsku.
+Sesja w chmurze: repo MiloszPiekarski/crypto_inteligence_app (dostęp push); pracujesz
+w trybie z CLAUDE.md, sekcja „Tryb ścieżki pracy”: sam piszesz kod i testy, otwierasz PR
+z gałęzi claude/E<nr>-… z etykietą E<nr> i poprawiasz go do zielonego CI; ja scalam.
+
+1. Przeczytaj: CLAUDE.md, docs/stan-pracy.md, docs/start-nowej-rozmowy.md (sekcje
+   „Ścieżka pracy” i „Ograniczenia sesji asystenta w chmurze”), docs/lekcje.md, kartę E<nr>
+   w docs/dokumentacja/roadmapa.md (najpierw podsekcja „Ścieżka pracy inżynierskiej”),
+   bramkę G<nr>p w docs/dokumentacja/testy.md (sekcja 3a) i wymagania z work_gate: G<nr>p
+   w docs/wymagania.yaml.
+2. Sprawdź przez gh api (REST): ostatni przebieg ci.yml na main, otwarte PR-y, czy bramki
+   wymagane dla E<nr> (gates/requirements.yaml, mapa „praca”) mają dowód na main.
+3. Potwierdź w 5–8 punktach, co zrozumiałeś: zakres w ścieżce pracy, czego nie robimy
+   (produkt), kryteria G<nr>p, testy obowiązkowe, sposób pracy. Niezgodności repo
+   z dokumentacją napisz wprost.
+4. Zaproponuj podział E<nr> na 1–3 PR-y (zawartość, testy, gdzie powstaje dowód G<nr>p)
+   i czekaj na moją akceptację. Dopiero potem zaczynasz.
+```
+
+Domknięcie etapu w ścieżce pracy (ostatni PR etapu, potem mały PR z dowodem):
+
+1. Job bramki `G<nr>p` przeniesiony z `gate-next` do macierzy `gate` w `ci.yml` (wartość
+   macierzy `<nr>p`), raport `docs/gates/G<nr>p.md` z kryteriami i dowodami.
+2. Po scaleniu i zielonym CI na `main`: `scripts/gate_pass.py` tworzy
+   `docs/gates/G<nr>p.passed.json` (typ ci albo mixed, gdy bramka ma dowody ze staging);
+   statusy ✅ w `roadmapa.md` (tabela „Kolejność prac”, status karty) i `testy.md`
+   (sekcja 3a), `docs/stan-pracy.md`, `docs/praca/README.md` i `metody.md`, README
+   (status), `docs/lekcje.md`.
+
+## Przełączenie na ścieżkę produktu (po obronie)
+
+1. **Decyzja właściciela** zapisana w nowym ADR (zastępuje punkt 1 ADR-0008 „ścieżka
+   bieżąca”).
+2. **Przełącznik:** PR właściciela zmieniający w `gates/requirements.yaml`
+   `sciezka: praca` na `sciezka: produkt`. Od tej chwili `gate-guard` wymaga pełnych bramek
+   (mapa `produkt`), a etapy odłożone przestają być odrzucane.
+3. **Kolejność:** etapy w kolejności roadmapy; dla etapu ze ścieżki pracy realizujemy jego
+   podsekcję „Dokończenie w ścieżce produktu” i pełną bramkę (np. E4 → G4), dla etapu
+   odłożonego całą kartę. Wymagania: pola `target` i `gate` w `docs/wymagania.yaml` (pełne
+   progi) dla wszystkich `track`.
+4. **Sposób pracy:** w `CLAUDE.md` sekcja „Tryb ścieżki pracy” oznaczona jako zakończona;
+   obowiązują pełne „Zasady współpracy” (szkic do testu CI, jedna rzecz na PR, triaż
+   Graphify i Copilota). `CONTRIBUTING.md`: „Zasady pełne”. Graphify włączony ponownie.
+5. **Dokumenty:** `docs/stan-pracy.md` (sekcja „Aktualna ścieżka”), statusy „⏸ odłożone
+   (produkt)” w roadmapie zmieniane na ⬜ przy starcie etapu, prompt z sekcji niżej.
+
+## Ścieżka produktu (po przełączeniu): prompt na etap
+
+Wklej poniższy tekst na początku rozmowy, zmieniając numer etapu.
 
 ```text
 Kontynuujemy projekt GoatCash. Zaczynamy etap E<nr>. Odpowiadaj po polsku.
@@ -100,7 +160,11 @@ przez SSH. Pełna izolacja to osobny użytkownik macOS albo maszyna wirtualna.
 
 ## Ograniczenia sesji asystenta w chmurze (stan po E2, 23.11.2026)
 
-Dotyczą sesji w chmurze (tryb łatek); w trybie lokalnym większość z nich nie występuje.
+Dotyczą sesji w chmurze; w trybie lokalnym większość z nich nie występuje. W ścieżce pracy
+(od 26.11.2026) sesja w chmurze otwiera **właściwy** PR (nie szkic) i nie przygotowuje łatek;
+punkty o szkicach i łatkach niżej dotyczą ścieżki produktu. Gałąź `claude/…` po scaleniu
+usuwa właściciel (albo GitHub, gdy w ustawieniach repo jest włączone „Automatically delete
+head branches”).
 
 - GraphQL GitHuba niedostępny: tylko `gh api` (REST). API ustawień Actions i pobieranie
   artefaktów przebiegów są zablokowane przez proxy sesji (ustawienia sprawdza właściciel).

@@ -10,6 +10,7 @@ import yaml
 
 ROADMAP = """
 ## E3. Infra
+## E4. Dane
 ## E14. Bot
 ## E17. Utrzymanie
 
@@ -18,22 +19,27 @@ ROADMAP = """
 """
 TESTS = """
 | G3     | E3   | kryterium |
+| G4     | E4   | kryterium |
+| G4p    | E4   | kryterium pracy |
 | G14a   | E14a | kryterium |
 | G14b   | E14b | kryterium |
 """
 GOOD: dict[str, Any] = {
     "functional": [
         {"id": "F-01", "stage": "E3", "title": "t", "measure": "m", "target": "< 30 min",
-         "gate": "G3", "source": "roadmapa"},
+         "gate": "G3", "track": "praca", "source": "roadmapa"},
         {"id": "F-02", "stage": "E14", "title": "t", "measure": "m", "target": "≤ 5 s",
-         "gate": "G14b", "source": "roadmapa"},
+         "gate": "G14b", "track": "produkt", "source": "roadmapa"},
         {"id": "F-03", "stage": "E17", "title": "t", "measure": "m", "target": "1 raport",
-         "gate": None, "source": "doprecyzowanie", "accepted": "2026-11-23",
-         "note": "próg doprecyzowany"},
+         "gate": None, "track": "produkt", "source": "doprecyzowanie",
+         "accepted": "2026-11-23", "note": "próg doprecyzowany"},
+        {"id": "F-04", "stage": "E4", "title": "t", "measure": "m", "target": "≥ 99,9%",
+         "gate": "G4", "track": "praca", "work_gate": "G4p", "work_target": "20 par",
+         "source": "roadmapa"},
     ],
     "non_functional": [
         {"id": "NF-01", "title": "t", "measure": "m", "target": "p95 ≤ 300 ms",
-         "gate": "G3", "source": "roadmapa"},
+         "gate": "G3", "track": "produkt", "source": "roadmapa"},
     ],
 }  # fmt: skip
 
@@ -58,6 +64,10 @@ def popf(index: int, key: str) -> Change:
 
 def drop_stage_e14(data: Data) -> None:
     del data["functional"][1]
+
+
+def drop_work_requirement(data: Data) -> None:
+    del data["functional"][3]
 
 
 def drop_nf(data: Data) -> None:
@@ -114,6 +124,20 @@ def test_repository_requirements_pass() -> None:
         (popf(2, "note"), "bez wyjaśnienia"),
         (setf(2, "note", " "), "bez wyjaśnienia"),
         (setf(0, "accepted", "2026-11-23"), "accepted dotyczy tylko"),
+        # Ścieżki realizacji (ADR-0008).
+        (popf(0, "track"), "brak pól"),
+        (setf(0, "track", "obie"), "track musi"),
+        (popf(3, "work_gate"), "to nie bramka pracy"),
+        (setf(3, "work_gate", "G4"), "to nie bramka pracy"),
+        (setf(3, "work_gate", "G5p"), "to nie bramka pracy"),
+        (setf(3, "work_target", "dużo"), "work_target bez liczby"),
+        (popf(3, "work_target"), "work_target bez liczby"),
+        (setf(3, "gate", "G4p"), "nie należy do etapu"),
+        (setf(3, "track", "produkt"), "tylko dla ścieżki pracy"),
+        (drop_work_requirement, "bramka pracy G4p nie ma"),
+        (setf(0, "work_gate", "G4p"), "tylko dla ścieżki pracy"),
+        (setf(1, "work_target", "1 raz"), "tylko dla ścieżki pracy"),
+        (setf(0, "gate", "G4p", group="non_functional"), "nie istnieje w testy.md"),
     ],
 )
 def test_each_rule_catches_its_violation(change: Change, message: str) -> None:

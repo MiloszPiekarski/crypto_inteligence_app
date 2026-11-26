@@ -1,5 +1,30 @@
 # Jak pracujemy
 
+## Tryb ścieżki pracy (obowiązuje od 26.11.2026, ADR-0008)
+
+Do obrony pracy inżynierskiej realizujemy ścieżkę pracy: kolejność i minimum etapów
+w tabeli „Kolejność prac” na początku `docs/dokumentacja/roadmapa.md`, bramki pracy
+`G<nr>p` w `docs/dokumentacja/testy.md` (sekcja 3a). Ten tryb zmienia zasady niżej tylko
+w poniższych punktach; pozostałe obowiązują. Szczegóły dla asystenta AI: `CLAUDE.md`,
+sekcja „Tryb ścieżki pracy”.
+
+- **1–3 PR-y na etap** (zamiast „jeden punkt zakresu na PR”), plus mały PR z dowodem
+  bramki po zielonym CI na `main`.
+- **Asystent w sesji w chmurze** wypycha gałąź `claude/E<nr>-<opis>` (commity mogą być
+  niepodpisane), otwiera właściwy PR z etykietą etapu i poprawia go do zielonego CI.
+  Właściciel przegląda i scala przez **Squash and merge** w GitHubie: commit na `main`
+  podpisuje GitHub, więc wymóg podpisanych commitów w rulesecie jest spełniony.
+- **Przegląd:** CI, bramki pracy i CodeQL; bez szkiców testowych, bez niezależnego
+  recenzenta (wyjątek: zmiany kontroli bramek i sekretów, za zgodą właściciela), bez
+  triażu Graphify (wyłączony do końca pracy).
+- **CI szybsze:** obrazy w PR tylko przy zmianie zależności i `Dockerfile`, bramka na macOS
+  tylko przy zmianach skryptów powłoki; na `main` zawsze wszystko (`testy.md`, sekcja 4).
+- **Dokumentacja i statusy** aktualizowane przy domknięciu etapu, nie w każdym PR.
+
+Zasady poniżej obowiązują w całości po powrocie do ścieżki produktu.
+
+## Zasady pełne (ścieżka produktu)
+
 - **Roadmapa rządzi kolejnością.** Każdy PR realizuje jeden punkt zakresu prac etapu
   (np. E1.6). Etap kończy się bramką jakości; bez zielonej bramki nie zaczynamy etapu
   zależnego.

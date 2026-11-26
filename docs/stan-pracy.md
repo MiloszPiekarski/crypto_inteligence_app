@@ -5,9 +5,32 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
 
 **Ostatnia aktualizacja:** 2026-11-26
 
+## Aktualna ścieżka: praca inżynierska (od 26.11.2026, ADR-0008)
+
+- **Ścieżka:** praca inżynierska (minimum spełniające zakres pracy), potem po obronie
+  ścieżka produktu. Zakres pracy, tabela „wymóg → etap → dowód” i tabela etapów:
+  `docs/dokumentacja/fundamenty.md`, sekcja 0. Mapa rozdziałów pracy: `docs/praca/README.md`.
+- **Kolejność etapów** (tabela „Kolejność prac” na początku `roadmapa.md`):
+  E4 → E5 → E6 → E12a → E7 → E8 → E9 → E11 → E12b. E6 może biec równolegle z E4–E5,
+  E12a równolegle od razu (zalecane po E5).
+- **Bramki pracy:** G4p, G5p, G6p, G7p, G8p, G9p, G11p, G12p (`testy.md`, sekcja 3a).
+  Pełne bramki G4–G18 bez zmian, na ścieżkę produktu.
+- **Odłożone (⏸ produkt):** E10, E10a, E11a, E13, E14 (a–c), E15, E16, E17, E18; z E0 Resend;
+  w etapach ścieżki pracy podsekcje „Dokończenie w ścieżce produktu”.
+- **Sposób pracy:** `CLAUDE.md`, sekcja „Tryb ścieżki pracy” (sesja w chmurze, 1–3 PR-y
+  na etap, właściciel scala Squash and merge). Start etapu: `docs/start-nowej-rozmowy.md`.
+- **Następny krok:** E4 w ścieżce pracy, nowa rozmowa w chmurze (prompt:
+  `docs/start-nowej-rozmowy.md`, sekcja „Ścieżka pracy”). Warunek: scalony PR z przełącznikiem
+  ścieżki w `gate_guard` (osobny PR, z niezależnym recenzentem), bo bez niego `gate-guard`
+  i `gate_pass` nie znają nazw `G<nr>p`.
+
 ## Gdzie jesteśmy
 
-- **E0:** zakończony, G0 zaliczona (`docs/gates/G0.passed.json`, dowód lokalny).
+- **E0:** zakończony, G0 zaliczona (`docs/gates/G0.passed.json`, dowód lokalny). R2 i bot
+  Telegram zamknięte dowodem z E3 (roadmapa E0, punkty 4 i 7; decyzja właściciela
+  26.11.2026); Resend (klucz API i sprawdzenie) przechodzi do produktu (E13). PR 0
+  (`doctor.sh`: R2 i Telegram) nie jest już potrzebny; gałąź `claude/E0-doctor-r2-telegram`
+  do usunięcia przez właściciela.
 - **E1:** zakończony i domknięty, G1 zaliczona (`docs/gates/G1.passed.json`, przebieg 45027155138).
   - PR #1 (E1), #12 (dokumentacja w repo, dowody bramek), #13 (`gate-guard`) scalone.
   - Wymagane checki `main`: `ci-ok` i `gate-guard`.
@@ -34,12 +57,14 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
   najstarszej kopii i alert „Retencja kopii nie dziala”, > 39 dni; reguła w Grafanie
   `inactive ok`), #121 (ślady OTel z api do Tempo). Ten PR: dokumentacja rozliczenia (G3.md, ADR-0007, testy.md,
   roadmapa, runbook wymiany serwera, lekcje), kopia ACL Tailscale. Decyzje właściciela
-  26.11.2026: ACL w konsoli z kopią w repo, IAM executora w E14b, E0 po E3.
+  26.11.2026: ACL w konsoli z kopią w repo, IAM executora w E14b, dwie ścieżki (ADR-0008).
   **Po E3, przed E4:** PR 0 z E0 (`doctor.sh`: R2 i Telegram, Tailscale na liście kont,
   ponowny dowód G0). **Do sprawdzenia:** plan Grafana Cloud po okresie próbnym (ok. 6.12),
   usunięcie kopii przez retencję (od ok. 25.12), minuty Actions (odnowienie 1.12).
-- **Następny: E4** (pozyskiwanie danych rynkowych i normalizacja; wymaga G3). Nowa rozmowa
-  z `docs/start-nowej-rozmowy.md`; pierwszy PR E4: `gates/G4.yaml` i job `gate-next` dla G4.
+- **Następny: E4 w ścieżce pracy** (pozyskiwanie danych rynkowych; wymaga G3, sprawdzone
+  26.11.2026: `gate_guard.py --labels E4 --ref origin/main` → „E4 wymaga G3: zaliczona
+  (dowód sprawdzony)”). Nowa rozmowa w chmurze z `docs/start-nowej-rozmowy.md`; pierwszy PR
+  E4: `gates/G4p.yaml` i job `gate-next` dla G4p.
   - Sieć OCI utworzona przez właściciela (Terraform, 28 zasobów: VCN, podsieci,
     Security Lists, NSG 443 tylko z Cloudflare); polityka limitów `goatcash-always-free`.
   - Konta i tokeny zewnętrzne zweryfikowane (HTTP 200): R2, Cloudflare, Tailscale (ACL
@@ -83,7 +108,7 @@ Decyzje właściciela (23.11.2026, propozycje asystenta zaakceptowane bez zmian)
 | #   | Gałąź                              | Zakres                                                                                     | Stan        |
 | --- | ---------------------------------- | ------------------------------------------------------------------------------------------ | ----------- |
 | 0a  | `docs/E3-tryb-lokalny`             | tryb lokalny i zasada zgody na koszty w `CLAUDE.md`, blokady sesji, lekcja `push --delete` | ⏳          |
-| 0   | `feat/E0-doctor-r2-telegram`       | `doctor.sh`: R2 (lista bucketów) i Telegram (`getMe` + wiadomość); zamyka ⚠️ E0            | ⬜          |
+| 0   | `feat/E0-doctor-r2-telegram`       | `doctor.sh`: R2 i Telegram; zbędny: ⚠️ E0 zamknięte dowodem z E3 (26.11.2026)              | zbędny      |
 | 1   | `docs/E3-adr-infra`                | ADR-0007: D2–D6, model dowodu, budżet Always Free                                          | ✅ (PR #76) |
 | 2   | `ci/E3-bramka-g3`                  | `gates/G3.yaml` (czerwona), szkic `G3.md`, job G3 poza `ci-ok`                             | ✅ (PR #78) |
 | 3   | `ci/E3-dowod-mieszany`             | `gate_pass.py`/`gate_guard.py`: dowód mieszany + testy obejścia, niezależna recenzja       | ✅ (PR #80) |
@@ -151,11 +176,13 @@ Decyzje właściciela do planu (22.11.2026):
   `production`. Ochrona: ruleset `main` (tylko właściciel scala), środowiska tylko z `main`.
 - E3: Grafana Cloud w okresie próbnym do ok. 6.12.2026: sprawdzić, że stos przechodzi
   na plan Free (bez karty), i że limity Free wystarczają (metryki, logi).
-- ⚠️ E0: R2, Resend i bot Telegram założone (według właściciela, 22.11.2026), w repo brak
-  dowodu, w `.env.local` brak kluczy. Decyzja: R2 i Telegram dostają sprawdzenie w `doctor.sh`
-  (osobny PR E0, klucze tylko do odczytu w `.env.local`); Resend ma na razie tylko konto,
-  domena `goatcash.app` w Resend, klucz API i sprawdzenie dochodzą w E13 (do tego czasu ⚠️).
-- Sentry na koncie prywatnym: przepiąć na konto projektu w E3/E6.
+- E0: R2 i bot Telegram ✅ z dowodem z E3 (R2: kopie pgBackRest i `restore-test`
+  45502801764; Telegram: `alert-drill` 45494553367). Resend: tylko konto; domena
+  `goatcash.app` w Resend, klucz API i sprawdzenie w E13 (⏸ produkt).
+- Sentry na koncie prywatnym: przepięcie na konto projektu ⏸ produkt (w ścieżce pracy
+  Sentry nie jest używany).
+- Graphify wyłączony do końca pracy (decyzja właściciela 26.11.2026; wyłącza właściciel
+  w ustawieniach GitHub App). Repozytorium jest publiczne (`gh repo view`, 26.11.2026).
 - Błędy asystenta z E0–E2 i jak ich unikamy: `docs/lekcje.md`.
 - Stary ruleset „Protect main” usunięty przez właściciela (API 23.11.2026: aktywny tylko
   `main-protection`).
@@ -183,15 +210,15 @@ Decyzje właściciela do planu (22.11.2026):
   zatwierdzanie workflow z forków (zalecane: „Require approval for all external
   contributors”) i `gate-guard` z `main`.
 
-## Jak pracujemy (skrót; pełne zasady: `CLAUDE.md`, sekcja „Zasady współpracy”, i `CONTRIBUTING.md`)
+## Jak pracujemy (skrót; pełne zasady: `CLAUDE.md` i `CONTRIBUTING.md`)
 
-- Asystent przygotowuje zmiany jako łatki (`git apply`), wcześniej testuje je na gałęzi
-  `claude/…` w szkicu PR (CI na Linuksie i macOS); właściciel nakłada, commituje (podpis SSH),
-  otwiera PR z etykietą etapu i scala.
-- Niezależny recenzent (osobny agent) tylko wtedy, gdy zmiana tego wymaga (sekrety,
-  bezpieczeństwo) i po zgodzie właściciela: jest drogi i trwa długo.
-- Uwagi Graphify i Copilota: asystent robi triaż (naprawiamy / odpowiadamy / ignorujemy)
-  i daje gotowe odpowiedzi; kod zmieniamy tylko przy problemach bezpieczeństwa,
-  poprawności albo bramki.
+- **Teraz (ścieżka pracy):** asystent w sesji w chmurze sam pisze kod i testy, wypycha
+  gałąź `claude/E<nr>-…`, otwiera właściwy PR z etykietą etapu i poprawia go do zielonego
+  CI; właściciel przegląda i scala Squash and merge w GitHubie. 1–3 PR-y na etap,
+  dokumentacja przy domknięciu etapu, bez niezależnego recenzenta (poza zmianami kontroli
+  bramek i sekretów) i bez Graphify.
+- **Po powrocie do produktu:** szkic `claude/…` do testu CI, właściciel przenosi zmianę na
+  swoją gałąź (podpis SSH), jedna rzecz na PR, triaż uwag Graphify i Copilota
+  (`CLAUDE.md`, „Zasady współpracy”).
 - PR-y Dependabota mają etykietę `dependencies` (gate-guard je przepuszcza); duże wersje
   są wyłączone regułami w `.github/dependabot.yml`.
