@@ -4,8 +4,15 @@ GoatCash (goatcash.app): platforma analityczna rynku kryptowalut + bot, praca in
 (Politechnika Krakowska) i darmowy produkt publiczny. Dokumentacja źródłowa jest w repo:
 `docs/dokumentacja/` (fundamenty.md, roadmapa.md, testy.md; od 22.11.2026 źródło prawdy,
 wersja w Claude Docs to archiwum). **Na początku każdej rozmowy przeczytaj
-`docs/stan-pracy.md`** (gdzie jesteśmy, otwarte sprawy) i aktualizuj go po każdym kroku,
-oraz `docs/lekcje.md` (błędy z poprzednich etapów, których nie powtarzamy).
+`docs/stan-pracy.md`** (gdzie jesteśmy, otwarte sprawy) i aktualizuj go po każdym kroku
+(w ścieżce pracy: przy domknięciu etapu), oraz `docs/lekcje.md` (błędy z poprzednich etapów,
+których nie powtarzamy).
+
+**Teraz obowiązuje ścieżka pracy inżynierskiej** (od 26.11.2026, ADR-0008): kolejność
+etapów i ich minimum w tabeli „Kolejność prac” na początku `docs/dokumentacja/roadmapa.md`,
+bramki pracy `G<nr>p` w `docs/dokumentacja/testy.md` (sekcja 3a), sposób pracy w sekcji
+„Tryb ścieżki pracy” niżej. Wszystko odłożone jest opisane w roadmapie jako
+„⏸ odłożone (produkt)” albo „Dokończenie w ścieżce produktu”.
 
 Zasady pracy:
 
@@ -17,12 +24,64 @@ Zasady pracy:
   moduły przez `goatcash.<moduł>.api`, implementacja w `_impl`, import-linter w CI.
 - Właściciel pracuje na macOS (Apple Silicon); serwer docelowy: Oracle A1 (arm64), Amsterdam.
 - Stan realizacji w `docs/dokumentacja/roadmapa.md` i `testy.md` oznaczamy na bieżąco
-  (✅ tylko z dowodem: plik, przebieg CI, raport bramki; ⚠️ gdy dowodu brak).
-- Sposób współpracy z asystentem (łatki, testy, triaż uwag botów): sekcja niżej.
+  (✅ tylko z dowodem: plik, przebieg CI, raport bramki; ⚠️ gdy dowodu brak;
+  ⏸ odłożone do ścieżki produktu).
+- Sposób współpracy z asystentem: „Tryb ścieżki pracy” (teraz) i „Zasady współpracy”
+  (pełne, po powrocie do produktu), sekcje niżej.
 
-## Zasady współpracy
+## Tryb ścieżki pracy (obowiązuje od 26.11.2026 do powrotu do produktu)
+
+Decyzja właściciela 26.11.2026, ADR-0008. Projekt realizuje teraz **ścieżkę pracy
+inżynierskiej**: etapy z tabeli „Kolejność prac” na początku `docs/dokumentacja/roadmapa.md`,
+w zakresie z podsekcji „Ścieżka pracy inżynierskiej” karty etapu, z bramką pracy `G<nr>p`
+(`docs/dokumentacja/testy.md`, sekcja 3a). Tam, gdzie ten tryb jest sprzeczny z „Zasadami
+współpracy” niżej, obowiązuje ten tryb; reszta zasad (w tym całe „Zachowanie asystenta”)
+obowiązuje bez zmian. Pełne „Zasady współpracy” wracają po przełączeniu na ścieżkę
+produktu (`docs/start-nowej-rozmowy.md`, sekcja „Przełączenie na ścieżkę produktu”).
+
+1. **Zakres:** tylko „Zakres w ścieżce pracy” etapu. Rzeczy z „Dokończenie w ścieżce
+   produktu” nie robimy; gdy coś z nich okaże się potrzebne, asystent pyta i zapisuje
+   decyzję jawnie.
+2. **Sesja w chmurze, asystent pracuje sam:** rozmowa etapu działa w sesji w chmurze
+   z repozytorium (bez dostępu do komputera właściciela i bez kluczy chmury). Asystent
+   pisze kod, uruchamia testy, wypycha gałąź `claude/E<nr>-<opis>`, otwiera z niej
+   **właściwy PR** do `main` (nie szkic) z etykietą etapu (`E<nr>`) i sam poprawia błędy,
+   aż całe CI jest zielone. Właściciel przegląda i scala przez **Squash and merge
+   w GitHubie**. Bez szkiców testowych `claude/…`, bez łatek do nakładania i bez
+   przenoszenia zmian na gałąź właściciela.
+3. **Podpisy:** ruleset `main` wymaga podpisanych commitów. Squash and merge w GitHubie
+   tworzy na `main` nowy commit podpisany przez GitHub, więc commity asystenta na gałęzi
+   `claude/…` mogą być niepodpisane. Sprawdzone 26.11.2026 przez API: commity squash na
+   `main` (`d10535e`, `653a790`) mają committera „GitHub” i podpis `valid`.
+4. **1–3 PR-y na etap** zamiast „jedna rzecz na PR”; podział etapu na PR-y asystent
+   proponuje na początku rozmowy i czeka na akceptację. Mały PR z dowodem bramki
+   (`G<nr>p.passed.json`) po zielonym CI na `main` nie wlicza się do limitu.
+5. **Bez niezależnego recenzenta i bez triażu Graphify** (Graphify wyłączony do końca
+   pracy). Kontrolę dają CI, bramki pracy i CodeQL. Wyjątek: zmiana kontroli bramek
+   (`scripts/gate_guard.py`, `scripts/gate_pass.py`, `gate-guard.yml`,
+   `gates/requirements.yaml`) albo obsługi sekretów: asystent proponuje recenzenta i czeka
+   na zgodę. Uwagi automatycznych recenzentów (Copilot) asystent naprawia tylko przy
+   problemie bezpieczeństwa, poprawności albo bramki.
+6. **Testy obowiązkowe:** poprawność modułów analitycznych (wartości referencyjne liczone
+   niezależnie, testy właściwości, brak zaglądania w przyszłość) i, od E9, sposób
+   prezentacji wyników użytkownikowi. Ciężkie testy z pełnych bramek (wielodniowe na
+   staging, obciążeniowe, chaos, skany zewnętrzne) są w ścieżce produktu.
+7. **Dokumentacja przy domknięciu etapu, nie w każdym PR:** statusy ✅ z dowodami
+   w `roadmapa.md` (tabela „Kolejność prac” i karta etapu) i `testy.md` (sekcja 3a), raport
+   `docs/gates/G<nr>p.md`, `G<nr>p.passed.json` z `gate_pass.py`, `docs/stan-pracy.md`,
+   `docs/praca/README.md` i `metody.md`, README (status), `docs/lekcje.md`.
+8. **CI szybsze:** obrazy w PR tylko przy zmianie zależności i `Dockerfile`, bramka na
+   macOS tylko przy zmianach skryptów powłoki (`testy.md`, sekcja 4); na `main` wszystko.
+9. **Bez zmian:** zgoda właściciela przed operacjami kosztownymi albo nieodwracalnymi
+   (w tym pierwsze uruchomienie nowego workflow na serwerze), sekrety nigdy w czacie ani
+   w repo, bez udawania, ✅ tylko z dowodem, odstępstwa od dokumentacji tylko jawnie
+   zapisane, asystent nie scala.
+
+## Zasady współpracy (pełne; w ścieżce pracy z wyjątkami z trybu powyżej)
 
 Ustalone z właścicielem 22.11.2026; obowiązują w każdej rozmowie, bez względu na prompt.
+W ścieżce pracy punkty 1–7 procedury zmian zastępuje „Tryb ścieżki pracy” tam, gdzie są
+sprzeczne; po powrocie do produktu obowiązują w całości.
 
 Procedura zmian:
 

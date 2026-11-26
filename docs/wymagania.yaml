@@ -9,6 +9,12 @@
 # doprecyzowany albo zmieniony względem roadmapy; wymaga `accepted: <data>` (akceptacja
 # właściciela) i `note` z wyjaśnieniem, czym różni się od roadmapy (złagodzenie, zaostrzenie,
 # nowa liczba). Etap bez bramki w testy.md (E17): gate: null.
+#
+# Ścieżki realizacji (ADR-0008, 26.11.2026): `track: praca` = wymaganie realizowane w ścieżce
+# pracy inżynierskiej, `track: produkt` = odłożone do ścieżki produktu. Wymaganie ścieżki
+# pracy z etapu E4 i dalej ma `work_gate` (bramka pracy G<nr>p tego etapu, testy.md sekcja 3a)
+# i `work_target` (próg w ścieżce pracy). `target` i `gate` to zawsze pełny próg i pełna
+# bramka produktu: nie zmieniamy ich przy okrajaniu, żeby po obronie nic nie zginęło.
 
 functional:
   - id: F-01
@@ -17,6 +23,7 @@ functional:
     measure: ćwiczenie odtworzenia środowiska od zera ze skryptów
     target: odtworzenie w czasie < 30 min
     gate: G3
+    track: praca
     source: roadmapa
   - id: F-02
     stage: E3
@@ -24,6 +31,7 @@ functional:
     measure: cotygodniowy automatyczny test odtworzenia kopii do czystej instancji (testy.md, pipeline krok 7)
     target: 100% tabel ze zgodną liczbą wierszy i sumą kontrolną zawartości; RPO ≤ 24 h, RTO ≤ 4 h (NF-04)
     gate: G3
+    track: praca
     source: doprecyzowanie
     accepted: 2026-11-23
     note: tygodniowy test i RPO/RTO z testy.md i NF-04; zgodność sumy kontrolnej to doprecyzowanie kryterium „udane odtworzenie kopii” z G3
@@ -33,6 +41,7 @@ functional:
     measure: sztuczne zapełnienie dysku i zatrzymanie kontenera (tabela testów E3, wiersz „Alerty”)
     target: powiadomienie w < 5 min dla każdego scenariusza
     gate: G3
+    track: praca
     source: roadmapa
   - id: F-04
     stage: E4
@@ -40,6 +49,9 @@ functional:
     measure: odsetek oczekiwanych świec zapisanych w bazie
     target: kompletność ≥ 99,9%
     gate: G4
+    track: praca
+    work_gate: G4p
+    work_target: 100% luk wykrytych i opisanych (po stronie giełdy albo nasza); kompletność ≥ 99,9% względem świec udostępnianych przez giełdę (2 giełdy, 20 par, 1 h od 2023-01-01)
     source: roadmapa
   - id: F-05
     stage: E4
@@ -47,6 +59,9 @@ functional:
     measure: dane z wstrzykniętymi błędami (luki, skoki, duplikaty)
     target: wykrycie ≥ 95% wstrzykniętych błędów
     gate: G4
+    track: praca
+    work_gate: G4p
+    work_target: wykrycie ≥ 95% z 200 wstrzykniętych błędów, fałszywe alarmy < 1%
     source: roadmapa
   - id: F-06
     stage: E4
@@ -54,6 +69,9 @@ functional:
     measure: praca ingestu bez ręcznej interwencji
     target: 72 h bez interwencji
     gate: G4
+    track: praca
+    work_gate: G4p
+    work_target: cena referencyjna dla 100% świec z poprawnym statusem DQ (2 źródła); ciągła praca 72 h w produkcie
     source: roadmapa
   - id: F-07
     stage: E5
@@ -61,6 +79,9 @@ functional:
     measure: test wycieku informacji z przyszłości na wszystkich cechach
     target: 100% cech bez wycieku
     gate: G5
+    track: praca
+    work_gate: G5p
+    work_target: 100% cech fs-1p bez wycieku (1000 losowych chwil)
     source: roadmapa
   - id: F-08
     stage: E5
@@ -68,6 +89,9 @@ functional:
     measure: 7 dni cech na żywo porównane z odtworzeniem tych dni z historii (tabela testów E5)
     target: 0 różnic powyżej tolerancji względnej 1e-9 w okresie 7 dni
     gate: G5
+    track: praca
+    work_gate: G5p
+    work_target: 0 różnic między dwoma pełnymi przeliczeniami historii (bit w bit); 7 dni live vs replay w produkcie
     source: doprecyzowanie
     accepted: 2026-11-23
     note: jawne złagodzenie roadmapy (E5 wymaga „identycznych wartości”, bit w bit) do tolerancji względnej 1e-9 na różnice zmiennoprzecinkowe
@@ -77,6 +101,9 @@ functional:
     measure: Schemathesis na wszystkich endpointach
     target: 0 odpowiedzi niezgodnych ze schematem, 0 błędów 500
     gate: G6
+    track: praca
+    work_gate: G6p
+    work_target: 0 odpowiedzi niezgodnych ze schematem, 0 błędów 500 (endpointy tylko do odczytu)
     source: roadmapa
   - id: F-10
     stage: E6
@@ -84,6 +111,7 @@ functional:
     measure: testy E2E przepływów kont i testy autoryzacji każdego endpointu
     target: 100% przepływów przechodzi, 0 IDOR
     gate: G6
+    track: produkt
     source: roadmapa
   - id: F-11
     stage: E6
@@ -91,6 +119,7 @@ functional:
     measure: seria zapytań ponad limit (k6)
     target: 429 po przekroczeniu w 100% prób
     gate: G6
+    track: produkt
     source: roadmapa
   - id: F-12
     stage: E7
@@ -98,6 +127,9 @@ functional:
     measure: walidacja każdego dowodu kontraktem i ciągłość publikacji
     target: 100% dowodów zgodnych, 14 dni bez luk
     gate: G7
+    track: praca
+    work_gate: G7p
+    work_target: 100% dowodów 4 agentów zgodnych z Evidence v1; dowód w replay na danych obciętych do t = dowód z pełnych danych; 14 dni na staging w produkcie
     source: roadmapa
   - id: F-13
     stage: E7
@@ -105,6 +137,9 @@ functional:
     measure: porównanie wyników Ledgera z ręcznym przeliczeniem na próbce
     target: 0 różnic na 100 losowych prognozach
     gate: G7
+    track: praca
+    work_gate: G7p
+    work_target: 0 różnic na 200 ręcznie przeliczonych prognozach (tolerancja 1e-12)
     source: doprecyzowanie
     accepted: 2026-11-23
     note: roadmapa (G7) wymaga zgodności Ledgera z ręcznym przeliczeniem bez wielkości próby; 100 prognoz to doprecyzowanie
@@ -114,6 +149,9 @@ functional:
     measure: dwa treningi z tym samym hashem danych i seedem; test z cechą-pułapką zawierającą przyszły zwrot (tabela testów E8)
     target: 2 z 2 treningów dają identyczne predykcje; cecha-pułapka wykryta i odrzucona w 100% prób
     gate: G8
+    track: praca
+    work_gate: G8p
+    work_target: 2 z 2 treningów dają identyczne predykcje; cecha-pułapka wykryta i odrzucona w 100% prób (horyzont 24 h; rejestr i dryf w produkcie)
     source: roadmapa
   - id: F-15
     stage: E9
@@ -121,6 +159,9 @@ functional:
     measure: Brier score fuzji i najlepszego pojedynczego agenta na tym samym okresie
     target: Brier fuzji − Brier najlepszego agenta ≤ 0
     gate: G9
+    track: praca
+    work_gate: G9p
+    work_target: raport Brier fuzji vs najlepszy agent dla 1 horyzontu (24 h); przy fuzji gorszej reguła awaryjna w 100% ocen
     source: roadmapa
   - id: F-16
     stage: E9
@@ -128,6 +169,9 @@ functional:
     measure: testy reguł weta
     target: 100% reguł pokrytych testami
     gate: G9
+    track: praca
+    work_gate: G9p
+    work_target: 100% reguł oceny ryzyka pokrytych tabelą przypadków
     source: roadmapa
   - id: F-17
     stage: E9
@@ -135,6 +179,7 @@ functional:
     measure: ablacje składników indeksu
     target: raport ablacji dla 100% składników
     gate: G9
+    track: produkt
     source: roadmapa
   - id: F-18
     stage: E10
@@ -142,6 +187,7 @@ functional:
     measure: walidator liczb na zbiorze ewaluacyjnym narracji
     target: 0 niezgodnych liczb na 500 narracjach
     gate: G10
+    track: produkt
     source: roadmapa
   - id: F-19
     stage: E10
@@ -149,6 +195,7 @@ functional:
     measure: F1 na zbiorze ewaluacyjnym w porównaniu z FinBERT
     target: wynik ≥ FinBERT + 5 pp.
     gate: G10
+    track: produkt
     source: roadmapa
   - id: F-20
     stage: E10
@@ -156,6 +203,7 @@ functional:
     measure: symulacja 500, timeoutu i 429 u głównego dostawcy (Toxiproxy, mock; tabela testów E10)
     target: 0 błędów u użytkownika w 3 z 3 scenariuszy (przełączenie na zapas, w ostateczności szablon)
     gate: G10
+    track: produkt
     source: roadmapa
   - id: F-21
     stage: E10a
@@ -163,6 +211,7 @@ functional:
     measure: zdarzenia potwierdzone przez system porównane z rzeczywistością
     target: 0 fałszywych zdarzeń potwierdzonych
     gate: G10a
+    track: produkt
     source: roadmapa
   - id: F-22
     stage: E11
@@ -170,6 +219,9 @@ functional:
     measure: wyniki 5 strategii referencyjnych porównane z niezależnym przeliczeniem
     target: 5 z 5 strategii zgodnych
     gate: G11
+    track: praca
+    work_gate: G11p
+    work_target: 3 z 3 strategii referencyjnych zgodnych z ręcznym przeliczeniem (kapitał końcowy < 0,01%)
     source: roadmapa
   - id: F-23
     stage: E11
@@ -177,6 +229,9 @@ functional:
     measure: strategia-pułapka używająca przyszłej ceny (tabela testów E11, G11)
     target: błąd silnika w 100% przypadków
     gate: G11
+    track: praca
+    work_gate: G11p
+    work_target: błąd silnika w 100% przypadków strategii-pułapki
     source: roadmapa
   - id: F-24
     stage: E11a
@@ -184,6 +239,7 @@ functional:
     measure: wymuszony spadek wyniku aktywnej polityki; próba zapisu limitów ryzyka z modułu learning (import-linter i użytkownik bazy bez prawa zapisu do tabel limitów)
     target: pogorszenie = spadek Sharpe po kosztach aktywnej polityki o ≥ 30% względem poprzedniej wersji w oknie kroczącym 14 dni (min. 30 transakcji); powrót w ≤ 1 cykl z alertem w 100% przypadków; 0 udanych zapisów limitów (odmowa i wpis w audycie)
     gate: G11a
+    track: produkt
     source: doprecyzowanie
     accepted: 2026-11-23
     note: liczbowa definicja „pogorszenia” (metryka, okno, próg) to doprecyzowanie; test granic i powrót w ≤ 1 cykl z roadmapy E11a
@@ -193,6 +249,9 @@ functional:
     measure: testy użyteczności z użytkownikami
     target: 5 z 5 zadań kluczowych wykonanych
     gate: G12
+    track: praca
+    work_gate: G12p
+    work_target: "4 z 4 zadań kluczowych w E2E (Chromium); test z 3 osobami: 4 zadania + SUS w raporcie"
     source: roadmapa
   - id: F-26
     stage: E12
@@ -200,6 +259,7 @@ functional:
     measure: Lighthouse na kluczowych widokach
     target: wynik ≥ 90 we wszystkich kategoriach
     gate: G12
+    track: produkt
     source: roadmapa
   - id: F-27
     stage: E13
@@ -207,6 +267,7 @@ functional:
     measure: test dostarczeń z powtórzeniami i awarią konsumenta
     target: 0 duplikatów i 0 zgubionych, p95 dostarczenia ≤ 60 s
     gate: G13
+    track: produkt
     source: roadmapa
   - id: F-28
     stage: E14
@@ -214,6 +275,7 @@ functional:
     measure: porównanie wyników paper i backtestu na tym samym okresie
     target: różnica < 1%
     gate: G14a
+    track: produkt
     source: roadmapa
   - id: F-29
     stage: E14
@@ -221,6 +283,7 @@ functional:
     measure: 30 dni testnetu, testy chaosu, pomiar zatrzymania
     target: 0 rozbieżności przez 30 dni, kill switch ≤ 5 s
     gate: G14b
+    track: produkt
     source: roadmapa
   - id: F-30
     stage: E14
@@ -228,6 +291,7 @@ functional:
     measure: próby odczytu kluczy z API, logów i pamięci workera, klucz z prawem wypłat
     target: 0 udanych prób, 100% kluczy z prawem wypłat odrzuconych
     gate: G14b
+    track: produkt
     source: roadmapa
   - id: F-31
     stage: E14
@@ -235,6 +299,7 @@ functional:
     measure: incydenty krytyczne w becie live
     target: 30 dni bez incydentu krytycznego
     gate: G14c
+    track: produkt
     source: roadmapa
   - id: F-32
     stage: E15
@@ -242,6 +307,7 @@ functional:
     measure: audyt OWASP ASVS L2 i ćwiczenie DR
     target: 0 ustaleń wysokich, RTO ≤ 4 h w ćwiczeniu
     gate: G15
+    track: produkt
     source: roadmapa
   - id: F-33
     stage: E16
@@ -249,6 +315,7 @@ functional:
     measure: dostępność w becie i lista gotowości
     target: 30 dni bety, dostępność ≥ 99,5%, lista gotowości 100%
     gate: G16
+    track: produkt
     source: roadmapa
   - id: F-34
     stage: E17
@@ -256,6 +323,7 @@ functional:
     measure: raporty miesięczne w repozytorium
     target: 1 raport na każdy miesiąc utrzymania
     gate: null
+    track: produkt
     source: roadmapa
   - id: F-35
     stage: E18
@@ -263,6 +331,7 @@ functional:
     measure: odczyt posiadaczy porównany z eksploratorem, kalibracja oceny
     target: zgodność na 50 tokenach, zużycie kredytów RPC < 80%
     gate: G18
+    track: produkt
     source: roadmapa
   - id: F-36
     stage: E11
@@ -270,9 +339,34 @@ functional:
     measure: ≥ 20 strategii dopasowanych do szumu oraz 5 strategii referencyjnych
     target: DSR/PBO oznacza 100% strategii szumowych jako przeuczone i 0 z 5 referencyjnych (brak fałszywego alarmu)
     gate: G11
+    track: produkt
     source: doprecyzowanie
     accepted: 2026-11-23
     note: wydzielone z F-23 na prośbę właściciela; roadmapa (E11, punkt 5) wymaga DSR i PBO bez progów liczbowych
+  - id: F-37
+    stage: E9
+    title: Komunikaty ostrzegawcze i podpowiedzi informacyjne, bez porady inwestycyjnej
+    measure: test słownikowy wszystkich szablonów i test odpowiedzi API z oceną (E9), test widoków (E12b)
+    target: 0 szablonów z trybem rozkazującym albo słowami decyzyjnymi; informacja o braku porady w 100% odpowiedzi z oceną
+    gate: G9
+    track: praca
+    work_gate: G9p
+    work_target: 0 szablonów z trybem rozkazującym albo słowami decyzyjnymi; informacja o braku porady w 100% odpowiedzi z oceną
+    source: doprecyzowanie
+    accepted: 2026-11-26
+    note: nowe wymaganie z zakresu pracy inżynierskiej (system nie podejmuje decyzji inwestycyjnych, ADR-0008); w roadmapie E9 nie było progu
+  - id: F-38
+    stage: E12
+    title: Projekt graficznego interfejsu (persony, zadania kluczowe, makiety, design system)
+    measure: pliki makiet i opis w docs/praca/gui/ dla każdego widoku ścieżki pracy
+    target: 4 zadania kluczowe z makietami; 100% widoków z makietą i projektem stanów braku danych
+    gate: G12
+    track: praca
+    work_gate: G12p
+    work_target: 4 zadania kluczowe z makietami w Figma Free; 100% widoków ścieżki pracy z makietą i projektem stanów braku danych
+    source: doprecyzowanie
+    accepted: 2026-11-26
+    note: roadmapa E12a opisuje projekt bez progu liczbowego; próg i Figma Free zamiast Lovable z decyzji ADR-0008
 
 # Przepisane z tabeli „Wymagania niefunkcjonalne (wyciąg)” roadmapy E2.
 non_functional:
@@ -281,36 +375,44 @@ non_functional:
     measure: metryka analysis_lag_seconds
     target: ≤ 3 min po zamknięciu świecy dla 95% aktywów
     gate: G15
+    track: produkt
     source: roadmapa
   - id: NF-02
     title: Czas odpowiedzi API
     measure: k6, Grafana
     target: p95 ≤ 300 ms z cache, ≤ 1 s bez cache
     gate: G15
+    track: produkt
     source: roadmapa
   - id: NF-03
     title: Dostępność
     measure: Better Stack
     target: 99,5% w becie, 99,9% po GA
     gate: G16
+    track: produkt
     source: roadmapa
   - id: NF-04
     title: Kopie zapasowe i odtworzenie
     measure: ćwiczenie odtworzenia w E15
     target: RPO 24 h w budowie, 1 h po GA; RTO 4 h
     gate: G15
+    track: produkt
     source: roadmapa
   - id: NF-05
     title: Bezpieczeństwo aplikacji
     measure: lista kontrolna OWASP ASVS w E15
     target: zgodność z ASVS poziom 2, 0 ustaleń wysokich
     gate: G15
+    track: produkt
     source: roadmapa
   - id: NF-06
     title: Dostępność UI
     measure: skan axe-core każdego widoku (Playwright)
     target: WCAG 2.2 AA, 0 naruszeń critical i 0 serious
     gate: G12
+    track: praca
+    work_gate: G12p
+    work_target: 0 naruszeń critical i 0 serious (axe) na 100% widoków ścieżki pracy
     source: roadmapa
     note: "WCAG 2.2 AA (roadmapa) wymaga też 0 serious: np. kontrast kolorów ma w axe wagę serious; testy.md ujednolicone 23.11.2026"
   - id: NF-07
@@ -318,4 +420,5 @@ non_functional:
     measure: metryki executora
     target: od decyzji do zlecenia ≤ 5 s; uzgadnianie stanu co 15 s
     gate: G14b
+    track: produkt
     source: roadmapa

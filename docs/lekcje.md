@@ -134,3 +134,6 @@ jak tego unikamy.
 - `ansible-test` raz padł na przejściowym błędzie DNS w kontenerze (pobieranie sops) →
   przy czerwonym teście najpierw czytamy przyczynę; błąd sieci powtarzamy raz i opisujemy,
   a nie oznaczamy jako sukces.
+- `pre-commit run --all-files` sprawdza tylko pliki śledzone przez git: nowe pliki (np. ADR)
+  przeszły, a `make gate G=1` (Biome `ci .`) padł na ich formatowaniu → nowe pliki
+  dodajemy (`git add`) przed pre-commit, a o wyniku decyduje bramka, nie sam pre-commit.

@@ -7,7 +7,11 @@ Sprawdza `docs/wymagania.yaml` względem dokumentacji:
 - każde F-xx ma etap, który istnieje w roadmapie, a jego bramka to bramka tego etapu albo
   jednej z jego faz z tabeli bramek w testy.md (E14 -> G14a/b/c; etap bez bramki: null);
 - każdy etap od E3 wzwyż ma co najmniej jedno F-xx (nic nie zostało pominięte);
-- NF-xx to dokładnie identyfikatory z tabeli wymagań niefunkcjonalnych roadmapy E2.
+- NF-xx to dokładnie identyfikatory z tabeli wymagań niefunkcjonalnych roadmapy E2;
+- każde F-xx i NF-xx ma ścieżkę (`track: praca|produkt`, ADR-0008); wymaganie ścieżki pracy
+  z etapu E4+ (NF: z pełną bramką od G4) ma `work_gate` (bramka pracy G<nr>p z sekcji 3a
+  testy.md, należąca do etapu) i `work_target` z liczbą; wymaganie produktu ich nie ma;
+- każda bramka pracy z testy.md ma co najmniej jedno wymaganie z tym `work_gate`.
 """
 
 import re
@@ -21,10 +25,13 @@ ROOT = Path(__file__).resolve().parents[1]
 REQUIREMENTS = ROOT / "docs/wymagania.yaml"
 ROADMAP = ROOT / "docs/dokumentacja/roadmapa.md"
 TESTS = ROOT / "docs/dokumentacja/testy.md"
-FIELDS_F = ("id", "stage", "title", "measure", "target", "gate", "source")
-FIELDS_NF = ("id", "title", "measure", "target", "gate", "source")
+FIELDS_F = ("id", "stage", "title", "measure", "target", "gate", "track", "source")
+FIELDS_NF = ("id", "title", "measure", "target", "gate", "track", "source")
 SOURCES = ("roadmapa", "doprecyzowanie")
-OPTIONAL = ("accepted", "note")
+TRACKS = ("praca", "produkt")
+OPTIONAL = ("accepted", "note", "work_gate", "work_target")
+WORK_GATE_RE = r"G\d+[a-c]?p"
+FIRST_WORK_STAGE = 4  # E0 do E3 zaliczone w pełnym zakresie; bramki pracy od E4 (ADR-0008)
 
 
 def stage_key(stage: str) -> tuple[int, str]:
@@ -64,11 +71,59 @@ def source_errors(rid: str, item: dict[str, Any]) -> list[str]:
     return errors
 
 
+def gate_number(gate: object) -> int:
+    match = re.fullmatch(r"G(\d+)[a-z]?", str(gate))
+    return int(match.group(1)) if match else -1
+
+
+def track_errors(
+    rid: str, item: dict[str, Any], needs_work_gate: bool, allowed_work: set[str]
+) -> list[str]:
+    """Ścieżka pracy albo produktu (ADR-0008): bramka i próg pracy tylko tam, gdzie trzeba."""
+    track = item.get("track")
+    if track not in TRACKS:
+        return [f"{rid}: track musi być jednym z {TRACKS}"]
+    has_work = "work_gate" in item or "work_target" in item
+    if track == "produkt" or not needs_work_gate:
+        return [f"{rid}: work_gate i work_target tylko dla ścieżki pracy od E4"] if has_work else []
+    errors: list[str] = []
+    gate = item.get("work_gate")
+    if not re.fullmatch(WORK_GATE_RE, str(gate)) or gate not in allowed_work:
+        want = sorted(allowed_work) or "brak bramki pracy w testy.md"
+        errors.append(f"{rid}: work_gate {gate} to nie bramka pracy tego wymagania: {want}")
+    if not re.search(r"\d", str(item.get("work_target", ""))):
+        errors.append(f"{rid}: work_target bez liczby: {item.get('work_target')!r}")
+    return errors
+
+
+def stage_gate_errors(
+    rid: str, item: dict[str, Any], allowed: set[str], work_gates: set[str]
+) -> list[str]:
+    """Pełna bramka F-xx należy do etapu; bramka pracy jak w `track_errors`."""
+    stage = str(item.get("stage"))
+    gate = item.get("gate")
+    full = allowed - work_gates
+    errors: list[str] = []
+    if (gate not in full) if full else (gate is not None):
+        want = sorted(full) or "null (etap bez bramki)"
+        errors.append(f"{rid}: bramka {gate} nie należy do etapu {stage}: {want}")
+    work = stage_key(stage) >= (FIRST_WORK_STAGE, "")
+    return errors + track_errors(rid, item, work, allowed & work_gates)
+
+
+def unused_work_gates(work_gates: set[str], items: list[dict[str, Any]]) -> list[str]:
+    used = {str(i.get("work_gate")) for i in items}
+    return [
+        f"bramka pracy {g} nie ma żadnego wymagania (work_gate)" for g in sorted(work_gates - used)
+    ]
+
+
 def check(data: dict[str, Any], roadmap: str, tests: str) -> list[str]:
     errors: list[str] = []
     stages = roadmap_stages(roadmap)
     rows = gate_rows(tests)
     all_gates = {g for g, _ in rows}
+    work_gates = {g for g in all_gates if re.fullmatch(WORK_GATE_RE, g)}
     functional = cast(list[dict[str, Any]], data.get("functional") or [])
     non_functional = cast(list[dict[str, Any]], data.get("non_functional") or [])
     seen: set[str] = set()
@@ -98,22 +153,21 @@ def check(data: dict[str, Any], roadmap: str, tests: str) -> list[str]:
         stage = str(item.get("stage"))
         if stage not in stages:
             errors.append(f"{rid}: etap {stage} nie istnieje w roadmapie")
-        allowed = gates_for(stage, rows)
-        gate = item.get("gate")
-        if (gate not in allowed) if allowed else (gate is not None):
-            want = sorted(allowed) or "null (etap bez bramki)"
-            errors.append(f"{rid}: bramka {gate} nie należy do etapu {stage}: {want}")
+        errors.extend(stage_gate_errors(rid, item, gates_for(stage, rows), work_gates))
 
     for item in non_functional:
         rid = common(item, FIELDS_NF, r"NF-\d{2}")
-        if item.get("gate") not in all_gates:
+        if item.get("gate") not in all_gates - work_gates:
             errors.append(f"{rid}: bramka {item.get('gate')} nie istnieje w testy.md")
+        work = gate_number(item.get("gate")) >= FIRST_WORK_STAGE
+        errors.extend(track_errors(rid, item, work, work_gates))
 
     covered = {str(i.get("stage")) for i in functional}
     for stage in stages:
         if stage_key(stage) >= (3, "") and stage not in covered:
             errors.append(f"etap {stage} nie ma żadnego wymagania F-xx")
 
+    errors.extend(unused_work_gates(work_gates, [*functional, *non_functional]))
     nf_doc = roadmap_nf_ids(roadmap)
     nf_here = {str(i.get("id")) for i in non_functional}
     if nf_here != nf_doc:
