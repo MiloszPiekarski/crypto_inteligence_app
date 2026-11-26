@@ -110,3 +110,27 @@ jak tego unikamy.
 - Próba obejścia blokady sesji (rozbicie nazwy ścieżki `.ssh`) została zatrzymana przez
   klasyfikator → blokad nie obchodzimy; gdy blokada przeszkadza w teście, pomijamy ten punkt
   i mówimy o tym.
+- Raport G3 twierdził, że odtworzenie od zera użyło kopii z timera, a przebieg dowodowy
+  odtworzył kopię z `backup-now` (rozliczenie E3) → zdanie w raporcie bramki piszemy tylko
+  na podstawie logu przebiegu, który jest dowodem, i podajemy jego ID.
+- ✅ w roadmapie dla „obserwowalności” obejmował logi i ślady, których nikt nie sprawdził:
+  logi nie docierały (zła ścieżka katalogu Dockera), a api w ogóle nie wysyłało śladów → ✅
+  tylko dla tego, co zostało pokazane; wiersz z kilkoma rzeczami ma dowód dla każdej.
+- Warunek roli Ansible `ansible_swaptotal_mb == 0` przechodził lokalnie przypadkiem (inny
+  swap w systemie), więc plik wymiany nie był włączany → warunki opieramy na stanie tego
+  konkretnego zasobu, a test sprawdza wynik (plik aktywny), nie brak błędu.
+- Kolektor OTel montował domyślny `/var/lib/docker/containers`, a Docker trzymał logi na
+  wolumenie (`data-root`) → ścieżki zależne od konfiguracji z innej warstwy (Ansible →
+  Compose) pilnuje test, który czyta obie.
+- Gałąź `claude/…` oparta na commicie sprzed scalenia innego PR dała u właściciela brak
+  `IDENTYCZNE` → przed przekazaniem przebazowujemy na aktualny `main` i czekamy na CI.
+- Plan Terraform zapisany do pliku (`-out`) zawiera jawne wartości zmiennych, także
+  tokeny → `*.plan` w `.gitignore` i usuwanie pliku zaraz po `apply`.
+- Wartości metryk z node-exportera są w notacji naukowej (`1.79e+09`), więc `sed` na liczbę
+  całkowitą zwrócił pusty wynik → metryki w testach parsujemy jak liczby zmiennoprzecinkowe.
+- Gitleaks (`generic-api-key`) zgłosił publiczny odcisk klucza GPG przez słowo „key”
+  w nazwie zmiennej → wyjątek tylko dla tej reguły i dokładnej wartości, z dowodem, że
+  sąsiedni ciąg dalej jest wykrywany.
+- `ansible-test` raz padł na przejściowym błędzie DNS w kontenerze (pobieranie sops) →
+  przy czerwonym teście najpierw czytamy przyczynę; błąd sieci powtarzamy raz i opisujemy,
+  a nie oznaczamy jako sukces.

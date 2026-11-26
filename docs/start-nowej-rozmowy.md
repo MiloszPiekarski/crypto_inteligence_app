@@ -81,6 +81,23 @@ systemu dla komend Bash. Też można go włączyć tylko w ustawieniach tego pro
 domyślnie odcina sieć (lista dozwolonych domen) i wymaga wyjątków dla `gh` i `git push`
 przez SSH. Pełna izolacja to osobny użytkownik macOS albo maszyna wirtualna.
 
+## Uwagi z E3 do trybu lokalnego (26.11.2026)
+
+- Hook blokuje każdą komendę Bash, której tekst zawiera frazę o `terraform apply` albo
+  `destroy`, także w treści dokumentacji pisanej z powłoki: takie pliki asystent zmienia
+  narzędziem Edit/Write.
+- Gałąź `claude/…` przed przekazaniem musi stać na **aktualnym** `main`: po scaleniu innego
+  PR asystent ją przebazowuje i czeka na nowe CI szkicu; inaczej kontrola
+  `git diff --quiet origin/claude/<nazwa> HEAD` u właściciela nie da `IDENTYCZNE`
+  (różnica = scalony w międzyczasie PR).
+- Terminal właściciela to zsh: komendy z `read -p` i innymi bashizmami asystent opakowuje
+  w `bash -c '…'`. Kopiowanie z konsoli do pliku: najpierw uruchomić komendę, która czeka
+  (`read`), potem skopiować (wklejenie komendy nadpisuje schowek).
+- Minuty GitHub Actions (prywatne repo, macOS ×10, budżet 0 USD = blokada, bez opłat):
+  szkice tylko dla gotowych zmian, kilka poprawek w jednym szkicu, gdy dotyczą jednej rzeczy.
+- Zmienne Terraform `observability`: mapowanie z nazw w `.env.local`
+  (`docs/runbooks/wymiana-serwera.md`, sekcja „Terraform `observability`”).
+
 ## Ograniczenia sesji asystenta w chmurze (stan po E2, 23.11.2026)
 
 Dotyczą sesji w chmurze (tryb łatek); w trybie lokalnym większość z nich nie występuje.

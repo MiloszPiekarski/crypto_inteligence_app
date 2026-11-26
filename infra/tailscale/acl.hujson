@@ -1,0 +1,42 @@
+// Kopia ACL Tailscale z konsoli (https://login.tailscale.com/admin/acls/file), eksport
+// 26.11.2026. Źródłem prawdy jest konsola (ADR-0007, punkt 6); zmiana ACL: najpierw
+// w konsoli (testy w sekcji "tests" muszą przejść), potem ta sama zmiana tutaj.
+// Bez sekretów i adresów e-mail; test: scripts/tests/test_iac_policy.py.
+{
+	"tagOwners": {
+		"tag:goatcash-terraform": ["autogroup:admin"],
+		"tag:goatcash-server":    ["autogroup:admin", "tag:goatcash-terraform"],
+		"tag:goatcash-executor":  ["autogroup:admin", "tag:goatcash-terraform"],
+		"tag:goatcash-ci":        ["autogroup:admin"]
+	},
+	"grants": [
+		{
+			"src": ["autogroup:admin"],
+			"dst": ["tag:goatcash-server", "tag:goatcash-executor"],
+			"ip":  ["*"]
+		},
+		{
+			"src": ["tag:goatcash-ci"],
+			"dst": ["tag:goatcash-server", "tag:goatcash-executor"],
+			"ip":  ["tcp:22"]
+		},
+		{
+			"src": ["tag:goatcash-executor"],
+			"dst": ["tag:goatcash-server"],
+			"ip":  ["tcp:5432"]
+		}
+	],
+	"tests": [
+		{
+			"src":    "tag:goatcash-ci",
+			"accept": ["tag:goatcash-server:22"],
+			"deny":   ["tag:goatcash-server:5432"]
+		},
+		{
+			"src":    "tag:goatcash-executor",
+			"accept": ["tag:goatcash-server:5432"],
+			"deny":   ["tag:goatcash-server:22", "tag:goatcash-ci:22"]
+		}
+	],
+	"ssh": []
+}
