@@ -101,5 +101,9 @@ check "timery kopii (pełna i przyrostowa)" \
 check "plik wymiany aktywny" "swapon --show=NAME --noheadings" "^/mnt/swaptest/swapfile$"
 check "SSH: bez logowania roota i haseł" "sshd -T | grep -E '^(permitrootlogin|passwordauthentication) '" \
   "passwordauthentication no"
+check "aktualizacje bezpieczeństwa co godzinę (timery apt)" \
+  "systemctl show -p TimersCalendar apt-daily-upgrade.timer" 'OnCalendar=\*-\*-\* \*:00:00'
+check "restart w nocy po aktualizacjach jądra (03:30)" \
+  "apt-config dump | grep Automatic-Reboot-Time" '"03:30"'
 check "Lynis: 0 ostrzeżeń" "/usr/local/bin/goatcash-lynis | tail -1" "^Lynis: 0 warnings"
 echo "ansible-test: OK"

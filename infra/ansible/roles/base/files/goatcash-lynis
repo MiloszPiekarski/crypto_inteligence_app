@@ -9,6 +9,9 @@ warnings="$(grep '^warning\[\]=' "$report" || true)"
 count=0
 [ -z "$warnings" ] || count="$(printf '%s\n' "$warnings" | wc -l | tr -d ' ')"
 [ -z "$warnings" ] || printf '%s\n' "$warnings" | sed 's/^warning\[\]=/  WARNING /'
+# Przy PKGS-7392 nazwy pakietów z poprawkami bezpieczeństwa (bez nich nie da się ocenić,
+# czy to nowe poprawki, czy pakiety wstrzymane).
+grep '^vulnerable_package\[\]=' "$report" | sed 's/^vulnerable_package\[\]=/  PAKIET /' || true
 index="$(sed -n 's/^hardening_index=//p' "$report")"
 echo "Lynis: ${count} warnings, hardening index ${index:-?}"
 [ "$count" -eq 0 ]
