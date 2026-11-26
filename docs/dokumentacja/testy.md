@@ -82,11 +82,12 @@ Bramka to zestaw automatycznych sprawdzeń zapisany w pliku `gates/G<nr>.yaml` (
 
 **Dowody zaliczonych bramek:**
 
-| Bramka | Raport             | Plik dowodu                 | Rodzaj dowodu                           |
-| ------ | ------------------ | --------------------------- | --------------------------------------- |
-| G0     | `docs/gates/G0.md` | `docs/gates/G0.passed.json` | lokalny (komputer i klucze właściciela) |
-| G1     | `docs/gates/G1.md` | `docs/gates/G1.passed.json` | CI na `main`, przebieg 45027155138      |
-| G2     | `docs/gates/G2.md` | `docs/gates/G2.passed.json` | CI na `main`, przebieg 45144539739      |
+| Bramka | Raport             | Plik dowodu                 | Rodzaj dowodu                                                                                                                                                                          |
+| ------ | ------------------ | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G0     | `docs/gates/G0.md` | `docs/gates/G0.passed.json` | lokalny (komputer i klucze właściciela)                                                                                                                                                |
+| G1     | `docs/gates/G1.md` | `docs/gates/G1.passed.json` | CI na `main`, przebieg 45027155138                                                                                                                                                     |
+| G2     | `docs/gates/G2.md` | `docs/gates/G2.passed.json` | CI na `main`, przebieg 45144539739                                                                                                                                                     |
+| G3     | `docs/gates/G3.md` | `docs/gates/G3.passed.json` | mixed (ADR-0007): CI na `main` 45489734328, deploy 45489734491, external-scan 45492236610, alert-drill 45494553367, restore-test 45502801764, raport `G3/rebuild-20261125T105824Z.log` |
 
 ### Jak bramki są egzekwowane
 
