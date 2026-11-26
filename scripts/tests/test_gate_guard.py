@@ -205,7 +205,7 @@ def test_repo_requirements_follow_adr_0008() -> None:
     assert reqs.maps["produkt"]["E5"] == ["G4"]
     assert reqs.maps["praca"]["E12b"] == ["G6p", "G9p", "G11p"]
     for gates in reqs.maps["produkt"].values():
-        assert not any(g.endswith("p") for g in gates), gates
+        assert not any(gate_guard.WORK_GATE_RE.fullmatch(g) for g in gates), gates
 
 
 GOOD_REQS = """
@@ -239,6 +239,8 @@ def write_reqs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, text: str) -> No
         (GOOD_REQS.replace("  E5: [G4p]", "  E5: G4p"), "oczekiwano listy"),
         ("sciezka: praca\npraca: {}\nprodukt: {E1: []}\n", "niepustą mapą"),
         ("- E1\n", "oczekiwano mapy"),
+        (GOOD_REQS.replace("  E5: [G4]", "  E5: [G4]\n  E5: []"), "powtórzone klucze"),
+        (GOOD_REQS + "sciezka: produkt\n", "powtórzone klucze"),
     ],
 )
 def test_bad_requirements_rejected(
@@ -299,6 +301,24 @@ def test_work_gate_proof_must_name_that_gate(monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.setattr(gate_guard, "git", show)
     assert "innej bramki" in str(gate_guard.load_proof("G4p", "origin/main"))
+
+
+def test_work_gate_rejects_local_proof(monkeypatch: pytest.MonkeyPatch) -> None:
+    proof: dict[str, object] = {
+        "gate": "G4p",
+        "type": "local",
+        "summary": "== G4p (local): 1 PASS, 0 FAIL, 0 SKIP ==",
+    }
+
+    def load(*_args: str) -> dict[str, object]:
+        return proof
+
+    def no_evidence(*_args: str) -> None:
+        return None
+
+    monkeypatch.setattr(gate_guard, "load_proof", load)
+    monkeypatch.setattr(gate_guard, "gate_evidence", no_evidence)
+    assert "ci albo mixed" in gate_guard.check_gate("G4p", "o/r", "origin/main")[0]
 
 
 def test_work_gate_names_in_reports() -> None:

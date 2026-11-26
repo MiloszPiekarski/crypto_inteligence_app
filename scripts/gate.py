@@ -111,6 +111,9 @@ def load_gate(path: Path) -> Gate:
         isinstance(r, str) for r in cast(list[object], reports)
     ):
         raise ValueError(f"{path}: 'reports' musi być listą ścieżek")
+    if _str(data, "gate") != path.stem:
+        # Kopia G4.yaml jako G4p.yaml z pozostawionym `gate: G4` (recenzja PR B, D4).
+        raise ValueError(f"{path}: pole 'gate' musi być równe nazwie pliku ({path.stem})")
     return Gate(
         gate=_str(data, "gate"),
         stage=_str(data, "stage"),

@@ -7,6 +7,15 @@ import gate
 import pytest
 
 
+def test_gate_field_must_match_file_name(tmp_path: Path) -> None:
+    path = tmp_path / "G4p.yaml"
+    path.write_text(
+        BASE.replace("G9", "G4") + "checks:\n  - id: a\n    name: a\n    run: 'true'\n", "utf-8"
+    )
+    with pytest.raises(ValueError, match="równe nazwie pliku"):
+        gate.load_gate(path)
+
+
 def write_gate(root: Path, body: str) -> None:
     (root / "gates").mkdir(parents=True, exist_ok=True)
     (root / "gates" / "G9.yaml").write_text(body, encoding="utf-8")

@@ -106,9 +106,36 @@ def _stage_map(path: str, name: str, raw: object) -> dict[str, list[str]]:
     return out
 
 
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """SafeLoader odrzucający powtórzone klucze (recenzja PR B, D1).
+
+    Zwykły `safe_load` bierze po cichu ostatni z powtórzonych kluczy, więc drugi wpis
+    `E5: []` albo drugi `sciezka:` łatwo przeoczyć w przeglądzie.
+    """
+
+
+def _no_duplicates(loader: yaml.SafeLoader, node: yaml.MappingNode) -> dict[object, object]:
+    pairs = cast(list[tuple[yaml.Node, yaml.Node]], node.value)
+    keys: list[str] = [str(cast(object, loader.construct_object(k))) for k, _ in pairs]  # pyright: ignore[reportUnknownMemberType]
+    dup = sorted({k for k in keys if keys.count(k) > 1})
+    if dup:
+        raise ValueError(f"powtórzone klucze w YAML: {dup}")
+    return cast(dict[object, object], loader.construct_mapping(node))
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _no_duplicates,  # pyright: ignore[reportArgumentType]
+)
+
+
 def requirements() -> Requirements:
     path = "gates/requirements.yaml"
-    raw = cast(object, yaml.safe_load((ROOT / path).read_text("utf-8")))
+    text = (ROOT / path).read_text("utf-8")
+    try:
+        raw = cast(object, yaml.load(text, Loader=_UniqueKeyLoader))  # noqa: S506 - SafeLoader
+    except ValueError as err:
+        raise ValueError(f"{path}: {err}") from err
     if not isinstance(raw, dict):
         raise ValueError(f"{path}: oczekiwano mapy z kluczami sciezka, praca, produkt")
     data = cast(dict[object, object], raw)
@@ -517,6 +544,14 @@ def load_proof(gate: str, ref: str) -> dict[str, object] | str:
     return proof
 
 
+def verify_local_proof(gate: str, proof: dict[str, object], ref: str) -> list[str]:
+    if WORK_GATE_RE.fullmatch(gate):
+        # Bramka pracy zawsze z przebiegiem CI (albo mixed): okrojenie nie może zejść do
+        # samych sprawdzeń lokalnych bez weryfikowalnego przebiegu (recenzja PR B, D2).
+        return [f"{gate}: bramka pracy wymaga dowodu typu ci albo mixed, nie local"]
+    return verify_local(gate, proof, ref)
+
+
 def check_gate(gate: str, repo: str, ref: str) -> list[str]:
     proof = load_proof(gate, ref)
     if isinstance(proof, str):
@@ -529,7 +564,7 @@ def check_gate(gate: str, repo: str, ref: str) -> list[str]:
     if proof.get("type") == "ci":
         return verify_ci(gate, proof, repo, ref)
     if proof.get("type") == "local":
-        return verify_local(gate, proof, ref)
+        return verify_local_proof(gate, proof, ref)
     return [f"{gate}: nieznany typ dowodu {proof.get('type')!r}"]
 
 
