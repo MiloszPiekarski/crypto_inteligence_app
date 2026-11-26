@@ -1,0 +1,47 @@
+# Bramka pracy G4p (E4, ścieżka pracy inżynierskiej, ADR-0008): dane rynkowe.
+# Kryteria: docs/dokumentacja/testy.md, sekcja 3a (wiersz G4p). Uruchomienie: make gate G=4p.
+#
+# `checks` działają w CI (część `ci` dowodu: przebieg ci.yml na main). Część „staging”
+# kryteriów (100% luk opisanych, kompletność ≥ 99,9% względem świec udostępnianych przez
+# giełdę, 20 par od 2023-01-01) sprawdza workflow raportu danych na prawdziwej bazie staging:
+# blok `evidence`, więc bramka przyjmuje WYŁĄCZNIE dowód mixed (jak G3, ADR-0007 pkt 5;
+# bramka pracy nie przyjmuje dowodu local). Workflow raportu powstaje w PR 2 E4; do tego
+# czasu dowodu nie da się utworzyć (gate_pass.py odmawia).
+gate: G4p
+stage: E4
+criteria: >-
+  Normalizacja na nagranych odpowiedziach obu giełd: 100% zgodności pól i typów; DQ wykrywa
+  ≥ 95% z 200 wstrzykniętych błędów przy fałszywych alarmach < 1%; obsługa 429, przerwania
+  i wznowienia uzupełniania historii (testy z atrapami); staging: 100% luk wykrytych
+  i opisanych (po stronie giełdy albo nasza) i kompletność ≥ 99,9% względem świec, które
+  giełda faktycznie udostępnia, dla 20 par od 2023-01-01
+checks:
+  - id: normalization
+    name: "normalizacja na nagranych odpowiedziach OKX i Bybit: 20 par, 100% zgodności pól i typów"
+    run: make -s marketdata-normalization-test
+  - id: dq-injection
+    name: "DQ: 200 wstrzykniętych błędów 7 rodzajów, wykrycie ≥ 95%, fałszywe alarmy < 1% (także na prawdziwych danych)"
+    run: make -s marketdata-dq-test
+  - id: resilience
+    name: "429, błąd sieci, przerwanie i wznowienie uzupełniania historii od punktu kontrolnego (atrapy HTTP)"
+    run: make -s marketdata-resilience-test
+  - id: analytics
+    name: "luki, kompletność, cena referencyjna, candle.closed: wartości referencyjne, właściwości, brak zaglądania w przyszłość"
+    run: make -s marketdata-logic-test
+  - id: database
+    name: "Postgres z Timescale (rola goatcash_app) = magazyn w pamięci; candle.closed przez Valkey zgodne z kontraktem"
+    run: make -s marketdata-db-test
+    skip_on_ci_os: [macOS]
+    reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
+evidence:
+  # Przebieg workflow na main (ten plik, jedno z tych zdarzeń, sukces przebiegu i joba `job`,
+  # commit nie starszy niż commit części `ci` dowodu; pull_request niedozwolony). Job sam
+  # pada, gdy któryś próg nie jest spełniony, więc zielony przebieg = kryterium spełnione.
+  workflows:
+    data-report:
+      workflow: .github/workflows/data-report.yml
+      job: data-report
+      events: [workflow_dispatch]
+      what: "baza staging: 20 par x 2 giełdy od 2023-01-01, 0 luk bez opisu, kompletność ≥ 99,9% względem świec udostępnianych przez giełdę (F-04)"
+reports:
+  - docs/gates/G4p.md
