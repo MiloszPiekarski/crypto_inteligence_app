@@ -110,14 +110,14 @@ uzasadnienie). Indeks hardeningu zapisujemy dla porównania w kolejnych etapach.
 
 Każde sprawdzenie G3 ma źródło, które da się zweryfikować:
 
-| Sprawdzenie                                                                                  | Gdzie działa                                                  | Dowód                                       |
-| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------- |
-| Statyczne (fmt/validate, tflint, ansible-lint, Compose, testy skryptów, test kopii na MinIO) | CI (`ci.yml`, job bramki G3)                                  | ID przebiegu na `main` (jak G1, G2)         |
-| Wdrożenie z testem dymnym i rollbackiem                                                      | `deploy-staging.yml` na `main`                                | ID przebiegu, sprawdzany przez `gate-guard` |
-| Test odtworzenia kopii (F-02, tygodniowy)                                                    | workflow z harmonogramem                                      | ID przebiegu, sprawdzany przez `gate-guard` |
-| Skan z zewnątrz (nmap) i Lynis                                                               | workflow na runnerze GitHub (Tailscale do Lynis)              | ID przebiegu                                |
-| Alerty < 5 min (dysk, zatrzymany kontener)                                                   | workflow ćwiczenia alertów (cel); w razie braku API: lokalnie | ID przebiegu albo raport lokalny            |
-| Odtworzenie środowiska od zera < 30 min (F-01)                                               | komputer właściciela (klucze chmury)                          | raport lokalny z czasem, bez sekretów       |
+| Sprawdzenie                                                                                    | Gdzie działa                                                  | Dowód                                       |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------- |
+| Statyczne (fmt/validate, tflint, ansible-lint, Compose, testy skryptów, test kopii na `posix`) | CI (`ci.yml`, job bramki G3)                                  | ID przebiegu na `main` (jak G1, G2)         |
+| Wdrożenie z testem dymnym i rollbackiem                                                        | `deploy-staging.yml` na `main`                                | ID przebiegu, sprawdzany przez `gate-guard` |
+| Test odtworzenia kopii (F-02, tygodniowy)                                                      | workflow z harmonogramem                                      | ID przebiegu, sprawdzany przez `gate-guard` |
+| Skan z zewnątrz (nmap) i Lynis                                                                 | workflow na runnerze GitHub (Tailscale do Lynis)              | ID przebiegu                                |
+| Alerty < 5 min (dysk, zatrzymany kontener)                                                     | workflow ćwiczenia alertów (cel); w razie braku API: lokalnie | ID przebiegu albo raport lokalny            |
+| Odtworzenie środowiska od zera < 30 min (F-01)                                                 | komputer właściciela (klucze chmury)                          | raport lokalny z czasem, bez sekretów       |
 
 `gate_guard` dostaje nowy typ dowodu `mixed`: przebieg `ci.yml` na `main` plus lista ID
 przebiegów nazwanych workflow (każdy: zielony, `main`, ten sam commit albo nowszy niż
@@ -230,6 +230,34 @@ osobnych (**jawne odstępstwo od „jedna rzecz na PR”**). Ustalenia z realiza
     a nie plik pobrany z sieci. Sprawdza to `make ansible-test` (podmienione klucze
     i fragment cloud-init) oraz `test_repo_key_fingerprints_pinned_consistently`. Zmiana
     klucza u producenta to świadoma zmiana odcisku w repo.
+- **Rozliczenie E3: odstępstwa zapisane po fakcie (26.11.2026).** Plan E3 oznaczał je jako
+  zrobione, a w repo ich nie było; teraz są jawne:
+  - **ACL Tailscale (plan PR 11; decyzja właściciela 26.11.2026):** źródłem prawdy jest
+    konsola Tailscale, gdzie ACL ma testy (`tests`: CI tylko `tcp:22`, executor tylko
+    `tcp:5432` do serwera). W repo jest kopia `infra/tailscale/acl.hujson` (eksport
+    z konsoli 26.11.2026, bez sekretów i adresów e-mail), a test
+    `test_tailscale_acl_copy_matches_iac` pilnuje, że tagi z Terraform, cloud-init i workflow
+    są w niej zdefiniowane. Zmiana ACL: najpierw w konsoli, potem ta sama zmiana w kopii.
+    ACL jako kod (provider Tailscale, zakres `policy_file`) przed produkcją, w E16.
+  - **Polityka IAM executora (plan PR 8; decyzja właściciela 26.11.2026):** przeniesiona do
+    **E14b**. Vault i klucz główny istnieją (`oci-trwale`), ale dziś żaden proces z nich nie
+    korzysta, więc polityki (dynamic group maszyny executora i prawo użycia klucza) nie da
+    się sprawdzić. Executor pierwszy raz odszyfrowuje klucze giełd w E14b (zależność „G3
+    (mikro-VM, Vault)” w roadmapie) i tam polityka powstaje razem z testem.
+  - **Test kopii w CI na `posix`, nie na MinIO** (plan PR 13 i tabela dowodów wyżej):
+    pgBackRest (pełna, przyrostowa, WAL, szyfrowanie, PITR, sumy) sprawdzamy w CI na
+    katalogu lokalnym, a ścieżkę S3 na prawdziwym R2 (`backup-now`, timery, `restore-test`
+    co tydzień). MinIO dodałoby trzecią implementację S3 bez dowodu, że zachowuje się jak R2.
+  - **Sekrety w stanie Terraform:** stan `observability` zawiera token bota Telegram,
+    chat_id i e-mail na alerty (punkt kontaktowy Grafany), a stan `oci` jednorazowe klucze
+    Tailscale (ważne 1 h, zużyte przy starcie maszyny; także w `user_data`). Klucz prywatny
+    certyfikatu Origin powstaje lokalnie z CSR i w stanie go nie ma. Zabezpieczenia: bucket
+    `goatcash-tfstate` jest prywatny (bez dostępu publicznego), szyfrowany przez Oracle
+    w spoczynku, dostęp ma tylko użytkownik IAM `terraform` właściciela; pliki planu
+    (`*.plan`, zawierają jawne wartości zmiennych) są w `.gitignore` i właściciel usuwa je
+    po `apply`. Wyciek stanu = rotacja tokenu bota i Better Stack według
+    `docs/runbooks/rotacja-sekretow.md`. Przed produkcją do rozważenia: osobny bucket stanu
+    produkcji z kluczem z Vault.
 
 ## Rozważane alternatywy
 

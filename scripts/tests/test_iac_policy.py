@@ -2,6 +2,7 @@
 reguł OCI, więc ta kontrola musi sama łapać otwarte porty)."""
 
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -211,3 +212,24 @@ def test_repo_key_fingerprints_pinned_consistently() -> None:
     test = (root / "scripts" / "ansible_test.sh").read_text(encoding="utf-8")
     assert f"^{ts}$" in test
     assert f"^{dk}$" in test
+
+
+def test_tailscale_acl_copy_matches_iac() -> None:
+    """ADR-0007 pkt 6: kopia ACL z konsoli Tailscale definiuje każdy tag używany w Terraform,
+    cloud-init i workflow, CI ma dostęp tylko do tcp:22, a testy ACL to pilnują."""
+    root = MODULE.parents[2]
+    text = (root / "infra/tailscale/acl.hujson").read_text(encoding="utf-8")
+    acl = json.loads("\n".join(line for line in text.splitlines() if not line.startswith("//")))
+    owners = set(acl["tagOwners"])
+    used: set[str] = set()
+    for folder in ("infra/terraform", "infra/ansible", ".github"):
+        for path in (root / folder).rglob("*"):
+            if path.is_file() and ".terraform" not in path.parts:
+                used |= set(re.findall(r"tag:goatcash-[a-z]+", path.read_text(errors="ignore")))
+    assert used
+    assert used <= owners, f"tagi bez właściciela w ACL: {used - owners}"
+    ci = [g for g in acl["grants"] if g["src"] == ["tag:goatcash-ci"]]
+    assert len(ci) == 1
+    assert ci[0]["ip"] == ["tcp:22"]
+    assert any(t["src"] == "tag:goatcash-ci" for t in acl["tests"])
+    assert "@" not in text, "kopia ACL bez adresów e-mail"

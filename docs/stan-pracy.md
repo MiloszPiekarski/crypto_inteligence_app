@@ -31,9 +31,13 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
   do Loki: 5643 linie w 30 min po wdrożeniu). Na serwerach: `ansible-staging` 45732122197
   (aktualizacja i restart obu), `external-scan` 45733147740 (0 portów, Lynis 0 ostrzeżeń
   na obu), #117 (przypięte odciski kluczy apt Docker i Tailscale, ADR-0007). #119 (metryka
-  najstarszej kopii i alert „Retencja kopii nie dziala”, > 39 dni). W toku: ślady OTel
-  z api do Tempo. Dalej: ACL Tailscale jako kod i IAM executora, E0 (doctor.sh,
-  ponowny dowód G0), poprawki dokumentacji (G3.md, testy.md, roadmapa, lekcje).
+  najstarszej kopii i alert „Retencja kopii nie dziala”, > 39 dni; reguła w Grafanie
+  `inactive ok`), #121 (ślady OTel z api do Tempo). Ten PR: dokumentacja rozliczenia (G3.md, ADR-0007, testy.md,
+  roadmapa, runbook wymiany serwera, lekcje), kopia ACL Tailscale. Decyzje właściciela
+  26.11.2026: ACL w konsoli z kopią w repo, IAM executora w E14b, E0 po E3.
+  **Po E3, przed E4:** PR 0 z E0 (`doctor.sh`: R2 i Telegram, Tailscale na liście kont,
+  ponowny dowód G0). **Do sprawdzenia:** plan Grafana Cloud po okresie próbnym (ok. 6.12),
+  usunięcie kopii przez retencję (od ok. 25.12), minuty Actions (odnowienie 1.12).
 - **Następny: E4** (pozyskiwanie danych rynkowych i normalizacja; wymaga G3). Nowa rozmowa
   z `docs/start-nowej-rozmowy.md`; pierwszy PR E4: `gates/G4.yaml` i job `gate-next` dla G4.
   - Sieć OCI utworzona przez właściciela (Terraform, 28 zasobów: VCN, podsieci,
@@ -87,12 +91,12 @@ Decyzje właściciela (23.11.2026, propozycje asystenta zaakceptowane bez zmian)
 | 5   | `ci/E3-narzedzia-iac`              | Terraform, tflint, ansible-lint, trivy config w `make tools`/`audit`                       | ✅ (PR #84) |
 | 6   | `feat/E3-tf-oci-siec`              | VCN, podsieci, Security Lists (443 tylko z Cloudflare, bez 22)                             | ✅ (PR #86) |
 | 7   | `feat/E3-tf-oci-maszyny`           | A1 2/12, wolumen, mikro-VM, zarezerwowane IP                                               | ✅ (PR #90) |
-| 8   | `feat/E3-tf-oci-vault`             | Vault, klucz główny, polityka instancji executora                                          | ✅ (PR #90) |
+| 8   | `feat/E3-tf-oci-vault`             | Vault, klucz główny; polityka instancji executora przeniesiona do E14b (ADR-0007, 26.11)   | ✅ (PR #90) |
 | 9   | `feat/E3-tf-cloudflare`            | `api.`/`app.`, proxy, SSL Full strict, WAF, limit zapytań, R2, Origin CA, tokeny           | ✅ (PR #90) |
 | 10  | `feat/E3-ansible-hardening`        | użytkownik, SSH kluczem, fail2ban, aktualizacje, ufw, swap, journald; Molecule             | ✅ (PR #90) |
-| 11  | `feat/E3-ansible-docker-tailscale` | Docker, Tailscale, ACL                                                                     | ✅ (PR #90) |
+| 11  | `feat/E3-ansible-docker-tailscale` | Docker, Tailscale; ACL w konsoli, kopia `infra/tailscale/acl.hujson` (ADR-0007, 26.11)     | ✅ (PR #90) |
 | 12  | `feat/E3-compose-staging`          | Postgres 17 + Timescale + pgvector, Valkey AOF, Caddy, otel, exportery, `api`              | ✅ (PR #90) |
-| 13  | `feat/E3-pgbackrest`               | pełna/przyrostowa/WAL, szyfrowanie, retencja 30 dni; test w CI (MinIO, PITR, sumy)         | ✅ (PR #90) |
+| 13  | `feat/E3-pgbackrest`               | pełna/przyrostowa/WAL, szyfrowanie, retencja 30 dni; test w CI (`posix`, nie MinIO; PITR)  | ✅ (PR #90) |
 | 14  | `ci/E3-test-odtworzenia`           | cotygodniowe odtworzenie z R2 do czystej instancji, 100% tabel (F-02)                      | ✅ (PR #90) |
 | 15  | `feat/E3-obserwowalnosc`           | OTel → Grafana Cloud, pulpity, 3 alerty, e-mail i Telegram, Better Stack                   | ✅ (PR #90) |
 | 16  | `ci/E3-deploy-staging`             | `deploy-staging.yml`: Tailscale, cosign, pull/up, migracje, test dymny, rollback           | ✅ (PR #90) |
