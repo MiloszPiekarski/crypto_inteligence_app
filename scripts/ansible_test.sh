@@ -7,7 +7,9 @@
 #   2. drugi przebieg bez zmian (changed=0), bo odtworzenie od zera i ponowne przebiegi
 #      muszą być bezpieczne;
 #   3. wynik na „serwerze”: ufw (tylko Tailscale i 443 z Cloudflare), wolumen danych, Docker na
-#      wolumenie, klucz age 0400 root, sudo deploy tylko dwa skrypty, timery kopii, Lynis 0.
+#      wolumenie, klucz age 0400 root, sudo deploy tylko dwa skrypty, timery kopii, Lynis 0;
+#   4. przypięte odciski kluczy apt (ADR-0007): podmieniony klucz Tailscale albo Dockera
+#      zatrzymuje przebieg, a kontrola z cloud-init.yaml.tftpl odrzuca zły klucz.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 WORK="$(mktemp -d)"
@@ -39,6 +41,11 @@ docker exec "$NAME" sh -c 'truncate -s 3G /data.img && L=$(losetup -f --show /da
   mkdir -p /mnt/swaptest && mount "$S" /mnt/swaptest' || fail "wolumen danych i system plików na swap (pętle)"
 ok "kontener z systemd ($state), wolumen danych jako /dev/oracleoci/oraclevdb"
 
+# Klucz Tailscale tak jak na serwerze: na OCI wgrywa go cloud-init, Ansible go sprawdza.
+TS_KEYRING=/usr/share/keyrings/tailscale-archive-keyring.gpg
+curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg -o "$WORK/tailscale.gpg"
+docker cp "$WORK/tailscale.gpg" "$NAME:$TS_KEYRING" >/dev/null
+
 export ANSIBLE_COLLECTIONS_PATH="$WORK/collections" ANSIBLE_NOCOLOR=1
 uv run --frozen ansible-galaxy collection install -r infra/ansible/requirements.yml \
   -p "$WORK/collections" >/dev/null
@@ -62,7 +69,7 @@ all:
 EOF
 play() {
   (cd infra/ansible && GOATCASH_AGE_KEY_STAGING="wartosc-testowa-nie-klucz" \
-    uv run --frozen ansible-playbook -i "$WORK/inventory.yml" site.yml --skip-tags reboot)
+    uv run --frozen ansible-playbook -i "$WORK/inventory.yml" site.yml --skip-tags reboot "$@")
 }
 
 echo "== przebieg 1: site.yml"
@@ -106,4 +113,35 @@ check "aktualizacje bezpieczeństwa co godzinę (timery apt)" \
 check "restart w nocy po aktualizacjach jądra (03:30)" \
   "apt-config dump | grep Automatic-Reboot-Time" '"03:30"'
 check "Lynis: 0 ostrzeżeń" "/usr/local/bin/goatcash-lynis | tail -1" "^Lynis: 0 warnings"
+check "klucz Docker dla apt: przypięty odcisk" \
+  "goatcash-key-fingerprint /etc/apt/keyrings/docker.asc" "^9DC858229FC7DD38854AE2D88D81803C0EBFCD88$"
+check "klucz Tailscale: przypięty odcisk" \
+  "goatcash-key-fingerprint $TS_KEYRING" "^2596A99EAAB33821893C0A79458CA832957F5868$"
+check "źródło apt Tailscale ze stałej treści" "grep -c '^deb \\[signed-by=$TS_KEYRING\\] https://pkgs.tailscale.com/stable/ubuntu noble main$' /etc/apt/sources.list.d/tailscale.list" "^1$"
+
+echo "== podmienione klucze repozytoriów"
+docker exec "$NAME" cp /etc/apt/keyrings/docker.asc /root/docker.asc
+docker exec "$NAME" cp /root/docker.asc "$TS_KEYRING"
+if play --tags klucze > "$WORK/run3.log" 2>&1; then fail "przebieg z podmienionym kluczem Tailscale przeszedł"; fi
+grep -q "Klucz repozytorium Tailscale ma inny odcisk" "$WORK/run3.log" || { tail -20 "$WORK/run3.log" >&2; fail "brak błędu odcisku Tailscale"; }
+ok "podmieniony klucz Tailscale: przebieg zatrzymany"
+docker cp "$WORK/tailscale.gpg" "$NAME:$TS_KEYRING" >/dev/null
+docker cp "$WORK/tailscale.gpg" "$NAME:/etc/apt/keyrings/docker.asc.pobrany" >/dev/null
+if play --tags klucze > "$WORK/run4.log" 2>&1; then fail "przebieg z podmienionym kluczem Docker przeszedł"; fi
+grep -q "Klucz repozytorium Docker ma inny odcisk" "$WORK/run4.log" || { tail -20 "$WORK/run4.log" >&2; fail "brak błędu odcisku Docker"; }
+check "podmieniony klucz Docker: przebieg zatrzymany, apt dalej ma sprawdzony klucz" \
+  "goatcash-key-fingerprint /etc/apt/keyrings/docker.asc" "^9DC858229FC7DD38854AE2D88D81803C0EBFCD88$"
+
+echo "== kontrola klucza Tailscale z cloud-init"
+uv run --frozen python - infra/terraform/oci/cloud-init.yaml.tftpl > "$WORK/ci-check.sh" <<'PY'
+import sys, yaml
+runcmd = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))["runcmd"]
+print(next(c for c in runcmd if isinstance(c, str) and "--show-keys" in c))
+PY
+docker cp "$WORK/ci-check.sh" "$NAME:/root/ci-check.sh" >/dev/null
+check "cloud-init: dobry klucz przyjęty" "sh /root/ci-check.sh && echo PRZYJETY" "^PRZYJETY$"
+docker exec "$NAME" cp /root/docker.asc "$TS_KEYRING"
+check "cloud-init: zły klucz odrzucony i usunięty" \
+  "sh /root/ci-check.sh; echo kod=\$?; test -e $TS_KEYRING || echo USUNIETY" "kod=1"
+check "cloud-init: zły klucz usunięty z dysku" "test -e $TS_KEYRING || echo USUNIETY" "^USUNIETY$"
 echo "ansible-test: OK"

@@ -2,3 +2,8 @@
 # Plik wymiany. Na serwerach /swapfile; test w kontenerze (make ansible-test) podaje plik
 # na ext4 z pętli, bo Linux nie przyjmuje pliku wymiany na overlayfs kontenera.
 base_swap_file: /swapfile
+
+# Odcisk klucza repozytorium Tailscale (ADR-0007): klucz instaluje cloud-init, Ansible go
+# sprawdza. Źródło: plik z pkgs.tailscale.com zgodny z keyserver.ubuntu.com (26.11.2026).
+base_tailscale_key_fingerprint: 2596A99EAAB33821893C0A79458CA832957F5868
+base_tailscale_keyring: /usr/share/keyrings/tailscale-archive-keyring.gpg
