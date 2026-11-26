@@ -1,29 +1,56 @@
 # Bramki wymagane przed pracą nad etapem (wiersz „Zależności” każdego etapu w
 # docs/dokumentacja/roadmapa.md). gate-guard sprawdza je dla każdego PR z etykietą etapu.
 # Zmiana tego pliku = zmiana roadmapy: najpierw dokumentacja, potem ten plik.
-E0: []
-E1: [G0]
-E2: [G1]
-E3: [G2]
-E4: [G3]
-E5: [G4]
-E6: [G2, G3]
-E7: [G5]
-E8: [G5, G7]
-E9: [G7, G8]
-# Roadmapa: „G9 (narracja), G4 (newsy mogą ruszać od G4 równolegle)”. Automat wymaga G4;
-# PR dotykający narracji (Narrator) wymaga też G9, co sprawdza przegląd PR.
-E10: [G4]
-E10a: [G10, G7, G5]
-E11: [G5, G9]
-E11a: [G9, G11]
-E12a: [G2]
-E12b: [G6, G9, G10, G11]
-E13: [G9, G6, G12]
-E14a: [G9, G11, G12]
-E14b: [G14a, G3]
-E14c: [G14b, G15]
-E15: [G12, G13, G14b]
-E16: [G15]
-E17: [G16]
-E18: [G16, G13, G11a]
+#
+# Dwie ścieżki realizacji (ADR-0008, 26.11.2026). `sciezka` wybiera mapę, którą sprawdza
+# gate-guard (czyta ją z `main`, więc PR nie przełączy ścieżki dla samego siebie):
+# - `praca`: ścieżka pracy inżynierskiej, zależności z tabeli „Kolejność prac” w roadmapie
+#   (bramki pracy G<nr>p, testy.md sekcja 3a); etapy odłożone do produktu nie mają tu wpisu,
+#   więc PR z ich etykietą jest odrzucany;
+# - `produkt`: pełna roadmapa, pełne bramki (bez G<nr>p: gate-guard odrzuca bramkę pracy
+#   w tej mapie). Powrót do produktu = PR właściciela ze zmianą `sciezka: produkt`
+#   (docs/start-nowej-rozmowy.md, sekcja „Przełączenie na ścieżkę produktu”).
+sciezka: praca
+
+praca:
+  E0: []
+  E1: [G0]
+  E2: [G1]
+  E3: [G2]
+  E4: [G3]
+  E5: [G4p]
+  E6: [G2, G3]
+  E7: [G5p]
+  E8: [G5p, G7p]
+  E9: [G7p, G8p]
+  E11: [G5p, G9p]
+  E12a: [G2]
+  E12b: [G6p, G9p, G11p]
+
+produkt:
+  E0: []
+  E1: [G0]
+  E2: [G1]
+  E3: [G2]
+  E4: [G3]
+  E5: [G4]
+  E6: [G2, G3]
+  E7: [G5]
+  E8: [G5, G7]
+  E9: [G7, G8]
+  # Roadmapa: „G9 (narracja), G4 (newsy mogą ruszać od G4 równolegle)”. Automat wymaga G4;
+  # PR dotykający narracji (Narrator) wymaga też G9, co sprawdza przegląd PR.
+  E10: [G4]
+  E10a: [G10, G7, G5]
+  E11: [G5, G9]
+  E11a: [G9, G11]
+  E12a: [G2]
+  E12b: [G6, G9, G10, G11]
+  E13: [G9, G6, G12]
+  E14a: [G9, G11, G12]
+  E14b: [G14a, G3]
+  E14c: [G14b, G15]
+  E15: [G12, G13, G14b]
+  E16: [G15]
+  E17: [G16]
+  E18: [G16, G13, G11a]
