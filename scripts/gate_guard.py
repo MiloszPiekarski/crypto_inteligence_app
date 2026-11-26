@@ -17,6 +17,12 @@ wierzony na słowo:
   w limicie). Reguły czytamy z `main` (`git show`), więc PR nie może ich złagodzić.
 Nazwy jobów bramki i workflow pochodzą z reguł, nigdy z pliku dowodu (recenzja PR 3).
 
+Ścieżki realizacji (ADR-0008): gates/requirements.yaml ma przełącznik `sciezka`
+(`praca` albo `produkt`) i mapę zależności dla każdej ścieżki; obowiązuje mapa wskazana
+przełącznikiem. W ścieżce pracy wymagane bywają bramki pracy `G<nr>p`; mapa `produkt` nie może
+ich zawierać (pełna bramka nie da się zastąpić okrojoną). Etap spoza mapy aktywnej ścieżki
+(np. odłożony do produktu) jest odrzucany.
+
 PR bez etykiety etapu przechodzi tylko z etykietą `dependencies` (aktualizacje Dependabota).
 Użycie w CI: python scripts/gate_guard.py (zmienne GITHUB_EVENT_PATH, GITHUB_REPOSITORY,
 GH_TOKEN); etykiety są czytane z API w chwili uruchomienia (`current_pr_labels`).
@@ -42,12 +48,16 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 STAGE_RE = re.compile(r"E\d+[a-c]?")
-LOCAL_SUMMARY_RE = re.compile(r"== (G\d+[a-c]?) \(local\): (\d+) PASS, 0 FAIL, 0 SKIP ==")
+# Bramka: G<nr> z fazą a, b albo c (G14a) i opcjonalnym sufiksem p (bramka ścieżki pracy, ADR-0008).
+GATE_RE = re.compile(r"G\d+[a-c]?p?")
+WORK_GATE_RE = re.compile(r"G\d+[a-c]?p")
+TRACKS = ("praca", "produkt")
+LOCAL_SUMMARY_RE = re.compile(r"== (G\d+[a-c]?p?) \(local\): (\d+) PASS, 0 FAIL, 0 SKIP ==")
 WORKFLOW_PATH_RE = re.compile(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml")
 EVIDENCE_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 REPORT_HEADER_RE = re.compile(
-    r"Raport (G\d+[a-c]?) ([a-z0-9-]+) \| commit ([0-9a-f]{40}) \| (\d{8}T\d{6}Z) \| local"
+    r"Raport (G\d+[a-c]?p?) ([a-z0-9-]+) \| commit ([0-9a-f]{40}) \| (\d{8}T\d{6}Z) \| local"
 )
 FAIL_LINE_RE = re.compile(r".*\bFAIL\b.*")
 # Zdarzenia, które może wywołać tylko ktoś z prawem zapisu (nie PR z forka).
@@ -65,12 +75,77 @@ def git(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def requirements() -> dict[str, list[str]]:
-    raw = cast(object, yaml.safe_load((ROOT / "gates" / "requirements.yaml").read_text("utf-8")))
+@dataclass(frozen=True)
+class Requirements:
+    """gates/requirements.yaml: aktywna ścieżka i mapy etap -> wymagane bramki (ADR-0008)."""
+
+    track: str
+    maps: dict[str, dict[str, list[str]]]
+
+    @property
+    def active(self) -> dict[str, list[str]]:
+        return self.maps[self.track]
+
+
+def _stage_map(path: str, name: str, raw: object) -> dict[str, list[str]]:
+    if not isinstance(raw, dict) or not raw:
+        raise ValueError(f"{path}: '{name}' musi być niepustą mapą etap -> lista bramek")
+    out: dict[str, list[str]] = {}
+    for stage, gates in cast(dict[object, object], raw).items():
+        if not isinstance(stage, str) or not STAGE_RE.fullmatch(stage):
+            raise ValueError(f"{path}: {name}: niepoprawny etap {stage!r}")
+        if not isinstance(gates, list):
+            raise ValueError(f"{path}: {name}: {stage}: oczekiwano listy bramek")
+        names = [str(g) for g in cast(list[object], gates)]
+        for gate in names:
+            if not GATE_RE.fullmatch(gate):
+                raise ValueError(f"{path}: {name}: {stage}: niepoprawna bramka {gate!r}")
+            if name == "produkt" and WORK_GATE_RE.fullmatch(gate):
+                raise ValueError(f"{path}: produkt: {stage}: bramka pracy {gate} niedozwolona")
+        out[stage] = names
+    return out
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """SafeLoader odrzucający powtórzone klucze (recenzja PR B, D1).
+
+    Zwykły `safe_load` bierze po cichu ostatni z powtórzonych kluczy, więc drugi wpis
+    `E5: []` albo drugi `sciezka:` łatwo przeoczyć w przeglądzie.
+    """
+
+
+def _no_duplicates(loader: yaml.SafeLoader, node: yaml.MappingNode) -> dict[object, object]:
+    pairs = cast(list[tuple[yaml.Node, yaml.Node]], node.value)
+    keys: list[str] = [str(cast(object, loader.construct_object(k))) for k, _ in pairs]  # pyright: ignore[reportUnknownMemberType]
+    dup = sorted({k for k in keys if keys.count(k) > 1})
+    if dup:
+        raise ValueError(f"powtórzone klucze w YAML: {dup}")
+    return cast(dict[object, object], loader.construct_mapping(node))
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _no_duplicates,  # pyright: ignore[reportArgumentType]
+)
+
+
+def requirements() -> Requirements:
+    path = "gates/requirements.yaml"
+    text = (ROOT / path).read_text("utf-8")
+    try:
+        raw = cast(object, yaml.load(text, Loader=_UniqueKeyLoader))  # noqa: S506 - SafeLoader
+    except ValueError as err:
+        raise ValueError(f"{path}: {err}") from err
     if not isinstance(raw, dict):
-        raise ValueError("gates/requirements.yaml: oczekiwano mapy etap -> lista bramek")
+        raise ValueError(f"{path}: oczekiwano mapy z kluczami sciezka, praca, produkt")
     data = cast(dict[object, object], raw)
-    return {str(k): [str(g) for g in cast(list[object], v or [])] for k, v in data.items()}
+    if set(data) != {"sciezka", *TRACKS}:
+        raise ValueError(f"{path}: wymagane dokładnie klucze sciezka, praca, produkt")
+    track = data["sciezka"]
+    if track not in TRACKS:
+        raise ValueError(f"{path}: sciezka musi być jedną z {TRACKS}, jest {track!r}")
+    maps = {name: _stage_map(path, name, data[name]) for name in TRACKS}
+    return Requirements(track=str(track), maps=maps)
 
 
 def git_show_bytes(ref: str, path: str) -> bytes | None:
@@ -469,6 +544,14 @@ def load_proof(gate: str, ref: str) -> dict[str, object] | str:
     return proof
 
 
+def verify_local_proof(gate: str, proof: dict[str, object], ref: str) -> list[str]:
+    if WORK_GATE_RE.fullmatch(gate):
+        # Bramka pracy zawsze z przebiegiem CI (albo mixed): okrojenie nie może zejść do
+        # samych sprawdzeń lokalnych bez weryfikowalnego przebiegu (recenzja PR B, D2).
+        return [f"{gate}: bramka pracy wymaga dowodu typu ci albo mixed, nie local"]
+    return verify_local(gate, proof, ref)
+
+
 def check_gate(gate: str, repo: str, ref: str) -> list[str]:
     proof = load_proof(gate, ref)
     if isinstance(proof, str):
@@ -481,7 +564,7 @@ def check_gate(gate: str, repo: str, ref: str) -> list[str]:
     if proof.get("type") == "ci":
         return verify_ci(gate, proof, repo, ref)
     if proof.get("type") == "local":
-        return verify_local(gate, proof, ref)
+        return verify_local_proof(gate, proof, ref)
     return [f"{gate}: nieznany typ dowodu {proof.get('type')!r}"]
 
 
@@ -508,12 +591,17 @@ def main(argv: list[str]) -> int:
         print("BŁĄD: PR musi mieć etykietę etapu (E0…E18), np. E2.")
         return 1
     reqs = requirements()
+    print(f"Ścieżka: {reqs.track} (gates/requirements.yaml)")
     problems: list[str] = []
     for stage in stages:
-        if stage not in reqs:
-            problems.append(f"{stage}: etap nieznany w gates/requirements.yaml")
+        if stage not in reqs.active:
+            other = [t for t in TRACKS if t != reqs.track and stage in reqs.maps[t]]
+            reason = f"etap należy do ścieżki {other[0]}" if other else "etap nieznany"
+            problems.append(
+                f"{stage}: {reason}, a aktywna jest ścieżka {reqs.track} (gates/requirements.yaml)"
+            )
             continue
-        for gate in reqs[stage]:
+        for gate in reqs.active[stage]:
             found = check_gate(gate, repo, ref)
             problems += found
             verdict = "BRAK DOWODU" if found else "zaliczona (dowód sprawdzony)"

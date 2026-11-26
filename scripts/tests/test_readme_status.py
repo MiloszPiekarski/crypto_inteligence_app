@@ -17,7 +17,8 @@ def last_passed_gate() -> int:
     numbers = [
         int(m.group(1))
         for p in (ROOT / "docs/gates").glob("G*.passed.json")
-        if (m := re.fullmatch(r"G(\d+)\.passed\.json", p.name))
+        # Bramka pracy G<nr>p (ścieżka pracy, ADR-0008) też zamyka etap <nr>.
+        if (m := re.fullmatch(r"G(\d+)p?\.passed\.json", p.name))
     ]
     assert numbers, "brak dowodów bramek w docs/gates"
     return max(numbers)
