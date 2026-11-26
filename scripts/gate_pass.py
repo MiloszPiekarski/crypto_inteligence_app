@@ -32,9 +32,9 @@ import gate_guard
 
 ROOT = Path(__file__).resolve().parent.parent
 HEADER_RE = re.compile(
-    r"Bramka (G\d+[a-c]?) \(E\d+[a-c]?\) \| commit ([0-9a-f]{7,40}) \| (\S+) \| local"
+    r"Bramka (G\d+[a-c]?p?) \(E\d+[a-c]?\) \| commit ([0-9a-f]{7,40}) \| (\S+) \| local"
 )
-SUMMARY_RE = re.compile(r"== (G\d+[a-c]?) \(local\): (\d+) PASS, 0 FAIL, 0 SKIP ==")
+SUMMARY_RE = re.compile(r"== (G\d+[a-c]?p?) \(local\): (\d+) PASS, 0 FAIL, 0 SKIP ==")
 
 
 def run(*cmd: str) -> str:
@@ -128,7 +128,7 @@ def local_proof(gate: str, report: Path) -> dict[str, object]:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("nr", help="numer bramki, np. 1 albo 10a")
+    parser.add_argument("nr", help="numer bramki, np. 1, 10a albo 4p (bramka ścieżki pracy)")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--run", type=int, help="ID zielonego przebiegu ci.yml na main")
     group.add_argument("--local", type=Path, help="raport z reports/gates/ (bramka tylko lokalna)")
@@ -140,6 +140,8 @@ def main(argv: list[str]) -> int:
     )
     args = parser.parse_args(argv[1:])
     gate = f"G{args.nr}"
+    if not gate_guard.GATE_RE.fullmatch(gate):
+        raise SystemExit(f"{args.nr!r}: niepoprawny numer bramki (np. 1, 14a, 4p)")
     # Reguły z HEAD (to, co trafi na main), nie z niezacommitowanych zmian w drzewie.
     mixed = gate_guard.gate_evidence(gate, "HEAD") is not None
     if mixed and args.run is None:

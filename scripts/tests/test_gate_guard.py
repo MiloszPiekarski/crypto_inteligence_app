@@ -177,15 +177,146 @@ def test_workflow_never_runs_pr_code_with_target_trigger() -> None:
             assert "github.event.pull_request.head" not in text
 
 
-def test_requirements_cover_every_stage_label() -> None:
-    reqs = gate_guard.requirements()
+def stage_labels() -> list[str]:
     setup = (gate_guard.ROOT / "scripts" / "github-setup.sh").read_text(encoding="utf-8")
     labels = next(line for line in setup.splitlines() if line.startswith("for l in E0"))
-    for stage in labels.split(" in ", 1)[1].split(";")[0].split():
-        assert stage in reqs, stage
-    for gates in reqs.values():
-        for gate in gates:
-            assert gate.startswith("G"), gate
+    return labels.split(" in ", 1)[1].split(";")[0].split()
+
+
+def test_requirements_cover_every_stage_label() -> None:
+    reqs = gate_guard.requirements()
+    # Pełna roadmapa: każda etykieta etapu ma wpis w mapie produktu.
+    assert set(stage_labels()) == set(reqs.maps["produkt"])
+    # Ścieżka pracy: tylko etapy z tabeli „Kolejność prac” (ADR-0008) i zaliczone E0 do E3.
+    assert set(reqs.maps["praca"]) <= set(stage_labels())
+
+
+WORK_STAGES = {"E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12a", "E12b"}
+
+
+def test_repo_requirements_follow_adr_0008() -> None:
+    reqs = gate_guard.requirements()
+    assert reqs.track == "praca"
+    assert set(reqs.maps["praca"]) == WORK_STAGES
+    for stage in ("E10", "E10a", "E11a", "E13", "E14a", "E14b", "E14c", "E15", "E16", "E18"):
+        assert stage not in reqs.maps["praca"], stage
+    # E5 w ścieżce pracy wymaga bramki pracy G4p, w produkcie pełnej G4.
+    assert reqs.maps["praca"]["E5"] == ["G4p"]
+    assert reqs.maps["produkt"]["E5"] == ["G4"]
+    assert reqs.maps["praca"]["E12b"] == ["G6p", "G9p", "G11p"]
+    for gates in reqs.maps["produkt"].values():
+        assert not any(g.endswith("p") for g in gates), gates
+
+
+GOOD_REQS = """
+sciezka: praca
+praca:
+  E4: [G3]
+  E5: [G4p]
+produkt:
+  E4: [G3]
+  E5: [G4]
+  E10: [G4]
+"""
+
+
+def write_reqs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, text: str) -> None:
+    (tmp_path / "gates").mkdir(exist_ok=True)
+    (tmp_path / "gates" / "requirements.yaml").write_text(text, encoding="utf-8")
+    monkeypatch.setattr(gate_guard, "ROOT", tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        (GOOD_REQS.replace("sciezka: praca", "sciezka: obie"), "sciezka musi"),
+        (GOOD_REQS.replace("sciezka: praca\n", ""), "dokładnie klucze"),
+        (GOOD_REQS + "inna: {E1: []}\n", "dokładnie klucze"),
+        (GOOD_REQS.replace("  E5: [G4]", "  E5: [G4p]"), "bramka pracy G4p niedozwolona"),
+        (GOOD_REQS.replace("  E5: [G4p]", "  E5: [G4x]"), "niepoprawna bramka"),
+        (GOOD_REQS.replace("  E5: [G4p]", "  E5: [../G4]"), "niepoprawna bramka"),
+        (GOOD_REQS.replace("  E5: [G4p]", "  X5: [G4p]"), "niepoprawny etap"),
+        (GOOD_REQS.replace("  E5: [G4p]", "  E5: G4p"), "oczekiwano listy"),
+        ("sciezka: praca\npraca: {}\nprodukt: {E1: []}\n", "niepustą mapą"),
+        ("- E1\n", "oczekiwano mapy"),
+    ],
+)
+def test_bad_requirements_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, text: str, message: str
+) -> None:
+    write_reqs(tmp_path, monkeypatch, text)
+    with pytest.raises(ValueError, match=message):
+        gate_guard.requirements()
+
+
+def checked_gates(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    seen: list[str] = []
+
+    def record(gate: str, *_args: str) -> list[str]:
+        seen.append(gate)
+        return []
+
+    monkeypatch.setattr(gate_guard, "check_gate", record)
+    return seen
+
+
+def test_active_track_selects_required_gates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen = checked_gates(monkeypatch)
+    write_reqs(tmp_path, monkeypatch, GOOD_REQS)
+    assert gate_guard.main(["g", "--labels", "E5"]) == 0
+    assert seen == ["G4p"]
+    seen.clear()
+    write_reqs(tmp_path, monkeypatch, GOOD_REQS.replace("sciezka: praca", "sciezka: produkt"))
+    assert gate_guard.main(["g", "--labels", "E5"]) == 0
+    assert seen == ["G4"], "w produkcie bramka pracy nie zastępuje pełnej"
+
+
+def test_deferred_stage_rejected_in_work_track(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    seen = checked_gates(monkeypatch)
+    write_reqs(tmp_path, monkeypatch, GOOD_REQS)
+    assert gate_guard.main(["g", "--labels", "E10"]) == 1
+    assert "należy do ścieżki produkt" in capsys.readouterr().out
+    # Dwie etykiety: etap odłożony nie przejdzie obok dozwolonego.
+    assert gate_guard.main(["g", "--labels", "E4", "E10"]) == 1
+    assert seen == ["G3"]
+    write_reqs(tmp_path, monkeypatch, GOOD_REQS.replace("sciezka: praca", "sciezka: produkt"))
+    assert gate_guard.main(["g", "--labels", "E10"]) == 0
+
+
+def test_work_gate_proof_must_name_that_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Dowód pełnej G4 nie zalicza G4p i odwrotnie (pole `gate` w pliku dowodu)."""
+
+    class Shown:
+        returncode = 0
+        stdout = json.dumps({**PROOF, "gate": "G4"})
+
+    def show(*_args: str) -> Shown:
+        return Shown()
+
+    monkeypatch.setattr(gate_guard, "git", show)
+    assert "innej bramki" in str(gate_guard.load_proof("G4p", "origin/main"))
+
+
+def test_work_gate_names_in_reports() -> None:
+    assert gate_guard.GATE_RE.fullmatch("G4p")
+    assert gate_guard.GATE_RE.fullmatch("G14a")
+    assert not gate_guard.GATE_RE.fullmatch("G4pp")
+    assert not gate_guard.GATE_RE.fullmatch("G4q")
+    assert gate_guard.LOCAL_SUMMARY_RE.fullmatch("== G4p (local): 3 PASS, 0 FAIL, 0 SKIP ==")
+    assert gate_pass.SUMMARY_RE.fullmatch("== G4p (local): 3 PASS, 0 FAIL, 0 SKIP ==")
+    assert gate_pass.HEADER_RE.fullmatch(
+        "Bramka G4p (E4) | commit abc1234 | 20261201T000000Z | local"
+    )
+
+
+@pytest.mark.parametrize("nr", ["../x", "4q", "4 ", "x"])
+def test_gate_pass_rejects_bad_gate_number(nr: str) -> None:
+    with pytest.raises(SystemExit, match="niepoprawny numer bramki"):
+        gate_pass.main(["p", nr, "--run", "1"])
 
 
 def test_gate_pass_local_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
