@@ -78,6 +78,10 @@ services:
         "*",
       ]
     env_file: [./env/api.env]
+    environment:
+      # Ślady do kolektora (sieć backend), stamtąd do Grafana Cloud Tempo (roadmapa E3, zakres 6).
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: goatcash-api
     depends_on:
       postgres:
         condition: service_healthy
