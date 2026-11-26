@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# goatcash-key-fingerprint PLIK: odciski kluczy głównych z pliku klucza repozytorium apt
+# (armor albo binarny), po jednym w linii. Role base i docker porównują wynik z odciskiem
+# przypiętym w defaults (ADR-0007): plik z dodatkowym albo innym kluczem nie przejdzie.
+set -euo pipefail
+home="$(mktemp -d)"
+trap 'rm -rf "$home"' EXIT
+gpg --homedir "$home" --batch --quiet --show-keys --with-colons "$1" |
+  awk -F: '$1 == "pub" { p = 1; next } p && $1 == "fpr" { print $10; p = 0 }'

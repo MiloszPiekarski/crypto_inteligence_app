@@ -3,7 +3,7 @@
 Ten plik pozwala wznowić pracę w nowej rozmowie z asystentem AI bez utraty kontekstu:
 na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku.
 
-**Ostatnia aktualizacja:** 2026-11-25
+**Ostatnia aktualizacja:** 2026-11-26
 
 ## Gdzie jesteśmy
 
@@ -24,6 +24,15 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
     (odtworzenie od zera, czekanie na koniec recovery), PR zamykający E3.
   - Infrastruktura (adresy po odtworzeniu od zera 25.11.2026): A1 `143.47.189.234`,
     executor (zarezerwowane IP) `158.101.201.247`; obie maszyny w Tailscale.
+- **Rozliczenie E3 (25–26.11.2026, przed E4):** właściciel: „musimy zrobić wszystko co nie
+  zostało zrobione. wszystko ma być jak w dokumentacji”. Zrobione: #110 (Trivy arm64,
+  obrazy bazowe po digeście), #113 (`make ansible-test` w G3, poprawka pliku wymiany),
+  #114 (pełna aktualizacja, poprawki co godzinę, restart 03:30), #115 (logi kontenerów
+  do Loki: 5643 linie w 30 min po wdrożeniu). Na serwerach: `ansible-staging` 45732122197
+  (aktualizacja i restart obu), `external-scan` 45733147740 (0 portów, Lynis 0 ostrzeżeń
+  na obu). W toku: przypięte odciski kluczy apt Docker i Tailscale (ADR-0007). Dalej: test
+  retencji kopii i śladu w Tempo, ACL Tailscale jako kod i IAM executora, E0 (doctor.sh,
+  ponowny dowód G0), poprawki dokumentacji (G3.md, testy.md, roadmapa, lekcje).
 - **Następny: E4** (pozyskiwanie danych rynkowych i normalizacja; wymaga G3). Nowa rozmowa
   z `docs/start-nowej-rozmowy.md`; pierwszy PR E4: `gates/G4.yaml` i job `gate-next` dla G4.
   - Sieć OCI utworzona przez właściciela (Terraform, 28 zasobów: VCN, podsieci,

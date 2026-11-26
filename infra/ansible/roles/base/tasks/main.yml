@@ -12,6 +12,7 @@
         ca-certificates,
         python3,
         lynis,
+        gnupg,
       ]
     state: present
     update_cache: true
@@ -131,14 +132,42 @@
     state: absent
   when: ansible_architecture != 'aarch64'
 
-- name: Sonda tylko do odczytu (jedyne polecenie klucza goatcash-staging-probe)
+- name: Sonda tylko do odczytu i odciski kluczy apt (goatcash-probe, goatcash-lynis, goatcash-key-fingerprint)
   ansible.builtin.copy:
     src: "{{ item }}"
     dest: "/usr/local/bin/{{ item }}"
     owner: root
     group: root
     mode: "0755"
-  loop: [goatcash-probe, goatcash-lynis]
+  loop: [goatcash-probe, goatcash-lynis, goatcash-key-fingerprint]
+
+# Klucz repozytorium Tailscale instaluje cloud-init (sprawdza tam ten sam odcisk); tutaj
+# sprawdzamy go na każdym serwerze i zapisujemy źródło apt ze stałej treści zamiast pliku
+# pobranego z sieci (ADR-0007: przypięte odciski kluczy repozytoriów).
+- name: Odcisk klucza repozytorium Tailscale
+  ansible.builtin.command:
+    cmd: /usr/local/bin/goatcash-key-fingerprint {{ base_tailscale_keyring }}
+  register: base_tailscale_fpr
+  changed_when: false
+  check_mode: false
+  tags: [klucze]
+
+- name: Klucz Tailscale ma przypięty odcisk
+  ansible.builtin.assert:
+    that: base_tailscale_fpr.stdout_lines == [base_tailscale_key_fingerprint]
+    fail_msg: "Klucz repozytorium Tailscale ma inny odcisk niż przypięty: {{ base_tailscale_fpr.stdout_lines }}"
+    quiet: true
+  tags: [klucze]
+
+- name: Źródło apt Tailscale (stała treść)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/tailscale.list
+    content: |
+      # Zarządzane przez Ansible (roles/base); klucz sprawdzony wyżej.
+      deb [signed-by={{ base_tailscale_keyring }}] https://pkgs.tailscale.com/stable/ubuntu {{ ansible_distribution_release }} main
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: Użytkownik deploy może uruchomić przez sudo audyt Lynis
   ansible.builtin.copy:

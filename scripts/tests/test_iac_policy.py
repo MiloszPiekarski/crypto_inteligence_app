@@ -185,3 +185,29 @@ def test_ansible_cloudflare_list_matches_terraform() -> None:
     ansible = yaml.safe_load(defaults.read_text(encoding="utf-8"))["firewall_cloudflare_ipv4"]
     assert sorted(ansible) == sorted(tf)
     assert len(tf) == len(set(tf))
+
+
+def test_repo_key_fingerprints_pinned_consistently() -> None:
+    """ADR-0007: odcisk klucza Tailscale w cloud-init i w roli base to ten sam przypięty odcisk;
+    klucz Docker przypięty w roli docker; test Ansible sprawdza dokładnie te wartości."""
+    root = MODULE.parents[2]
+    roles = root / "infra" / "ansible" / "roles"
+    base = yaml.safe_load((roles / "base/defaults/main.yml").read_text(encoding="utf-8"))
+    docker = yaml.safe_load((roles / "docker/defaults/main.yml").read_text(encoding="utf-8"))
+    ts, dk = base["base_tailscale_key_fingerprint"], docker["docker_repo_key_fingerprint"]
+    for fpr in (ts, dk):
+        assert len(fpr) == 40
+        assert all(c in "0123456789ABCDEF" for c in fpr)
+    runcmd = yaml.safe_load((MODULE / "cloud-init.yaml.tftpl").read_text(encoding="utf-8"))[
+        "runcmd"
+    ]
+    checks = [c for c in runcmd if isinstance(c, str) and "--show-keys" in c]
+    assert len(checks) == 1
+    assert f"!= {ts} ]" in checks[0]
+    assert "exit 1" in checks[0]
+    assert not any("tailscale-keyring.list" in str(c) for c in runcmd), (
+        "źródło apt ze stałej treści"
+    )
+    test = (root / "scripts" / "ansible_test.sh").read_text(encoding="utf-8")
+    assert f"^{ts}$" in test
+    assert f"^{dk}$" in test
