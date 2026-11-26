@@ -24,6 +24,7 @@ from goatcash.http_api.schemas import (
     Problem,
     Timeframe,
 )
+from goatcash.http_api.telemetry import setup_tracing
 
 PROBLEM = "application/problem+json"
 ERRORS: dict[int | str, dict[str, object]] = {
@@ -153,4 +154,5 @@ def create_app() -> FastAPI:
     )
     app.include_router(v1)
     app.add_exception_handler(HTTPException, problem_response)
+    setup_tracing(app)
     return app

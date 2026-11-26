@@ -7,6 +7,11 @@ license = "AGPL-3.0-only"
 dependencies = [
     "alembic>=1.16",
     "fastapi>=0.120",
+    # E3: ślady procesu api do kolektora OTel (roadmapa E3, zakres 6); wersje z 29.10.2026,
+    # instrumentacja FastAPI w wersji zgodnej z SDK 1.45 (beta, przypięta dokładnie).
+    "opentelemetry-exporter-otlp-proto-http>=1.45.2,<1.46",
+    "opentelemetry-instrumentation-fastapi==0.66b2",
+    "opentelemetry-sdk>=1.45.2,<1.46",
     "psycopg[binary]>=3.2",
     "pydantic>=2.11",
     "sqlalchemy>=2.0",
