@@ -143,3 +143,12 @@ def test_alert_reader_counts_only_active() -> None:
         ]
     )
     assert wfa.active_names(body) == {"A"}
+
+
+def test_otel_reads_container_logs_from_docker_data_root() -> None:
+    """Kolektor OTel musi czytać logi z katalogu, w którym Docker je zapisuje (data-root
+    z Ansible); inaczej logi nie trafiają do Grafany (rozliczenie E3)."""
+    daemon = (ROOT / "infra/ansible/roles/docker/templates/daemon.json.j2").read_text("utf-8")
+    data_root = json.loads(daemon)["data-root"]
+    compose = (ROOT / "infra/compose/staging/compose.yaml").read_text(encoding="utf-8")
+    assert f":-{data_root}/containers}}:/var/lib/docker/containers:ro" in compose

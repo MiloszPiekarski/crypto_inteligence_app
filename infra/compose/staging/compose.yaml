@@ -122,10 +122,13 @@ services:
     restart: unless-stopped
     command: ["--config=/etc/otelcol/collector.yaml"]
     env_file: [./env/otel.env]
-    user: "0:0" # odczyt logów kontenerów z /var/lib/docker/containers (tylko do odczytu)
+    user: "0:0" # odczyt logów kontenerów Dockera (tylko do odczytu)
     volumes:
       - ./otel/collector.yaml:/etc/otelcol/collector.yaml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # Katalog logów kontenerów = data-root Dockera z Ansible (/srv/goatcash/docker) + /containers.
+      # Domyślne /var/lib/docker/containers było na serwerze puste: logi nie docierały do Grafany
+      # (rozliczenie E3). Zgodność pilnuje scripts/tests/test_workflows.py.
+      - ${GOATCASH_DOCKER_CONTAINERS_DIR:-/srv/goatcash/docker/containers}:/var/lib/docker/containers:ro
     networks: [backend, egress]
     healthcheck:
       test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otelcol/collector.yaml"]
