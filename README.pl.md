@@ -13,8 +13,10 @@ bot handlowy w trybach o rosnącej autonomii.
 > **Status:** etapy **E0–E3** zakończone (bramki G0–G3 zaliczone: konta i narzędzia;
 > repozytorium, CI i sekrety; architektura, model danych i kontrakty; infrastruktura staging
 > odtwarzalna od zera, z kopiami i alertami). Następny: **E4** (pozyskiwanie danych rynkowych
-> i normalizacja). Funkcje pojawiają się zgodnie z roadmapą E0–E18; każdy etap kończy się
-> bramką jakości sprawdzaną automatycznie. Bieżący stan: `docs/stan-pracy.md`.
+> i normalizacja) w **ścieżce pracy inżynierskiej**: od E4 etapy w zakresie okrojonym
+> z bramkami pracy `G<nr>p`, a pełny produkt (roadmapa E0–E18) po obronie pracy (ADR-0008).
+> Każdy etap kończy się bramką jakości sprawdzaną automatycznie. Bieżący stan:
+> `docs/stan-pracy.md`.
 
 ## Struktura
 

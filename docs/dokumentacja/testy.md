@@ -107,6 +107,42 @@ Bramka to zestaw automatycznych sprawdzeń zapisany w pliku `gates/G<nr>.yaml` (
 - `gate-guard` działa na zdarzeniu `pull_request_target`: workflow, skrypt i reguły bramek zawsze pochodzą z `main`, a kod z PR nie jest pobierany ani uruchamiany (tylko uprawnienia do odczytu; test `test_workflow_never_runs_pr_code_with_target_trigger`). Dzięki temu PR nie może podmienić kontroli, której sam podlega (luka z #13, zamknięta w PR #46 i 10b).
 - `gate-guard` czyta etykiety PR z API w chwili uruchomienia (nie z ładunku zdarzenia), nie reaguje na `opened` i nie anuluje przebiegów: anulowany przebieg mógł zostać uznany za wynik wymaganego checka i zablokować scalenie (PR #18, 22.11.2026). PR otwarty bez etykiety nie ma checka `gate-guard`, więc ruleset blokuje scalenie do czasu dodania etykiety.
 
+## 3a. Bramki ścieżki pracy inżynierskiej (od 26.11.2026, ADR-0008)
+
+W ścieżce pracy etap kończy **bramka pracy** `G<nr>p`: plik `gates/G<nr>p.yaml` (dodaje go
+pierwszy PR etapu, razem z jobem `gate-next`, jak dotąd), raport `docs/gates/G<nr>p.md`
+i dowód `docs/gates/G<nr>p.passed.json` z `scripts/gate_pass.py`, sprawdzany przez
+`gate-guard`. Pełne bramki z sekcji 3 zostają bez zmian i obowiązują w ścieżce produktu;
+kolumna „Przechodzi do produktu” mówi, co z pełnej bramki zostaje na później. Wszystkie
+sprawdzenia bramek pracy działają w CI, chyba że zaznaczono „staging” (dowód mixed jak
+w G3: przebieg workflow na `main` z ID w pliku dowodu).
+
+Testy obowiązkowe w każdej bramce pracy: poprawność modułów analitycznych (wartości
+referencyjne liczone niezależnie: ręcznie, arkuszem albo drugą biblioteką; testy
+właściwości w Hypothesis; brak zaglądania w przyszłość) i, od E9, sposób prezentacji
+wyników użytkownikowi. Ciężkie testy (wielodniowe na staging, obciążeniowe, chaos, skany
+zewnętrzne) przechodzą do ścieżki produktu.
+
+| Bramka | Etap | Kryteria w ścieżce pracy                                                                                                                                                                                                                                                                                                                                                                                                                                        | Przechodzi do produktu (z pełnej bramki)                                                                                                               | Odblokowuje          | Status         |
+| ------ | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | -------------- |
+| G4p    | E4   | Normalizacja na nagranych odpowiedziach: 100% zgodności pól i typów; DQ wykrywa ≥ 95% z 200 wstrzykniętych błędów przy fałszywych alarmach < 1%; obsługa 429, przerwania i wznowienia uzupełniania historii (testy z atrapami); **staging:** 100% luk wykrytych i opisanych przez detektor (po stronie giełdy albo nasza, jawnie w raporcie) i kompletność ≥ 99,9% względem świec, które giełda faktycznie udostępnia, dla 20 par od 2023-01-01                 | 150 par i 4 giełdy, 72 h ciągłej pracy, Toxiproxy, 500 świec vs ponowne pobranie, agregaty, kompletność za 30 dni na żywo, test kontraktowy API (cron) | E5                   | Nie rozpoczęto |
+| G5p    | E5   | 100% cech `fs-1p` przechodzi test point-in-time (Hypothesis, 1000 losowych chwil: dane obcięte do t = pełne dane w chwili t); wartości referencyjne liczone niezależnie, różnica < 1e-9 po okresie rozgrzewki; luka w danych daje `NaN` ze statusem; dwa pełne przeliczenia historii identyczne bit w bit                                                                                                                                                       | live vs replay przez 7 dni, eksport Parquet na R2, wydajność 150 par ≤ 60 s                                                                            | E7, E8, E11          | Nie rozpoczęto |
+| G6p    | E6   | Schemathesis: 0 odpowiedzi niezgodnych ze schematem i 0 błędów 500; nagłówki bezpieczeństwa i CORS sprawdzone testem; migracje w górę i w dół z danymi bez utraty danych                                                                                                                                                                                                                                                                                        | autoryzacja, IDOR, przepływy kont, k6, OWASP ZAP, schemat Better Auth                                                                                  | E12b                 | Nie rozpoczęto |
+| G7p    | E7   | Każdy z 4 agentów ma testy właściwości na danych syntetycznych (trend wzrostowy → `p_up` > 0,5, skok zmienności → szersze kwantyle i zmiana reżimu, analogie tylko sprzed `as_of`); 100% dowodów zgodnych z `Evidence` v1; agent w replay na danych obciętych do t = dowód z pełnych danych; Ledger zgodny z 200 ręcznie przeliczonymi prognozami do 1e-12; raport Brier i ECE względem punktów odniesienia (agent z ECE > 0,05 oznaczony jako eksperymentalny) | 14 dni dowodów na staging bez luk, pozostali 4 agenci, Kalman i OU, MLflow, wydajność 150 par                                                          | E8, E9               | Nie rozpoczęto |
+| G8p    | E8   | Dwa treningi z tym samym hashem danych i seedem dają identyczne predykcje; cecha-pułapka z przyszłym zwrotem wykryta i odrzucona; na danych z wbudowanym sygnałem AUC > 0,6, na szumie AUC w [0,45; 0,55]; kompletny raport walk-forward 24 h względem punktów odniesienia, z ECE i pokryciem q10–q90 (cel 75–85%, wynik raportowany uczciwie)                                                                                                                  | tryb cienia, promocja champion/challenger, dryf, rejestr MLflow, horyzonty 4 h i 7 d, wydajność inferencji                                             | E9                   | Nie rozpoczęto |
+| G9p    | E9   | Matematyka fuzji zgodna z ręcznym przeliczeniem do 1e-9; właściwości (zgodni agenci → wynik po tej samej stronie, agent z wagą 0 bez wpływu, wynik w [0, 1]); tabela przypadków reguł oceny ryzyka 100% zgodna; brak dowodu agenta → ocena z adnotacją, nigdy z nieaktualnym dowodem; raport Brier fuzji vs najlepszy agent (reguła awaryjna, gdy fuzja gorsza); 0 szablonów z trybem rozkazującym albo słowami decyzyjnymi                                     | warunek „Brier fuzji ≤ najlepszy agent” jako blokujący, ablacje, 1000 ocen wzorcowych, Indeks Gotowości, Radar                                         | E11, E12b            | Nie rozpoczęto |
+| G11p   | E11  | 3 strategie referencyjne (kup i trzymaj, przecięcie EMA, przecięcie EMA ze stałym SL i TP) zgodne z ręcznym przeliczeniem: identyczne transakcje, kapitał końcowy różnica < 0,01%; metryki zgodne ze wzorami na znanych seriach do 1e-6; strategia-pułapka nie ma dostępu do przyszłej ceny; świeca dotykająca SL i TP rozliczona jako SL; 1 aktywo, 1 h, 3 lata ≤ 10 s                                                                                         | 5 strategii referencyjnych, wektorowy vs zdarzeniowy, fuzzing DSL, DSR i PBO                                                                           | E12b                 | Nie rozpoczęto |
+| G12p   | E12  | Makiety i mini design system w repo (E12a); Vitest komponentów z danymi brzegowymi (brak danych, wartości skrajne); Playwright (Chromium) dla 4 zadań kluczowych i backtestu; axe: 0 naruszeń krytycznych i poważnych na każdym widoku; informacja „to nie jest porada inwestycyjna” na 100% widoków; typy klienta z OpenAPI (`tsc`); test z 3 osobami (4 zadania + SUS) z raportem                                                                             | 5/5 osób, Lighthouse ≥ 90, Firefox, WebKit i mobile, regresja wizualna, EN i PWA                                                                       | koniec ścieżki pracy | Nie rozpoczęto |
+
+**Egzekwowanie w ścieżce pracy:** `gates/requirements.yaml` ma przełącznik `sciezka`
+(`praca` albo `produkt`) i mapę zależności dla każdej ścieżki; `gate-guard` czyta je
+z `main`, więc PR nie może zmienić ścieżki dla samego siebie. W ścieżce pracy PR z etykietą
+etapu odłożonego (E10, E10a, E11a, E13–E18) jest odrzucany. Powrót do produktu = jeden PR
+właściciela ze zmianą `sciezka: produkt` (`docs/start-nowej-rozmowy.md`, sekcja
+„Przełączenie na ścieżkę produktu”). Wdrożenie przełącznika i nazw `G<nr>p` w `gate_guard`,
+`gate_pass` i `gate`: osobny PR z niezależnym recenzentem (zgoda właściciela 26.11.2026),
+przed pierwszym PR-em E4.
+
 ## 4. Pipeline CI/CD
 
 | Krok                            | Wyzwalacz                                         | Zawartość                                                                                                                                                                                      | Czas docelowy         | Przy niepowodzeniu                           |
@@ -120,5 +156,14 @@ Bramka to zestaw automatycznych sprawdzeń zapisany w pliku `gates/G<nr>.yaml` (
 | 7. Nocne                        | Cron 02:00 UTC                                    | Testy kontraktowe zewnętrznych API na żywo, pełny ZAP baseline, test odtworzenia kopii (tygodniowo), raport dryfu modeli                                                                       | do 1 h                | Zadanie naprawcze na kolejny dzień           |
 | 8. Bramka etapu                 | Ręcznie na `main` (`gate.yml`)                    | Testy z `gates/G<nr>.yaml`, raport, plik `.passed.json`                                                                                                                                        | zależnie od bramki    | Bramka niezaliczona; lista braków w raporcie |
 | 9. Wdrożenie produkcji (od E16) | Tag wersji + zatwierdzenie w GitHub Environment   | Te same obrazy co staging (bez przebudowy), blue-green, test dymny, monitoring 30 min                                                                                                          | < 15 min + obserwacja | Automatyczny powrót do poprzedniej wersji    |
+
+**Szybsze CI w ścieżce pracy (ADR-0008, punkt 7; jawne odstępstwo od kroku 3):** job
+`zmiany` w `ci.yml` sprawdza pliki zmienione w PR. Obrazy (build i Trivy amd64 i arm64)
+budują się w PR tylko przy zmianie `Dockerfile`, `.dockerignore`, `pyproject.toml`, `uv.lock`
+albo `ci.yml`; bramki na macOS (bash 3.2, narzędzia BSD) tylko przy zmianie `*.sh`,
+`Makefile`, `scripts/`, `gates/`, `infra/` albo `ci.yml`. Na `main` i przy ręcznym
+uruchomieniu zawsze działa wszystko, a wdrożenie staging czeka na zielone `ci-ok` na `main`.
+`ci-ok` akceptuje pominięcie (`skipped`) tylko dla joba obrazów; job `zmiany` musi być
+zielony. Raport pokrycia zależy od testów, nie od obrazów.
 
 **Zasada niezmiennych artefaktów:** na produkcję trafia dokładnie ten obraz (ten sam skrót SHA), który przeszedł testy na staging. Konfiguracja różni się tylko zaszyfrowanymi sekretami i zmiennymi środowiska.

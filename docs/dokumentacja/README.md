@@ -20,7 +20,16 @@ aktualizowana.
 - ✅ zrobione i sprawdzone; obok jest dowód (plik, przebieg CI, raport bramki),
 - ⚠️ zrobione według właściciela, ale bez dowodu w repozytorium (do potwierdzenia),
 - ⏳ w toku,
-- ⬜ nie rozpoczęto.
+- ⬜ nie rozpoczęto,
+- ⏸ odłożone do ścieżki produktu (realizacja po obronie pracy, ADR-0008).
 
-Etap jest zaliczony dopiero wtedy, gdy jego bramka ma plik `docs/gates/G<nr>.passed.json`,
+## Dwie ścieżki (od 26.11.2026)
+
+Teraz realizujemy **ścieżkę pracy inżynierskiej**: zakres pracy i tabele w
+[`fundamenty.md`, sekcja 0](fundamenty.md#0-zakres-pracy-inżynierskiej), kolejność etapów
+w tabeli „Kolejność prac” na początku [`roadmapa.md`](roadmapa.md), bramki pracy `G<nr>p`
+w [`testy.md`, sekcja 3a](testy.md). Pełny produkt (karty etapów, pełne bramki) zostaje
+opisany obok i wraca po obronie. Mapa rozdziałów pracy: [`../praca/README.md`](../praca/README.md).
+
+Etap jest zaliczony dopiero wtedy, gdy jego bramka (w ścieżce pracy: bramka pracy `G<nr>p`) ma plik `docs/gates/G<nr>.passed.json` (albo `G<nr>p.passed.json`),
 który sprawdza `gate-guard`. Bieżący stan pracy i następne kroki: [`../stan-pracy.md`](../stan-pracy.md).

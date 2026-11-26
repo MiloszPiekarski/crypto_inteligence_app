@@ -6,6 +6,33 @@ _(W Claude Docs w tym miejscu jest interaktywna mapa etapów: 5 faz, 18 etapów,
 
 Fazy nie są wodospadem: w ich obrębie etapy niezależne mogą biec równolegle (np. E6 obok E4–E5, E10 obok E11), ale żaden etap nie startuje przed zaliczeniem bramek, od których zależy.
 
+## Kolejność prac: ścieżka pracy inżynierskiej (od 26.11.2026)
+
+Projekt ma dwie ścieżki realizacji (ADR-0008, `fundamenty.md`, sekcja 0). **Teraz obowiązuje
+ścieżka pracy:** etapy z tabeli poniżej w wersji okrojonej do minimum spełniającego zakres
+pracy inżynierskiej. Karty etapów niżej nadal opisują pełny produkt; w karcie każdego etapu
+ścieżki pracy podsekcja **„Ścieżka pracy inżynierskiej”** mówi, co robimy teraz
+(„Zakres w ścieżce pracy”, nadrzędny wobec „Zakresu prac” do czasu powrotu do produktu)
+i co przechodzi do produktu („Dokończenie w ścieżce produktu”). Kryteria bramek pracy
+`G<nr>p`: `testy.md`, sekcja 3a. Zależności egzekwuje `gate-guard` (`gates/requirements.yaml`).
+
+| Kolejność | Etap | Zależności (ścieżka pracy)                | Minimum w ścieżce pracy                                                                           | Bramka pracy | Status |
+| --------- | ---- | ----------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------ | ------ |
+| 1         | E4   | G3                                        | 2 giełdy, 20 par, świece 1 h od 2023-01-01, detektor luk, DQ, cena referencyjna                   | G4p          | ⬜     |
+| 2         | E5   | G4p                                       | `MarketView(as_of)`, ok. 15–20 cech `fs-1p`, test point-in-time, wartości referencyjne            | G5p          | ⬜     |
+| 3         | E6   | G2, G3 (może biec równolegle z E4–E5)     | API tylko do odczytu, bez kont użytkowników                                                       | G6p          | ⬜     |
+| 4         | E12a | G2 (może biec równolegle; zalecane po E5) | persony, 4 zadania kluczowe, makiety w Figma Free, mini design system                             | część G12p   | ⬜     |
+| 5         | E7   | G5p                                       | agenci Trend, Ryzyko i zmienność, Reżim, Historyczny (kNN); 2 punkty odniesienia; Ledger          | G7p          | ⬜     |
+| 6         | E8   | G5p, G7p                                  | LightGBM: kierunek + kwantyle 24 h, walk-forward, uczciwy raport, bez MLOps                       | G8p          | ⬜     |
+| 7         | E9   | G7p, G8p                                  | fuzja, ocena ryzyka, komunikaty ostrzegawcze, podpowiedzi z szablonów bez LLM                     | G9p          | ⬜     |
+| 8         | E11  | G5p, G9p                                  | silnik backtestu, 3 strategie, metryki (zwrot, Sharpe, maks. obsunięcie, trafność)                | G11p         | ⬜     |
+| 9         | E12b | G6p, G9p, G11p                            | panel wyników (wykresy, wskaźniki, agenci, ryzyko, scenariusze ML, ostrzeżenia), test z 3 osobami | G12p         | ⬜     |
+
+**Odłożone do ścieżki produktu (⏸, karty bez zmian):** E10, E10a, E11a, E13, E14 (a–c),
+E15, E16, E17, E18, z E0 konto Resend (klucz API i sprawdzenie w E13), a w etapach ścieżki
+pracy wszystko z podsekcji „Dokończenie w ścieżce produktu”. Powrót do produktu:
+`docs/start-nowej-rozmowy.md`, sekcja „Przełączenie na ścieżkę produktu”.
+
 ## E0. Konta, narzędzia i środowisko lokalne
 
 Etap kończy się, gdy wszystkie konta istnieją z 2FA, klucze są w menedżerze haseł, a skrypt `doctor` potwierdza gotowość komputera.
@@ -49,17 +76,17 @@ Klucze nie trafiają jeszcze nigdzie poza menedżer haseł i lokalny plik `.env.
 
 ### Stan realizacji E0 (✅ zrobione z dowodem · ⚠️ brak dowodu w repo, do potwierdzenia)
 
-| Punkt                                                   | Stan              | Dowód                                                                                                                                                        |
-| ------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1. E-mail projektu, Bitwarden                           | ✅                | przegląd ręczny 15 kont, `docs/gates/G0.md`                                                                                                                  |
-| 2. GitHub z 2FA, repo                                   | ✅                | przegląd ręczny; repo `MiloszPiekarski/crypto_inteligence_app` istnieje                                                                                      |
-| 3. Oracle: region UE, PAYG, alarm 1 USD, użytkownik IAM | ✅                | `doctor.sh`: region eu-amsterdam-1, CLI jako IAM `terraform`; PAYG i budżet `alarm-1usd`: `G0.md` (Uwagi)                                                    |
-| 4. Cloudflare, domena `goatcash.app`                    | ✅ domena · ⚠️ R2 | domena: opis w punkcie 4 i TMview; **włączenie R2 nie ma dowodu w repo**                                                                                     |
-| 5. Anthropic, Gemini, OpenRouter                        | ✅                | `doctor.sh`: HTTP 200 i odpowiedź modelu; limit OpenRouter 5 USD sprawdzany automatycznie; limit Anthropic 10 USD ustawiony ręcznie w konsoli (bez automatu) |
-| 6. CoinGecko Demo                                       | ✅                | `doctor.sh`: cena BTC                                                                                                                                        |
-| 7. Grafana, Sentry, Better Stack, Resend, Telegram      | ⚠️                | konta Grafana i Better Stack pokazane na zrzutach; Sentry na koncie prywatnym (przepięcie w E3/E6); **Resend i bot Telegram bez dowodu w repo**              |
-| 8. Narzędzia na komputerze                              | ✅                | `doctor.sh` 36/36 PASS (macOS, 22.11.2026)                                                                                                                   |
-| 9. `scripts/doctor.sh`                                  | ✅                | plik w repo; uruchamiany przez `make gate G=0`                                                                                                               |
+| Punkt                                                   | Stan          | Dowód                                                                                                                                                                                                                                              |
+| ------------------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. E-mail projektu, Bitwarden                           | ✅            | przegląd ręczny 15 kont, `docs/gates/G0.md`                                                                                                                                                                                                        |
+| 2. GitHub z 2FA, repo                                   | ✅            | przegląd ręczny; repo `MiloszPiekarski/crypto_inteligence_app` istnieje                                                                                                                                                                            |
+| 3. Oracle: region UE, PAYG, alarm 1 USD, użytkownik IAM | ✅            | `doctor.sh`: region eu-amsterdam-1, CLI jako IAM `terraform`; PAYG i budżet `alarm-1usd`: `G0.md` (Uwagi)                                                                                                                                          |
+| 4. Cloudflare, domena `goatcash.app`                    | ✅            | domena: opis w punkcie 4 i TMview; R2: dowód z E3 (kopie pgBackRest w R2, `restore-test` 45502801764: 50/50 tabel z R2; tokeny R2 HTTP 200, `docs/gates/G3.md`)                                                                                    |
+| 5. Anthropic, Gemini, OpenRouter                        | ✅            | `doctor.sh`: HTTP 200 i odpowiedź modelu; limit OpenRouter 5 USD sprawdzany automatycznie; limit Anthropic 10 USD ustawiony ręcznie w konsoli (bez automatu)                                                                                       |
+| 6. CoinGecko Demo                                       | ✅            | `doctor.sh`: cena BTC                                                                                                                                                                                                                              |
+| 7. Grafana, Sentry, Better Stack, Resend, Telegram      | ✅ · ⏸ Resend | dowód z E3: Grafana i bot Telegram (`alert-drill` 45494553367, alert doręczony e-mailem i na Telegram), Better Stack (testowy alert 26.11.2026); Sentry na koncie prywatnym (przepięcie: ⏸ produkt); Resend: konto bez klucza API, ⏸ produkt (E13) |
+| 8. Narzędzia na komputerze                              | ✅            | `doctor.sh` 36/36 PASS (macOS, 22.11.2026)                                                                                                                                                                                                         |
+| 9. `scripts/doctor.sh`                                  | ✅            | plik w repo; uruchamiany przez `make gate G=0`                                                                                                                                                                                                     |
 
 Bramka **G0: zaliczona** · dowód: `docs/gates/G0.md`, `docs/gates/G0.passed.json` (dowód lokalny, patrz zakładka Testy, sekcja 3).
 
@@ -261,7 +288,7 @@ Bramka **G3: zaliczona** · dowód: `docs/gates/G3.md`, `docs/gates/G3.passed.js
 
 ## E4. Pozyskiwanie danych rynkowych i normalizacja
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⬜ nie rozpoczęto · ścieżka pracy: zakres okrojony, bramka G4p (pełny zakres: ⏸ produkt)
 
 Etap kończy się, gdy dla 150 par z czterech giełd dane płyną na żywo, historia jest uzupełniona, a kontrola jakości wykrywa celowo wstrzyknięte błędy.
 
@@ -273,6 +300,40 @@ Etap kończy się, gdy dla 150 par z czterech giełd dane płyną na żywo, hist
 | Koszty     | 0 (publiczne API, CoinGecko Demo, DefiLlama, RSS)                                                                                           |
 | Rezultat   | Moduł `marketdata` z adapterami, proces `ingest`, zadania uzupełniania historii, Data Quality Sentinel, cena referencyjna, zbieranie newsów |
 | Bramka G4  | Kompletność ≥ 99,9% świec 1 h za 30 dni; DQ wykrywa ≥ 95% wstrzykniętych błędów; 72 h ciągłej pracy bez interwencji                         |
+
+### Ścieżka pracy inżynierskiej (bramka G4p, ADR-0008)
+
+**Zakres w ścieżce pracy** (obowiązuje teraz; numery punktów odnoszą się do „Zakresu prac” poniżej):
+
+1. Interfejs `MarketDataSource` z punktu 1 (w ścieżce pracy zaimplementowane `instruments()`
+   i `candles(range)`; pozostałe metody zadeklarowane, implementacja w produkcie) i dwa adaptery
+   przez ccxt: giełda główna i druga, wybrane z OKX, Bybit, Coinbase, Kraken. Na początku etapu
+   sprawdzamy dostęp z serwera staging (Amsterdam) i z GitHub Actions; wybór i powód w raporcie G4p.
+2. Normalizacja jak w punkcie 2 (symbole `BTC-USDT`, UTC w milisekundach, `Decimal`, precyzja).
+3. Uniwersum: stała lista 20 par obecnych na obu giełdach (plik konfiguracyjny), metadane
+   z CoinGecko Demo.
+4. Świece 1 h przez REST: uzupełnianie historii od 2023-01-01 z punktami kontrolnymi (wznawialne,
+   w limitach zapytań giełdy), potem pobieranie co godzinę na staging (proces `ingest`).
+5. Detektor luk: oczekiwane vs obecne świece; każda luka sklasyfikowana jako „po stronie
+   giełdy” (giełda nie udostępnia świecy, potwierdzone ponownym zapytaniem) albo „nasza”
+   (zlecone uzupełnienie); zapis w `dq_events`.
+6. Data Quality: reguły z punktu 8 (OHLC spójne, wolumen ≥ 0, brak duplikatów, odchylenie
+   od drugiej giełdy > 3%, skok ceny > 8 odchyleń standardowych, brak nowej świecy 1 h dłużej
+   niż 2 h); wynik `dq_status` per aktyw i giełda.
+7. Cena referencyjna `candles_ref`: mediana źródeł z poprawnym statusem DQ (przy dwóch
+   źródłach średnia; gdy jedno ma zły status, drugie z adnotacją).
+8. Zdarzenie `candle.closed` w Valkey Streams po zapisie świecy (kontrakt z E2).
+9. Workflow raportu danych (uruchamiany na `main`, czyta bazę staging): kompletność względem
+   świec udostępnianych przez giełdę i lista luk z klasyfikacją; dowód G4p. Pierwsze
+   uruchomienie nowego workflow na serwerze wymaga zgody właściciela (`CLAUDE.md`).
+
+**Dokończenie w ścieżce produktu:** 150 par i 4 giełdy z cotygodniowym doborem uniwersum (top 150 na ≥ 2 giełdach);
+websockety świec 1 min i transakcji (`trades_agg_1m`), funding i OI co 5 min, order book
+top 20 co 1 min; agregaty ciągłe 5 min–1 d; historia 1 h i 1 d od 2019 oraz 1 min za 2 lata
+dla top 30; dane dodatkowe (DefiLlama, Fear & Greed, RSS, FRED); wspólny token bucket
+w Valkey z metrykami 429; wykrywanie zawieszonego strumienia; testy: 500 świec vs ponowne
+pobranie, agregaty vs giełda, Toxiproxy, 72 h na staging, codzienny test kontraktowy API
+giełd. Pełna bramka G4.
 
 ### Zakres prac
 
@@ -306,7 +367,7 @@ Giełda (websocket/REST) → adapter → normalizacja → walidacja DQ → zapis
 
 ## E5. Magazyn danych i point-in-time feature store
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⬜ nie rozpoczęto · ścieżka pracy: zakres okrojony, bramka G5p (pełny zakres: ⏸ produkt)
 
 Etap kończy się, gdy ta sama biblioteka cech daje bit w bit identyczne wyniki na żywo i przy odtwarzaniu historii, a test "brak zaglądania w przyszłość" przechodzi dla wszystkich cech.
 
@@ -318,6 +379,28 @@ Etap kończy się, gdy ta sama biblioteka cech daje bit w bit identyczne wyniki 
 | Koszty     | 0                                                                                                                                         |
 | Rezultat   | Moduł `features` (ok. 60 cech w wersji `fs-1`), zadanie liczenia po `candle.closed`, eksport Parquet na R2, polityki retencji i kompresji |
 | Bramka G5  | 100% cech przechodzi test point-in-time; zgodność live vs replay; wartości referencyjne wskaźników zgodne z niezależną implementacją      |
+
+### Ścieżka pracy inżynierskiej (bramka G5p, ADR-0008)
+
+**Zakres w ścieżce pracy** (obowiązuje teraz; numery punktów odnoszą się do „Zakresu prac” poniżej):
+
+1. `MarketView(as_of)` dokładnie jak w punkcie 1 (jedyny dostęp agentów i cech do danych;
+   `time < as_of`, w replay także `ingested_at ≤ as_of`).
+2. Cechy `fs-1p` (ok. 15–20) ze świec 1 h `candles_ref`: zwroty log (1, 4, 24, 168 h),
+   zmienność zrealizowana i Parkinsona, ATR, RSI, MACD, ADX, EMA i ich nachylenie, wstęgi
+   Bollingera, z-score ceny, Donchian, wolumen względny, korelacja z BTC.
+3. Implementacja w Polars z deklaracją okna i źródeł (punkt 3); wersjonowanie `feature_sets`
+   z hashem definicji (punkt 4).
+4. Zapis `feature_values`; zadanie liczenia po `candle.closed` i pełne przeliczenie historii
+   jako zadanie wsadowe; zdarzenie `features.ready` (punkt 7).
+5. Braki danych: cecha = `NaN` + status, nigdy cicha interpolacja.
+6. Wzory, okna i ograniczenia cech w `docs/praca/metody.md` (przy domknięciu etapu).
+
+**Dokończenie w ścieżce produktu:** pozostałe cechy do ok. 60 w `fs-1` (nierównowaga kupna i sprzedaży, funding i jego
+z-score, zmiana OI, rozpiętość i głębokość order booku, dominacja BTC, Fear & Greed, TVL;
+wymagają danych z pełnego E4); eksport miesięczny Parquet na R2 (DuckDB); retencja
+i kompresja; testy: live vs replay przez 7 dni, wydajność 150 par ≤ 60 s, eksport.
+Pełna bramka G5.
 
 ### Zakres prac
 
@@ -346,7 +429,7 @@ Etap kończy się, gdy ta sama biblioteka cech daje bit w bit identyczne wyniki 
 
 ## E6. Backend API, użytkownicy, konta i uprawnienia
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⬜ nie rozpoczęto · ścieżka pracy: zakres okrojony, bramka G6p (pełny zakres: ⏸ produkt)
 
 Etap kończy się, gdy użytkownik może założyć konto, włączyć 2FA i pobrać dane rynkowe przez API z kontrolą uprawnień i limitów, a testy kontraktowe potwierdzają zgodność z OpenAPI.
 
@@ -358,6 +441,26 @@ Etap kończy się, gdy użytkownik może założyć konto, włączyć 2FA i pobr
 | Koszty     | 0 (Resend w planie darmowym)                                                                                                                                         |
 | Rezultat   | Proces `api`; endpointy rynkowe; Better Auth w Next.js (e-mail + hasło, Google OAuth, TOTP, passkeys); JWT/JWKS; role; limity; audyt; panel administratora (minimum) |
 | Bramka G6  | Testy kontraktowe i bezpieczeństwa zielone; brak dostępu do cudzych danych w testach IDOR                                                                            |
+
+### Ścieżka pracy inżynierskiej (bramka G6p, ADR-0008)
+
+**Zakres w ścieżce pracy** (obowiązuje teraz; numery punktów odnoszą się do „Zakresu prac” poniżej):
+
+1. FastAPI jak w punkcie 1: routery per moduł, błędy RFC 9457, paginacja kursorowa, `/v1`,
+   nagłówki bezpieczeństwa, CORS tylko dla `app.goatcash.app`.
+2. Endpointy tylko do odczytu: `GET /v1/assets`, `/v1/assets/{id}`, `/v1/candles`,
+   `/v1/market/overview` (bez WebSocket). Kolejne etapy dokładają swoje endpointy odczytu
+   (E7 dowody i agenci, E9 oceny, E11 backtest).
+3. Cache odpowiedzi w Valkey z TTL dopasowanym do interwału i unieważnianiem po
+   `candle.closed` (punkt 8).
+4. Specyfikacja OpenAPI i klient TypeScript w `packages/contracts` zgodne z kodem.
+
+W ścieżce pracy nie ma kont, logowania ani danych użytkowników.
+
+**Dokończenie w ścieżce produktu:** Better Auth (e-mail i hasło, Google OAuth, TOTP, passkeys), JWT/JWKS, role
+i `require_owner`, limity sliding window z nagłówkami `RateLimit-*`, profil, zgody i RODO,
+audyt, panel administratora, WebSocket `/v1/stream`; testy: autoryzacja, IDOR, przepływy
+kont w Playwright, k6, OWASP ZAP, schemat Better Auth. Pełna bramka G6.
 
 ### Zakres prac
 
@@ -390,7 +493,7 @@ Przeglądarka → Cloudflare → Next.js (sesja Better Auth, ciasteczko HttpOnly
 
 ## E7. Agenci analityczni rdzenia, tablica dowodów i Forecast Ledger
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⬜ nie rozpoczęto · ścieżka pracy: zakres okrojony, bramka G7p (pełny zakres: ⏸ produkt)
 
 Etap kończy się, gdy siedmiu agentów regułowo-statystycznych publikuje dowody dla 150 par po każdej świecy, a Ledger automatycznie rozlicza ich prognozy i liczy metryki względem punktów odniesienia.
 
@@ -402,6 +505,36 @@ Etap kończy się, gdy siedmiu agentów regułowo-statystycznych publikuje dowod
 | Koszty     | 0                                                                                                                                                                                      |
 | Rezultat   | Moduły `agents` i `ledger`; agenci: Data Quality (z E4 jako agent), Regime (HMM), Trend, Mean Reversion, Volatility & Risk (GARCH), Levels, Derivatives; punkty odniesienia; Evaluator |
 | Bramka G7  | Każdy agent ma testy właściwości; 14 dni dowodów na staging bez luk; Ledger zgadza się z ręcznym przeliczeniem                                                                         |
+
+### Ścieżka pracy inżynierskiej (bramka G7p, ADR-0008)
+
+**Zakres w ścieżce pracy** (obowiązuje teraz; numery punktów odnoszą się do „Zakresu prac” poniżej):
+
+1. Klasa bazowa `Agent` i rejestr w YAML, dostęp tylko przez `MarketView` (punkt 1);
+   tablica dowodów z idempotencją i zdarzeniem `evidence.published` (punkt 2).
+2. Czterech agentów, horyzont 24 h:
+   - _Trend:_ EMA (z nachyleniem) i ADX → `p_up` przez kalibrowaną regresję logistyczną
+     na historii;
+   - _Ryzyko i zmienność:_ GARCH(1,1) i EWMA → kwantyle zwrotu, VaR 95%, CVaR;
+   - _Reżim:_ HMM z 4–5 stanami na zwrotach i zmienności, etykiety stanów po średniej
+     i wariancji, filtr online;
+   - _Historyczny_ (analiza historycznych danych rynkowych, agent dodany w ścieżce pracy):
+     k najbliższych sąsiadów w przestrzeni znormalizowanych cech `fs-1p`, wyłącznie sytuacje
+     zakończone przed `as_of` (odstęp równy horyzontowi); `p_up` i kwantyle z rozkładu
+     zwrotów po analogiach, liczba analogii i ich daty w `facts`.
+3. Punkty odniesienia `baseline_50` i `baseline_freq` (punkt 4).
+4. Forecast Ledger i Evaluator (punkt 5): zapis prognozy z hashem przed faktem, rozliczenie
+   po upływie horyzontu, Brier, log-loss, pinball, pokrycie przedziałów, ECE per agent ×
+   reżim × horyzont.
+5. Endpointy odczytu: `/v1/assets/{id}/evidence`, `/v1/agents`, `/v1/agents/{name}/metrics`.
+6. Kalibracja wstępna agentów walk-forward na historii od 2023 (parametry zapisane w repo
+   albo w artefakcie z hashem danych; bez MLflow).
+
+**Dokończenie w ścieżce produktu:** agenci Mean Reversion (z procesem Ornsteina-Uhlenbecka), Levels, Derivatives i Data
+Quality jako agent; filtr Kalmana, Donchian i momentum w agencie Trend; ryzyko płynności
+z order booku; punkty odniesienia `baseline_persistence` i `baseline_vol`; MLflow; pełna
+lista agentów z punktu 3; testy: 14 dni dowodów na staging bez luk, wydajność 150 par
+≤ 60 s, Kalman i OU na szeregach syntetycznych. Pełna bramka G7.
 
 ### Zakres prac
 
@@ -444,7 +577,7 @@ Etap kończy się, gdy siedmiu agentów regułowo-statystycznych publikuje dowod
 
 ## E8. Modele ML: trening, walidacja, rejestr i MLOps
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⬜ nie rozpoczęto · ścieżka pracy: zakres okrojony, bramka G8p (pełny zakres: ⏸ produkt)
 
 Etap kończy się, gdy ML Forecaster i Anomaly Agent są trenowane automatycznie co tydzień, promowane wyłącznie przez bramkę champion/challenger, a każdy wynik da się odtworzyć z MLflow.
 
@@ -456,6 +589,28 @@ Etap kończy się, gdy ML Forecaster i Anomaly Agent są trenowane automatycznie
 | Koszty     | 0 (trening na CPU A1 w nocy)                                                                                                                                            |
 | Rezultat   | MLflow (śledzenie + rejestr, artefakty na R2), pipeline treningowy, ML Forecaster (LightGBM, kierunek + kwantyle dla 4 h / 24 h / 7 d), Anomaly Agent, monitoring dryfu |
 | Bramka G8  | Odtwarzalność treningu; brak wycieku w walidacji; raport walk-forward z punktami odniesienia; działający tryb cienia                                                    |
+
+### Ścieżka pracy inżynierskiej (bramka G8p, ADR-0008)
+
+**Zakres w ścieżce pracy** (obowiązuje teraz; numery punktów odnoszą się do „Zakresu prac” poniżej):
+
+1. Etykiety jak w punkcie 1, jeden horyzont: 24 h.
+2. Zbiór treningowy z `feature_values` (`fs-1p`), z bazy albo lokalnego pliku Parquet
+   (bez R2), z zapisanym hashem zbioru.
+3. Walidacja jak w punkcie 3: walk-forward z oknem rozszerzającym, purging równy horyzontowi,
+   embargo 1%, zbiór zamknięty = ostatnie 6 miesięcy.
+4. Model kierunku: LightGBM + kalibracja izotoniczna (punkt 4); model kwantyli q10, q50, q90
+   z korektą conformal (punkt 5).
+5. Hiperparametry: mała stała siatka, wybór na walidacji, nigdy na zbiorze zamkniętym.
+6. Agent `ml_forecaster` publikujący `Evidence` (`p_up` i kwantyle 24 h) z modelu zapisanego
+   jako artefakt z hashem danych, seedem i commitem; trening uruchamiany skryptem.
+7. Raport walk-forward względem punktów odniesienia i agentów z E7, wynik raportowany
+   uczciwie także bez przewagi (`docs/praca/`).
+
+**Dokończenie w ścieżce produktu:** horyzonty 4 h i 7 d; MLflow (śledzenie, rejestr `challenger`/`champion`, artefakty
+na R2, UI przez Tailscale); Optuna (100 prób); SHAP w `facts`; Anomaly Agent; tryb cienia
+14 dni i skrypt promocji; monitoring dryfu (PSI); cotygodniowy retrening; testy: promocja,
+dryf, wydajność inferencji. Pełna bramka G8.
 
 ### Zakres prac
 
@@ -491,7 +646,7 @@ R2 (Parquet) → trening → MLflow (model + metryki + hash danych + commit) →
 
 ## E9. Fuzja, Risk Governor i Indeks Gotowości
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⬜ nie rozpoczęto · ścieżka pracy: zakres okrojony, bramka G9p (pełny zakres: ⏸ produkt)
 
 Etap kończy się, gdy dla każdego aktywa powstaje jedna skalibrowana ocena z miarą niezgody agentów, Risk Governor poprawnie stosuje weto, a fuzja w walk-forward nie jest gorsza od najlepszego pojedynczego agenta.
 
@@ -503,6 +658,32 @@ Etap kończy się, gdy dla każdego aktywa powstaje jedna skalibrowana ocena z m
 | Koszty     | 0                                                                                                                                               |
 | Rezultat   | Moduł `fusion`: stacking + wagi multiplikatywne per reżim + kalibracja; Risk Governor z regułami; Indeks Gotowości 0–100; Radar okazji; ablacje |
 | Bramka G9  | Brier fuzji ≤ Brier najlepszego agenta (walk-forward); wszystkie reguły weta pokryte testami; raport ablacji                                    |
+
+### Ścieżka pracy inżynierskiej (bramka G9p, ADR-0008)
+
+**Zakres w ścieżce pracy** (obowiązuje teraz; numery punktów odnoszą się do „Zakresu prac” poniżej):
+
+1. Wejście fuzji jak w punkcie 1: `p_up` agentów (bez wag zerowych), reżim, niepewności,
+   status DQ.
+2. Fuzja: regresja logistyczna na prognozach agentów (walk-forward) + kalibracja izotoniczna.
+   Reguła awaryjna: gdy w walk-forward fuzja ma gorszy Brier niż najlepszy agent, ocena łączna
+   = najlepszy agent, a raport G9p to opisuje.
+3. Niezgoda (entropia i rozrzut `p_up`) i kwantyle ocen (mediana ważona + korekta conformal),
+   punkty 4–5.
+4. Ocena ryzyka (reguły wersjonowane w YAML; odpowiednik Risk Governora bez bota): zły status
+   DQ, reżim paniki, VaR powyżej progu, niezgoda powyżej progu → poziom `niskie`,
+   `podwyższone` albo `wysokie` + lista powodów.
+5. Komunikaty ostrzegawcze i podpowiedzi z szablonów (bez LLM), wyłącznie opisowe: zakaz
+   trybu rozkazującego i słów decyzyjnych („kup”, „sprzedaj”, „wejdź”, „zamknij”),
+   sprawdzany testem słownikowym; każda odpowiedź z oceną zawiera informację, że to nie jest
+   porada inwestycyjna.
+6. Zapis `assessments` + `assessment.updated`; endpoint `/v1/assets/{id}/assessment`,
+   `/v1/market/overview` rozszerzony o oceny.
+
+**Dokończenie w ścieżce produktu:** wagi Hedge per reżim, Indeks Gotowości 0–100, Radar okazji (`/v1/radar`,
+`/v1/market/readiness`), ablacje i udział Shapleya, weto dla bota (stan `weto`) i reguła
+zdarzeń z E10a, 1000 ocen wzorcowych (golden files); warunek „Brier fuzji ≤ najlepszy agent”
+jako blokujący. Pełna bramka G9.
 
 ### Zakres prac
 
@@ -536,7 +717,7 @@ Od E10a Risk Governor ma dodatkową regułę: niepotwierdzone zdarzenie wysokiej
 
 ## E10. Warstwa LLM: bramka, Narrator, newsy i sentyment, RAG, ewaluacja
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⏸ odłożone (produkt): realizacja po obronie pracy (ADR-0008); karta bez zmian
 
 Etap kończy się, gdy narracje i analiza newsów działają dla 150 par, każda liczba w tekście przechodzi walidację względem dowodów, a zmiana promptu lub modelu jest możliwa tylko po przejściu zbioru ewaluacyjnego.
 
@@ -582,7 +763,7 @@ Etap kończy się, gdy narracje i analiza newsów działają dla 150 par, każda
 
 ## E10a. Agent Zdarzeń (Event Intelligence)
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⏸ odłożone (produkt): realizacja po obronie pracy (ADR-0008); karta bez zmian
 
 Etap kończy się, gdy platforma w ciągu kilku minut od pojawienia się istotnego zdarzenia pokazuje:
 
@@ -656,7 +837,7 @@ Newsy, komunikaty, on-chain → detektor (klastry) → weryfikator → ekstrakto
 
 ## E11. Backtesting i ocena strategii
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⬜ nie rozpoczęto · ścieżka pracy: zakres okrojony, bramka G11p (pełny zakres: ⏸ produkt)
 
 Etap kończy się, gdy silnik backtestów daje wyniki zgodne z ręcznie przeliczonymi strategiami referencyjnymi, uruchamia ten sam kod agentów co produkcja i ostrzega użytkownika przed przeuczeniem.
 
@@ -668,6 +849,28 @@ Etap kończy się, gdy silnik backtestów daje wyniki zgodne z ręcznie przelicz
 | Koszty     | 0                                                                                                                                                           |
 | Rezultat   | Moduł `backtest` (silnik zdarzeniowy), DSL strategii (JSON Schema), model kosztów, metryki, walk-forward, DSR i PBO, kolejka z limitami, endpointy, raporty |
 | Bramka G11 | Zgodność z 5 strategiami referencyjnymi; test braku zaglądania w przyszłość; wydajność w limicie                                                            |
+
+### Ścieżka pracy inżynierskiej (bramka G11p, ADR-0008)
+
+**Zakres w ścieżce pracy** (obowiązuje teraz; numery punktów odnoszą się do „Zakresu prac” poniżej):
+
+1. Silnik zdarzeniowy na `MarketView(as_of)` jak w punkcie 2: decyzja na zamknięciu świecy,
+   wykonanie na otwarciu następnej, SL i TP sprawdzane na high/low z konserwatywną kolejnością
+   (najpierw strata).
+2. Strategie z parametrami: kup i trzymaj, przecięcie EMA (opcjonalnie ze stałym SL i TP),
+   sygnał oceny łącznej z E9 z progiem. Konfiguracja jako walidowany JSON (podzbiór DSL
+   z punktu 1, bez dowolnego kodu użytkownika).
+3. Koszty: prowizja taker giełdy + stały poślizg.
+4. Metryki: zwrot całkowity, CAGR, zmienność, Sharpe, Sortino, maks. obsunięcie i czas
+   trwania, trafność (win rate), profit factor, ekspozycja, porównanie z kup-i-trzymaj.
+5. Endpoint `POST /v1/backtests` synchroniczny, z limitem czasu i zakresu danych; wynik:
+   krzywa kapitału, obsunięcia, lista transakcji.
+
+**Dokończenie w ścieżce produktu:** pełny DSL (uniwersum, wyjścia, wielkość pozycji, limity), funding, poślizg zależny
+od wolumenu i zmienności, walk-forward strategii, Deflated Sharpe Ratio i PBO (F-36), tryb
+wektorowy (vectorbt), kolejka arq z limitami i cache, raport per reżim i CSV,
+`/v1/strategies/templates`; testy: 5 strategii referencyjnych (także RSI i rebalans),
+wektorowy vs zdarzeniowy, fuzzing DSL. Pełna bramka G11.
 
 ### Zakres prac
 
@@ -699,7 +902,7 @@ Użytkownik → API (walidacja DSL, limity) → kolejka → worker: dane z Times
 
 ## E11a. Pętla samouczenia: filtr decyzji, dobór strategii, strojenie
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⏸ odłożone (produkt): realizacja po obronie pracy (ADR-0008); karta bez zmian
 
 Etap kończy się, gdy system sam uczy się z wyników transakcji z backtestów i paper tradingu, które sygnały realizować, którą strategię wybrać w danym reżimie i jak stroić parametry. Każda zmiana jest wersjonowana, testowana w trybie cienia i odwracalna, a limity ryzyka pozostają poza zasięgiem uczenia (zakładka Fundamenty, sekcja 1a).
 
@@ -739,7 +942,7 @@ Backtest i paper → `trade_outcomes` → trening meta-modelu i aktualizacja ban
 
 ## E12. Frontend, UI/UX i design system
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⬜ nie rozpoczęto · ścieżka pracy: E12a i E12b w zakresie okrojonym, bramka G12p (pełny zakres: ⏸ produkt)
 
 Etap ma dwie części: projekt (E12a) może zacząć się już po G2, a implementacja (E12b) po G6 i G10. Kończy się, gdy pięć osób bez doświadczenia w tradingu wykonuje kluczowe zadania bez pomocy, a testy E2E, dostępności i wydajności są zielone.
 
@@ -751,6 +954,42 @@ Etap ma dwie części: projekt (E12a) może zacząć się już po G2, a implemen
 | Koszty     | Lovable Pro 1 miesiąc ok. 25 USD; reszta 0                                                                                                                                            |
 | Rezultat   | Design system w Figma i w kodzie (tokeny, komponenty shadcn), prototyp Lovable przetestowany z użytkownikami, aplikacja Next.js z widokami poniżej, PL i EN, tryb ciemny i jasny, PWA |
 | Bramka G12 | 5/5 uczestników testów wykonuje 4 zadania kluczowe; E2E zielone; axe 0 błędów krytycznych; Lighthouse ≥ 90 (wydajność, dostępność)                                                    |
+
+### Ścieżka pracy inżynierskiej (bramka G12p, ADR-0008)
+
+Zależności w ścieżce pracy: E12a: G2; E12b: G6p, G9p, G11p (bez G10: narracje LLM są w produkcie).
+
+**Zakres w ścieżce pracy, E12a (projekt GUI do pracy):**
+
+1. Persony (początkujący, średniozaawansowany) i 4 zadania kluczowe: „jak wygląda dziś
+   rynek?”, „co mówią agenci o tym aktywie i dlaczego?”, „jakie jest ryzyko i jakie są
+   scenariusze?”, „jak wypadłaby moja strategia na historii?”.
+2. Architektura informacji, makiety niskiej i wysokiej wierności w **Figma Free** (zamiast
+   płatnego Lovable); eksport PNG albo PDF w `docs/praca/gui/`.
+3. Mini design system: kolory wzrostów i spadków dostępne dla osób z daltonizmem,
+   typografia, siatka, komponenty: karta agenta, pasek ryzyka, stożek scenariuszy, wykres
+   kalibracji; projekt stanów pustych, ładowania i braku danych.
+
+**Zakres w ścieżce pracy, E12b (panel wyników):**
+
+1. Next.js w `apps/web`, po polsku, jeden motyw; klient API generowany z OpenAPI.
+2. Widoki: _Przegląd rynku_ (reżim, 20 par z oceną, poziomem ryzyka i zmianą), _Strona
+   aktywa_ (wykres ceny w Lightweight Charts ze wskaźnikami, karty 4 agentów i modelu ML
+   z historią trafień z Ledgera, ocena ryzyka z powodami, stożek scenariuszy 24 h w ECharts,
+   ostrzeżenia i podpowiedzi), _Laboratorium_ (formularz strategii, wynik backtestu,
+   metryki, krzywa kapitału), _Metody i wiarygodność_ (opis metod, kalibracja, Brier
+   w czasie, porównanie z punktami odniesienia).
+3. Na każdym widoku stała informacja „to nie jest porada inwestycyjna”; jawne stany braku
+   danych; atrybucja „Data by CoinGecko” przy danych CoinGecko.
+4. Wdrożenie procesu `web` na staging (`app.goatcash.app`).
+5. Test sposobu prezentacji wyników z 3 osobami: 4 zadania kluczowe + kwestionariusz SUS,
+   raport `docs/praca/test-uzytkownikow.md`.
+
+**Dokończenie w ścieżce produktu:** persona quant; prototyp Lovable i 5 sesji na prototypie;
+widoki Pogoda rynkowa z Indeksem Gotowości, Radar okazji, narracje i adwokat diabła, newsy,
+Alerty, Zapytaj rynek, Konto, Bot; EN (`next-intl`), tryb jasny i ciemny, PWA; testy:
+Playwright w Firefox, WebKit i mobile, regresja wizualna, Lighthouse ≥ 90, 5 sesji
+moderowanych na staging. Pełna bramka G12.
 
 ### E12a: projekt
 
@@ -792,7 +1031,7 @@ Wymóg licencyjny: plan CoinGecko Demo wymaga atrybucji, więc widoki z danymi C
 
 ## E13. Alerty, powiadomienia i monitoring rynku
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⏸ odłożone (produkt): realizacja po obronie pracy (ADR-0008); karta bez zmian
 
 Etap kończy się, gdy reguły alertów użytkowników są sprawdzane po każdej nowej ocenie, a powiadomienie dociera każdym kanałem dokładnie raz, w ciągu 60 sekund.
 
@@ -828,7 +1067,7 @@ Etap kończy się, gdy reguły alertów użytkowników są sprawdzane po każdej
 
 ## E14. Trading Bot
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⏸ odłożone (produkt): realizacja po obronie pracy (ADR-0008); karta bez zmian
 
 Bot powstaje w trzech podetapach z osobnymi bramkami, bo każdy kolejny dotyka prawdziwych pieniędzy w większym stopniu. Kończy się, gdy po 30 dniach na testnecie stan zleceń i pozycji nigdy nie rozjechał się z giełdą, a kill switch zatrzymuje wszystko w ≤ 5 s.
 
@@ -892,7 +1131,7 @@ Tryby 2 i 3 korzystają wyłącznie z polityki w statusie champion z rejestru E1
 
 ## E15. Bezpieczeństwo, wydajność i odporność
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⏸ odłożone (produkt): realizacja po obronie pracy (ADR-0008); karta bez zmian
 
 Etap kończy się, gdy platforma przechodzi audyt według OWASP ASVS poziom 2, wytrzymuje dziesięciokrotność zakładanego ruchu beta, a ćwiczenie awarii z pełnym odtworzeniem mieści się w RTO 4 h. Bez G15 nie ma publicznego startu ani bota na żywych środkach.
 
@@ -930,7 +1169,7 @@ Etap kończy się, gdy platforma przechodzi audyt według OWASP ASVS poziom 2, w
 
 ## E16. Wdrożenie produkcyjne i publiczne uruchomienie
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⏸ odłożone (produkt): realizacja po obronie pracy (ADR-0008); karta bez zmian
 
 Etap kończy się publicznym startem (GA) po zamkniętej i otwartej becie, gdy przez 30 dni bety dostępność wynosi ≥ 99,5%, a lista kontrolna gotowości jest w całości odhaczona.
 
@@ -967,7 +1206,7 @@ Etap kończy się publicznym startem (GA) po zamkniętej i otwartej becie, gdy p
 
 ## E17. Utrzymanie, optymalizacja kosztów i dalszy rozwój
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⏸ odłożone (produkt): realizacja po obronie pracy (ADR-0008); karta bez zmian
 
 E17 to tryb ciągły, nie jednorazowy etap: ustala rytm pracy po GA, w którym każda nowa funkcja przechodzi ten sam cykl ADR → implementacja → testy → bramka.
 
@@ -1011,7 +1250,7 @@ Każda pozycja backlogu przed rozpoczęciem dostaje w tym dokumencie własną ka
 
 ## E18. Skaner tokenów on-chain (Solana)
 
-**Status:** ⬜ nie rozpoczęto
+**Status:** ⏸ odłożone (produkt): realizacja po obronie pracy (ADR-0008); karta bez zmian
 
 Etap kończy się, gdy dla każdego nowego tokena z pump.fun platforma w ciągu ok. 10 sekund pokazuje, kto naprawdę go trzyma, jakie portfele są powiązane i jak bardzo spadłaby cena, gdyby sprzedali. Ocena ryzyka jest rozliczana w Forecast Ledger jak każda inna prognoza. Moduł jest **wyłącznie informacyjny**: nie ma przycisku "kup" ani automatycznego snajpowania, bo na pump.fun ok. 96% traderów traci lub zarabia mniej niż 500 USD miesięcznie ([OurCryptoTalk](https://ourcryptotalk.com/news/pump-fun-96-percent-traders-losing-money)).
 

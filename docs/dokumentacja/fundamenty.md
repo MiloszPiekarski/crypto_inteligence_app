@@ -4,6 +4,84 @@ Nov 8, 2026 · @Miłosz
 
 Dokument jest źródłem prawdy dla budowy platformy od zera: zakładka **Fundamenty i decyzje** ustala stos i dostawców, **Roadmapa E0–E17** opisuje każdy etap według 12 pól, a **Testy i quality gates** określa, kiedy wolno przejść dalej. Zmiana którejkolwiek decyzji wymaga wpisu ADR (Architecture Decision Record) i aktualizacji tego dokumentu.
 
+## 0. Zakres pracy inżynierskiej
+
+Od 26.11.2026 projekt ma dwie ścieżki realizacji (ADR-0008): **ścieżkę pracy** (bieżąca,
+minimum spełniające zakres pracy inżynierskiej) i **ścieżkę produktu** (po obronie, pełna
+roadmapa). Nic z pełnego zakresu nie znika: każdy etap ścieżki pracy ma w roadmapie
+podsekcję „Dokończenie w ścieżce produktu”, a etapy odłożone w całości mają status
+„⏸ odłożone (produkt)”.
+
+### 0.1. Temat
+
+- **PL:** Aplikacja webowa do analizy rynku kryptowalut z wykorzystaniem systemu wieloagentowego
+- **EN:** A web application for cryptocurrency market analysis using a multi-agent system
+
+### 0.2. Zakres pracy (dosłownie)
+
+> Celem projektu jest opracowanie aplikacji webowej umożliwiającej analizę wybranych danych
+> dotyczących rynku kryptowalut z wykorzystaniem systemu wieloagentowego. Aplikacja powinna
+> wspierać użytkownika w analizie danych rynkowych, takich jak ceny, wolumen obrotu,
+> zmienność oraz wybrane wskaźniki analizy technicznej. System powinien składać się
+> z kilku wyspecjalizowanych modułów lub agentów odpowiedzialnych za różne aspekty analizy,
+> na przykład analizę trendów, ocenę ryzyka, analizę historycznych danych rynkowych oraz
+> prezentowanie syntetycznych podpowiedzi użytkownikowi. W ramach pracy należy wykorzystać
+> wybrane metody sztucznej inteligencji lub uczenia maszynowego do analizy danych
+> historycznych oraz generowania pomocniczych ocen dotyczących możliwych scenariuszy
+> rynkowych. System nie powinien podejmować decyzji inwestycyjnych za użytkownika, lecz
+> prezentować wyniki analizy w formie informacyjnej, na przykład jako zestaw wskaźników,
+> ocen ryzyka, wykresów oraz komunikatów ostrzegawczych. Aplikacja może również zawierać
+> moduł testowania strategii na danych historycznych, umożliwiający ocenę skuteczności
+> przyjętych założeń z wykorzystaniem wybranych metryk. Dodatkowo należy przedstawić model
+> danych, architekturę aplikacji wraz z wymaganiami funkcjonalnymi i niefunkcjonalnymi,
+> opis zastosowanych metod analizy danych oraz projekt graficznego interfejsu użytkownika.
+> Następnie należy zaimplementować i przetestować prototyp aplikacji, uwzględniając
+> poprawność działania modułów analitycznych oraz sposób prezentacji wyników użytkownikowi.
+
+### 0.3. Wymóg z zakresu pracy → etap → artefakt i dowód
+
+Tabela do pisania pracy: gdzie w repo jest dowód realizacji każdego wymogu. Mapa
+„rozdział pracy → dokumenty”: [`docs/praca/README.md`](../praca/README.md).
+
+| Wymóg z zakresu pracy                                                    | Etap (bramka)         | Artefakt w repo                                                                                      | Dowód                                                           |
+| ------------------------------------------------------------------------ | --------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Aplikacja webowa                                                         | E6 (G6p), E12b (G12p) | `services/platform` (`api`), `apps/web`; wdrożenie `app.goatcash.app` i `api.goatcash.app`           | Schemathesis w G6p; Playwright E2E w G12p; test dymny wdrożenia |
+| Dane: ceny, wolumen obrotu                                               | E4 (G4p)              | moduł `marketdata`: 2 giełdy, 20 par, świece 1 h od 01.2023, DQ, cena referencyjna                   | G4p: DQ ≥ 95%, raport luk i kompletności ze staging             |
+| Zmienność i wskaźniki analizy technicznej                                | E5 (G5p)              | moduł `features` (`fs-1p`, `MarketView(as_of)`)                                                      | G5p: point-in-time 100%, wartości referencyjne < 1e-9           |
+| Kilka wyspecjalizowanych agentów (trend, ryzyko, analiza historyczna)    | E7 (G7p)              | moduł `agents`: Trend, Ryzyko i zmienność, Reżim, Historyczny; kontrakt `Evidence` v1                | G7p: testy właściwości agentów, point-in-time agentów           |
+| Prezentowanie syntetycznych podpowiedzi                                  | E9 (G9p), E12b (G12p) | moduł `fusion`: ocena łączna, ocena ryzyka, ostrzeżenia, podpowiedzi z szablonów                     | G9p: tabela reguł ryzyka, test słownika szablonów               |
+| Metody AI/ML na danych historycznych, oceny scenariuszy                  | E7 (G7p), E8 (G8p)    | HMM (reżim), regresja logistyczna (kalibracja), kNN (analogie), LightGBM kierunek i kwantyle 24 h    | G8p: walk-forward, brak wycieku, odtwarzalność, raport          |
+| Rozliczanie jakości ocen (uczciwość wyników)                             | E7 (G7p)              | moduł `ledger`: Forecast Ledger, Brier, log-loss, pinball, pokrycie, ECE                             | G7p: Ledger = ręczne przeliczenie 200 prognoz (1e-12)           |
+| Brak decyzji inwestycyjnych, forma informacyjna, komunikaty ostrzegawcze | E9 (G9p), E12b (G12p) | szablony bez trybu rozkazującego; informacja „to nie jest porada inwestycyjna” na każdym widoku      | G9p: test słownika; G12p: test informacji na każdym widoku      |
+| Moduł testowania strategii z metrykami (opcjonalny)                      | E11 (G11p)            | moduł `backtest`: 3 strategie referencyjne, zwrot, CAGR, Sharpe, Sortino, maks. obsunięcie, trafność | G11p: zgodność z ręcznym przeliczeniem, strategia-pułapka       |
+| Model danych                                                             | E2 (G2)               | roadmapa E2 „Model danych”, ADR-0002, migracje Alembic                                               | G2: migracja w obie strony                                      |
+| Architektura aplikacji                                                   | E2 (G2), E3 (G3)      | sekcja 2 tego dokumentu, `docs/architektura/c4.md`, `stride.md`, ADR-0001…0008                       | G2, G3                                                          |
+| Wymagania funkcjonalne i niefunkcjonalne                                 | E2 (G2)               | `docs/wymagania.yaml` (pole `track`: praca albo produkt)                                             | G2: `make requirements-check`                                   |
+| Opis zastosowanych metod analizy danych                                  | E5, E7, E8, E9, E11   | `docs/praca/metody.md` (uzupełniany przy domknięciu każdego z tych etapów)                           | raporty bramek pracy                                            |
+| Projekt graficznego interfejsu użytkownika                               | E12a (część G12p)     | persony, 4 zadania kluczowe, makiety w Figma Free (eksport w `docs/praca/gui/`), mini design system  | pliki w repo                                                    |
+| Implementacja i testy prototypu: poprawność modułów analitycznych        | E4–E11 (bramki pracy) | testy z wartościami referencyjnymi, testy właściwości, testy point-in-time                           | `docs/gates/G<nr>p.md`, `G<nr>p.passed.json`                    |
+| Testy sposobu prezentacji wyników użytkownikowi                          | E12b (G12p)           | Vitest, Playwright, axe, test z 3 osobami i kwestionariusz SUS                                       | G12p, raport `docs/praca/test-uzytkownikow.md`                  |
+
+### 0.4. Etapy: ścieżka pracy i ścieżka produktu
+
+Kolejność prac i minimum każdego etapu: tabela „Kolejność prac” na początku
+[`roadmapa.md`](roadmapa.md); kryteria bramek pracy: [`testy.md`](testy.md), sekcja 3a.
+
+| Etap       | Ścieżka              | W ścieżce pracy                                                | Bramka |
+| ---------- | -------------------- | -------------------------------------------------------------- | ------ |
+| E0–E3      | praca (pełny zakres) | zaliczone; z E0 do produktu przechodzi tylko Resend            | G0–G3  |
+| E4         | praca (okrojony)     | 2 giełdy, 20 par, świece 1 h od 01.2023, DQ, cena referencyjna | G4p    |
+| E5         | praca (okrojony)     | ok. 15–20 cech, `MarketView(as_of)`, point-in-time             | G5p    |
+| E6         | praca (okrojony)     | API tylko do odczytu, bez kont użytkowników                    | G6p    |
+| E7         | praca (okrojony)     | 4 agentów, 2 punkty odniesienia, Forecast Ledger               | G7p    |
+| E8         | praca (okrojony)     | LightGBM kierunek + kwantyle 24 h, walk-forward, bez MLOps     | G8p    |
+| E9         | praca (okrojony)     | fuzja, ocena ryzyka, ostrzeżenia, podpowiedzi z szablonów      | G9p    |
+| E10, E10a  | produkt (⏸ odłożone) | brak                                                           | –      |
+| E11        | praca (okrojony)     | silnik backtestu, 3 strategie referencyjne, metryki            | G11p   |
+| E11a       | produkt (⏸ odłożone) | brak                                                           | –      |
+| E12a, E12b | praca (okrojony)     | makiety w Figma Free + panel wyników, test z 3 osobami         | G12p   |
+| E13–E18    | produkt (⏸ odłożone) | brak                                                           | –      |
+
 ## 1. Decyzje w skrócie
 
 Wybrany układ: **Python (FastAPI) + PostgreSQL/TimescaleDB + Redis na jednej maszynie Oracle Always Free na czas budowy, Next.js na Cloudflare, modele ML własne, LLM przez bramkę z kilkoma dostawcami**. Całość w kontenerach, żeby przeniesienie na płatny serwer w UE przy publicznym starcie było zmianą konfiguracji, nie przepisaniem.
