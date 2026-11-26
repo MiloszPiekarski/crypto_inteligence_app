@@ -90,10 +90,18 @@ metrics() { dc exec -T api python -c "import urllib.request,sys; sys.stdout.writ
 sleep 2
 NODE="$(metrics node-exporter:9100)"; PGX="$(metrics postgres-exporter:9187)"; VKX="$(metrics valkey-exporter:9121)"
 grep -q '^goatcash_backup_last_success_timestamp_seconds{type="full"}' <<<"$NODE" || fail "brak metryki kopii w node-exporter"
+# Retencja: metryka najstarszej kopii zgodna z pgbackrest info (jedna pełna, sprzed chwili).
+# node-exporter wypisuje wartość w notacji naukowej (1.79e+09), stąd odczyt przez Pythona.
+oldest="$(python3 -c 'import sys; print(next((int(float(l.split()[1])) for l in sys.stdin if l.startswith("goatcash_backup_oldest_timestamp_seconds ")), ""))' <<<"$NODE")"
+info_start="$(dc exec -T postgres pgbackrest --stanza=goatcash info --output=json |
+  python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["backup"][0]["timestamp"]["start"])')"
+[ -n "$oldest" ] && [ "$oldest" = "$info_start" ] || fail "metryka najstarszej kopii '$oldest' != pgbackrest info '$info_start'"
+[ $(( $(date +%s) - oldest )) -lt 3600 ] || fail "najstarsza kopia sprzed ponad godziny: $oldest"
+grep -qE '^goatcash_backup_full_count 1$' <<<"$NODE" || fail "goatcash_backup_full_count != 1"
 grep -q '^node_filesystem_avail_bytes' <<<"$NODE" || fail "brak metryk dysku"
 grep -q '^pg_up 1' <<<"$PGX" || fail "postgres-exporter: pg_up != 1"
 grep -q '^redis_up 1' <<<"$VKX" || fail "valkey-exporter: redis_up != 1"
-ok "eksportery: dysk, metryka kopii, pg_up 1, redis_up 1"
+ok "eksportery: dysk, metryki kopii i retencji, pg_up 1, redis_up 1"
 
 echo "== rollback: wdrożenie zepsutego obrazu $BAD"
 if "$WORK/compose/deploy.sh" "$BAD" > "$WORK/deploy2.log" 2>&1; then fail "deploy.sh zepsutego obrazu zakończył się sukcesem"; fi

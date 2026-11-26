@@ -195,6 +195,43 @@ resource "grafana_rule_group" "infra" {
     }
   }
 
+  # Retencja 30 dni (pgbackrest.conf, repo1-retention-full-type=time): pgBackRest zostawia
+  # najnowszą pełną kopię starszą niż 30 dni, a pełne są co tydzień, więc najstarsza kopia
+  # ma najwyżej ok. 37 dni. Próg 39 dni: zapas na godzinę kopii i opóźnienie timera.
+  rule {
+    name           = "Retencja kopii nie dziala"
+    condition      = "C"
+    for            = "0s"
+    no_data_state  = "Alerting"
+    exec_err_state = "Alerting"
+    annotations = {
+      summary = "Najstarsza kopia pgBackRest starsza niż 39 dni (retencja 30 dni nie usuwa kopii) albo brak metryki."
+    }
+    data {
+      ref_id         = "A"
+      datasource_uid = var.prometheus_datasource_uid
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+      model = jsonencode({
+        refId   = "A"
+        instant = true
+        range   = false
+        expr    = "(time() - min(goatcash_backup_oldest_timestamp_seconds)) / 86400"
+      })
+    }
+    data {
+      ref_id         = "C"
+      datasource_uid = "__expr__"
+      relative_time_range {
+        from = 0
+        to   = 0
+      }
+      model = jsonencode({ refId = "C", type = "threshold", expression = "A", conditions = [{ evaluator = { type = "gt", params = [39] } }] })
+    }
+  }
+
   rule {
     name           = "Kontener bazy lub Valkey niedostepny"
     condition      = "C"
