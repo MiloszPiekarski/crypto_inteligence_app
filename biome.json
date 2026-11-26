@@ -11,6 +11,7 @@
       "!pnpm-lock.yaml",
       "!**/*.enc.yaml",
       "!scripts/tests/fixtures",
+      "!services/platform/tests/marketdata/fixtures",
       "!packages/contracts/openapi/openapi.json",
       "!packages/contracts/src/api.ts"
     ]

@@ -46,7 +46,8 @@ src = ["services/platform/src", "services/executor/src"]
 select = ["E", "W", "F", "I", "B", "UP", "N", "S", "SIM", "RUF", "PT", "C4", "PL"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101", "PLR2004"]
+# S311: generatory pseudolosowe w testach służą do danych syntetycznych, nie do kryptografii.
+"**/tests/**" = ["S101", "PLR2004", "S311"]
 
 # ---------------- pyright ----------------
 # Roadmapa E1: „strict dla nowych modułów”. Cały kod repozytorium powstaje od E1,
@@ -67,10 +68,16 @@ pythonpath = ["scripts"]
 # (bramka G2). W `make test` są wyłączone, bo runnery macOS w CI nie mają Dockera.
 # Testy z markerem `image` budują obraz platformy i uruchamiają z niego migracje:
 # `make image-migration-test` (bramka G3).
-addopts = '--strict-markers --strict-config -ra -m "not migration and not image"'
+# Testy z markerem `db` (E4) uruchamiają marketdata na Postgresie z Timescale i Valkey
+# w kontenerach: `make marketdata-db-test` (bramka G4p). Marker `fixtures_complete` (E4)
+# sprawdza, że są kasety obu giełd: `make marketdata-fixtures-test` (bramka G4p); poza
+# `make test`, bo kasety Bybit powstają z serwera staging (PR 2 E4).
+addopts = '--strict-markers --strict-config -ra -m "not migration and not image and not db and not fixtures_complete"'
 markers = [
     "migration: test migracji na Postgresie w kontenerze (wymaga Dockera)",
     "image: test obrazu Dockera platformy (buduje obraz, wymaga Dockera)",
+    "db: marketdata na Postgresie z Timescale i Valkey w kontenerach (wymaga Dockera)",
+    "fixtures_complete: kasety obu giełd dla bramki G4p",
 ]
 xfail_strict = true
 

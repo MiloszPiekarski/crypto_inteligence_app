@@ -114,7 +114,14 @@ def test_ci_wires_change_detection() -> None:
     assert strategy["matrix"]["os"] == "${{ fromJSON(needs.zmiany.outputs.systemy) }}"
     assert jobs["coverage"]["needs"] == "test"
     needs = cast(list[str], jobs["ci-ok"]["needs"])
-    assert set(needs) == set(jobs) - {"ci-ok"}, "ci-ok musi czekać na wszystkie joby"
+    # Wyjątek: `gate-next` (bramka etapu w toku) jest z założenia poza ci-ok, z
+    # continue-on-error, dopóki bramka nie jest zaliczona (testy.md, sekcja 3, „Wdrożenie”).
+    assert set(needs) == set(jobs) - {"ci-ok", "gate-next"}, "ci-ok musi czekać na wszystkie joby"
+    if "gate-next" in jobs:
+        assert jobs["gate-next"]["continue-on-error"] is True
+        assert "zmiany" in cast(list[str], jobs["gate-next"]["needs"])
+        next_strategy = cast(dict[str, dict[str, object]], jobs["gate-next"]["strategy"])
+        assert next_strategy["matrix"]["os"] == "${{ fromJSON(needs.zmiany.outputs.systemy) }}"
 
 
 def ci_ok_verdict(results: dict[str, str], obrazy: str) -> int:

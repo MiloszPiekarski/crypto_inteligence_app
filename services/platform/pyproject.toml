@@ -6,6 +6,9 @@ requires-python = ">=3.12,<3.13"
 license = "AGPL-3.0-only"
 dependencies = [
     "alembic>=1.16",
+    # E4: adaptery giełd (OKX, Bybit) przez ccxt; wersja z 4.11.2026, przypięta dokładnie,
+    # bo ccxt wydaje kilka wersji w tygodniu, a adaptery zależą od jego API niejawnego.
+    "ccxt==4.5.92",
     "fastapi>=0.120",
     # E3: ślady procesu api do kolektora OTel (roadmapa E3, zakres 6); wersje z 29.10.2026,
     # instrumentacja FastAPI w wersji zgodnej z SDK 1.45 (beta, przypięta dokładnie).
@@ -14,6 +17,8 @@ dependencies = [
     "opentelemetry-sdk>=1.45.2,<1.46",
     "psycopg[binary]>=3.2",
     "pydantic>=2.11",
+    # E4: klient Valkey (protokół Redis) do publikacji candle.closed (ADR-0003); wersja z 30.07.2026.
+    "redis>=8.1.0,<8.2",
     "sqlalchemy>=2.0",
     # E3: serwer HTTP procesu api (Compose staging, test dymny /v1/health); wersja z 14.09.2026.
     "uvicorn>=0.53.0,<0.54",

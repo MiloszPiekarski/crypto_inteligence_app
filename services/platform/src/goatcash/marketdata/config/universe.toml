@@ -1,0 +1,123 @@
+# Uniwersum ścieżki pracy (roadmapa E4, punkt 3 ścieżki pracy; ADR-0008): stała lista
+# 20 par spot */USDT obecnych na obu giełdach, świece 1 h od 2023-01-01 00:00 UTC.
+#
+# Metadane (symbol, nazwa, coingecko_id) zapisane raz, bez zapytań do CoinGecko w czasie
+# działania (decyzja właściciela 26.11.2026, uproszczenie ścieżki pracy opisane w
+# docs/gates/G4p.md). Źródło: CoinGecko API /coins/markets (id, symbol, name), odczyt
+# 26.11.2026. Obecność par na OKX (spot, historia 1 h od 2023-01-01) sprawdzona
+# 26.11.2026 zapytaniami do /api/v5/public/instruments i /api/v5/market/history-candles;
+# na Bybit: sonda z serwera staging (Amsterdam) na początku PR 2 E4.
+#
+# Format TOML (tomllib ze standardowej biblioteki, bez dodatkowej zależności).
+# Zmiana listy = zmiana zakresu danych (raport kompletności G4p liczy się z tej listy).
+start = "2023-01-01T00:00:00Z"
+timeframe = "1h"
+
+[exchanges]
+primary = "okx"
+secondary = "bybit"
+
+[quote]
+symbol = "USDT"
+name = "Tether"
+coingecko_id = "tether"
+
+[[pairs]]
+base = "BTC"
+name = "Bitcoin"
+coingecko_id = "bitcoin"
+
+[[pairs]]
+base = "ETH"
+name = "Ethereum"
+coingecko_id = "ethereum"
+
+[[pairs]]
+base = "SOL"
+name = "Solana"
+coingecko_id = "solana"
+
+[[pairs]]
+base = "XRP"
+name = "XRP"
+coingecko_id = "ripple"
+
+[[pairs]]
+base = "DOGE"
+name = "Dogecoin"
+coingecko_id = "dogecoin"
+
+[[pairs]]
+base = "ADA"
+name = "Cardano"
+coingecko_id = "cardano"
+
+[[pairs]]
+base = "LTC"
+name = "Litecoin"
+coingecko_id = "litecoin"
+
+[[pairs]]
+base = "LINK"
+name = "Chainlink"
+coingecko_id = "chainlink"
+
+[[pairs]]
+base = "DOT"
+name = "Polkadot"
+coingecko_id = "polkadot"
+
+[[pairs]]
+base = "AVAX"
+name = "Avalanche"
+coingecko_id = "avalanche-2"
+
+[[pairs]]
+base = "TRX"
+name = "TRON"
+coingecko_id = "tron"
+
+[[pairs]]
+base = "BCH"
+name = "Bitcoin Cash"
+coingecko_id = "bitcoin-cash"
+
+[[pairs]]
+base = "ATOM"
+name = "Cosmos Hub"
+coingecko_id = "cosmos"
+
+[[pairs]]
+base = "XLM"
+name = "Stellar"
+coingecko_id = "stellar"
+
+[[pairs]]
+base = "UNI"
+name = "Uniswap"
+coingecko_id = "uniswap"
+
+[[pairs]]
+base = "ETC"
+name = "Ethereum Classic"
+coingecko_id = "ethereum-classic"
+
+[[pairs]]
+base = "FIL"
+name = "Filecoin"
+coingecko_id = "filecoin"
+
+[[pairs]]
+base = "NEAR"
+name = "NEAR Protocol"
+coingecko_id = "near"
+
+[[pairs]]
+base = "AAVE"
+name = "Aave"
+coingecko_id = "aave"
+
+[[pairs]]
+base = "APT"
+name = "Aptos"
+coingecko_id = "aptos"

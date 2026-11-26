@@ -46,6 +46,8 @@ PUBLIC_TABLES = {
     "strategies", "backtests", "backtest_results",
     # Zdarzenia (ADR-0003), audyt
     "event_outbox", "audit_log",
+    # Punkty kontrolne pobierania świec (migracja 0003, E4)
+    "ingest_checkpoints",
 }  # fmt: skip
 BOT_TABLES = {
     "exchange_connections", "bot_configs", "order_intents", "orders", "fills", "positions",
@@ -189,6 +191,8 @@ def test_audit_log_is_append_only_even_for_owner(migrated: str) -> None:
         ("goatcash_readonly", "SELECT address FROM notification_channels"),
         ("goatcash_readonly", "SELECT display_name FROM profiles"),
         ("goatcash_readonly", "INSERT INTO agents (name, kind) VALUES ('x', 'y')"),
+        ("goatcash_readonly", "DELETE FROM ingest_checkpoints"),
+        ("goatcash_auth", "SELECT * FROM ingest_checkpoints"),
     ],
 )
 def test_roles_have_least_privilege(migrated: str, role: str, sql: str) -> None:
@@ -206,6 +210,11 @@ def test_roles_have_least_privilege(migrated: str, role: str, sql: str) -> None:
         ("goatcash_executor", "SELECT instrument_id, symbol FROM instruments"),
         ("goatcash_auth", 'SELECT * FROM "session"'),
         ("goatcash_readonly", "SELECT * FROM evidence"),
+        ("goatcash_readonly", "SELECT * FROM ingest_checkpoints"),
+        (
+            "goatcash_app",
+            "INSERT INTO ingest_checkpoints (job, pair, cursor_ts) VALUES ('t', 'X-Y', now())",
+        ),
     ],
 )
 def test_roles_can_do_their_job(migrated: str, role: str, sql: str) -> None:

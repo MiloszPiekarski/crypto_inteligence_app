@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 G ?=
 
-.PHONY: ansible-test help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test iac-lint compose-staging-test backup-restore-test event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
+.PHONY: ansible-test help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test iac-lint compose-staging-test backup-restore-test marketdata-normalization-test marketdata-dq-test marketdata-resilience-test marketdata-logic-test marketdata-db-test event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
 
 help: ## Lista komend
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -60,6 +60,21 @@ ansible-test: ## Ansible site.yml na kontenerze Ubuntu 24.04 z systemd: 2 przebi
 
 image-migration-test: ## Obraz platformy uruchamia migracje na Postgresie z Timescale (Docker; bramka G3)
 	uv run pytest -m image services/platform/tests/image
+
+marketdata-normalization-test: ## Normalizacja na nagranych odpowiedziach OKX i Bybit, kasety obu giełd (G4p)
+	uv run pytest --no-cov -m "fixtures_complete or not (db or migration or image)" services/platform/tests/marketdata/test_normalization.py
+
+marketdata-dq-test: ## DQ: 200 wstrzykniętych błędów, fałszywe alarmy, reguły z wartościami referencyjnymi (G4p)
+	uv run pytest --no-cov -s services/platform/tests/marketdata/test_dq_injection.py services/platform/tests/marketdata/test_dq_rules.py
+
+marketdata-resilience-test: ## 429, błąd sieci, przerwanie i wznowienie uzupełniania historii (G4p)
+	uv run pytest --no-cov services/platform/tests/marketdata/test_resilience.py
+
+marketdata-logic-test: ## Luki, kompletność, cena referencyjna, candle.closed, raport danych (G4p)
+	uv run pytest --no-cov services/platform/tests/marketdata/test_gaps_refprice_events.py services/platform/tests/marketdata/test_ingest.py
+
+marketdata-db-test: ## marketdata na Postgresie z Timescale i Valkey w kontenerach (Docker; G4p)
+	uv run pytest --no-cov -m db services/platform/tests/marketdata/test_pgstore.py
 
 event-schemas-test: ## JSON Schema zdarzeń: poprawne przykłady przechodzą, błędne odrzucone (G2)
 	uv run pytest packages/contracts/tests/test_event_schemas.py
