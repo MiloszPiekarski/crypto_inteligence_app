@@ -103,6 +103,18 @@ grep -q '^pg_up 1' <<<"$PGX" || fail "postgres-exporter: pg_up != 1"
 grep -q '^redis_up 1' <<<"$VKX" || fail "valkey-exporter: redis_up != 1"
 ok "eksportery: dysk, metryki kopii i retencji, pg_up 1, redis_up 1"
 
+# Ślady: test dymny deploy.sh i healthchecki to zapytania do api; kolektor ma je przyjąć
+# (eksport do Grafany w teście idzie na nieistniejący adres, więc liczymy przyjęte).
+spans=0
+for _ in $(seq 1 15); do
+  OTELM="$(metrics otel-collector:8888)"
+  spans="$(python3 -c 'import sys; print(int(sum(float(l.split()[-1]) for l in sys.stdin if l.startswith("otelcol_receiver_accepted_spans") and "receiver=\"otlp\"" in l)))' <<<"$OTELM")"
+  [ "$spans" -gt 0 ] && break
+  sleep 2
+done
+[ "$spans" -gt 0 ] || fail "kolektor nie przyjął śladów z api (otelcol_receiver_accepted_spans = $spans)"
+ok "ślady: kolektor przyjął $spans spanów z api (OTLP)"
+
 echo "== rollback: wdrożenie zepsutego obrazu $BAD"
 if "$WORK/compose/deploy.sh" "$BAD" > "$WORK/deploy2.log" 2>&1; then fail "deploy.sh zepsutego obrazu zakończył się sukcesem"; fi
 grep -q "ROLLBACK do $GOOD" "$WORK/deploy2.log" || { tail -30 "$WORK/deploy2.log" >&2; fail "brak rollbacku"; }

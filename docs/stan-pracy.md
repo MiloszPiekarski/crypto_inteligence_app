@@ -30,8 +30,9 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
   #114 (pełna aktualizacja, poprawki co godzinę, restart 03:30), #115 (logi kontenerów
   do Loki: 5643 linie w 30 min po wdrożeniu). Na serwerach: `ansible-staging` 45732122197
   (aktualizacja i restart obu), `external-scan` 45733147740 (0 portów, Lynis 0 ostrzeżeń
-  na obu), #117 (przypięte odciski kluczy apt Docker i Tailscale, ADR-0007). W toku:
-  metryka najstarszej kopii i alert „Retencja kopii nie dziala” (> 39 dni). Dalej: ślad w Tempo, ACL Tailscale jako kod i IAM executora, E0 (doctor.sh,
+  na obu), #117 (przypięte odciski kluczy apt Docker i Tailscale, ADR-0007). #119 (metryka
+  najstarszej kopii i alert „Retencja kopii nie dziala”, > 39 dni). W toku: ślady OTel
+  z api do Tempo. Dalej: ACL Tailscale jako kod i IAM executora, E0 (doctor.sh,
   ponowny dowód G0), poprawki dokumentacji (G3.md, testy.md, roadmapa, lekcje).
 - **Następny: E4** (pozyskiwanie danych rynkowych i normalizacja; wymaga G3). Nowa rozmowa
   z `docs/start-nowej-rozmowy.md`; pierwszy PR E4: `gates/G4.yaml` i job `gate-next` dla G4.
