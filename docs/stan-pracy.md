@@ -35,8 +35,11 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
   `inactive ok`), #121 (ślady OTel z api do Tempo). Ten PR: dokumentacja rozliczenia (G3.md, ADR-0007, testy.md,
   roadmapa, runbook wymiany serwera, lekcje), kopia ACL Tailscale. Decyzje właściciela
   26.11.2026: ACL w konsoli z kopią w repo, IAM executora w E14b, E0 po E3.
-  **Po E3, przed E4:** PR 0 z E0 (`doctor.sh`: R2 i Telegram, Tailscale na liście kont,
-  ponowny dowód G0). **Do sprawdzenia:** plan Grafana Cloud po okresie próbnym (ok. 6.12),
+  **Odłożone (decyzja właściciela 26.11.2026):** PR 0 z E0 (`doctor.sh`: R2 i Telegram,
+  Tailscale na liście kont, ponowny dowód G0) nie blokuje E4 (E4 zależy tylko od G3);
+  robimy go później, najpóźniej przed E13 (razem z Resend), do tego czasu ⚠️ w roadmapie E0.
+  Kod: gałąź `claude/E0-doctor-r2-telegram` (commit `906b607`, do przeniesienia na `main`).
+  **Do sprawdzenia:** plan Grafana Cloud po okresie próbnym (ok. 6.12),
   usunięcie kopii przez retencję (od ok. 25.12), minuty Actions (odnowienie 1.12).
 - **Następny: E4** (pozyskiwanie danych rynkowych i normalizacja; wymaga G3). Nowa rozmowa
   z `docs/start-nowej-rozmowy.md`; pierwszy PR E4: `gates/G4.yaml` i job `gate-next` dla G4.
@@ -83,7 +86,7 @@ Decyzje właściciela (23.11.2026, propozycje asystenta zaakceptowane bez zmian)
 | #   | Gałąź                              | Zakres                                                                                     | Stan        |
 | --- | ---------------------------------- | ------------------------------------------------------------------------------------------ | ----------- |
 | 0a  | `docs/E3-tryb-lokalny`             | tryb lokalny i zasada zgody na koszty w `CLAUDE.md`, blokady sesji, lekcja `push --delete` | ⏳          |
-| 0   | `feat/E0-doctor-r2-telegram`       | `doctor.sh`: R2 (lista bucketów) i Telegram (`getMe` + wiadomość); zamyka ⚠️ E0            | ⬜          |
+| 0   | `feat/E0-doctor-r2-telegram`       | `doctor.sh`: R2 (lista bucketów) i Telegram (`getMe` + wiadomość); zamyka ⚠️ E0; odłożony  | ⬜          |
 | 1   | `docs/E3-adr-infra`                | ADR-0007: D2–D6, model dowodu, budżet Always Free                                          | ✅ (PR #76) |
 | 2   | `ci/E3-bramka-g3`                  | `gates/G3.yaml` (czerwona), szkic `G3.md`, job G3 poza `ci-ok`                             | ✅ (PR #78) |
 | 3   | `ci/E3-dowod-mieszany`             | `gate_pass.py`/`gate_guard.py`: dowód mieszany + testy obejścia, niezależna recenzja       | ✅ (PR #80) |
