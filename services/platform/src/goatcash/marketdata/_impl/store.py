@@ -21,6 +21,17 @@ BACKFILL_JOB = "candles_1h"
 
 
 @dataclass(frozen=True, slots=True)
+class InstrumentStatus:
+    """dq_status: ok | degraded | stale | down, kompletność i ostatnia świeca."""
+
+    exchange: str
+    symbol: str
+    status: str
+    completeness: float | None
+    last_ts_ms: int | None
+
+
+@dataclass(frozen=True, slots=True)
 class Checkpoint:
     job: str
     pair: str
@@ -66,6 +77,14 @@ class MarketStore(Protocol):
 
     def events(self, exchange: str, symbol: str, kinds: Iterable[str]) -> list[DqEvent]: ...
 
+    def upsert_status(self, status: InstrumentStatus) -> None:
+        """Wiersz dq_status instrumentu (zbiór danych candles_1h)."""
+        ...
+
+    def missing_refs(self, symbol: str) -> int:
+        """Chwile z co najmniej jedną nieoznaczoną świecą pary, a bez ceny referencyjnej."""
+        ...
+
 
 def exchange_gap_ts(events: Iterable[DqEvent]) -> set[int]:
     """Chwile objęte potwierdzonymi lukami po stronie giełdy (zdarzenia z `count`)."""
@@ -89,6 +108,7 @@ class InMemoryStore:
         self.refs: dict[tuple[str, str, int], RefCandle] = {}
         self.outbox: list[tuple[int, OutboxEvent, datetime | None]] = []
         self.checkpoints: dict[tuple[str, str], Checkpoint] = {}
+        self.statuses: dict[tuple[str, str], InstrumentStatus] = {}
         self.commits = 0
 
     def ensure_instruments(
@@ -158,6 +178,14 @@ class InMemoryStore:
             for e in self.dq_events
             if e.exchange == exchange and e.symbol == symbol and e.kind in wanted
         ]
+
+    def upsert_status(self, status: InstrumentStatus) -> None:
+        self.statuses[(status.exchange, status.symbol)] = status
+
+    def missing_refs(self, symbol: str) -> int:
+        base, quote = symbol.split("-")
+        good = {key[2] for key in self.candles if key[1] == symbol and key not in self.flagged}
+        return len({ts for ts in good if (base, quote, ts) not in self.refs})
 
     # OutboxStore (przekaźnik zdarzeń)
     def unpublished(self, limit: int) -> list[tuple[int, OutboxEvent]]:

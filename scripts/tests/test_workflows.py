@@ -28,8 +28,19 @@ def load_wf(name: str) -> dict[str, object]:
 
 
 def evidence_rules() -> dict[str, dict[str, object]]:
-    gate = yaml.safe_load((ROOT / "gates" / "G3.yaml").read_text(encoding="utf-8"))
-    return cast(dict[str, dict[str, object]], gate["evidence"]["workflows"])
+    """Reguły `evidence.workflows` ze wszystkich bramek (G3, G4p, ...), klucz `G<nr>:<id>`."""
+    rules: dict[str, dict[str, object]] = {}
+    for path in sorted((ROOT / "gates").glob("G*.yaml")):
+        gate = yaml.safe_load(path.read_text(encoding="utf-8"))
+        evidence = cast(dict[str, object], gate.get("evidence") or {})
+        workflows = cast(dict[str, dict[str, object]], evidence.get("workflows") or {})
+        for key, rule in workflows.items():
+            rules[f"{path.stem}:{key}"] = rule
+    return rules
+
+
+def test_evidence_rules_cover_g3_and_g4p() -> None:
+    assert {"G3:deploy", "G3:restore-test", "G4p:data-report"} <= set(evidence_rules())
 
 
 def job_by_name(wf: dict[str, object], name: str) -> dict[str, object]:
@@ -169,4 +180,22 @@ def test_marketdata_probe_is_manual_fixed_and_leaves_nothing() -> None:
     assert "goatcash.marketdata probe --record bybit" in runs
     assert "${{" not in runs  # żadnych wyrażeń w poleceniach (wstrzyknięcie)
     for forbidden in ("SOPS_AGE_KEY", "psql", "compose exec", "deploy.sh", "rsync"):
+        assert forbidden not in text
+
+
+def test_data_report_is_manual_readonly_and_fails_on_criteria() -> None:
+    """Dowód G4p: tylko ręcznie, bez wejść, raport w kontenerze ingest (rola tylko do
+    odczytu w kodzie), kod raportu przechodzi przez pipefail, bez zmian na serwerze."""
+    text = (WF / "data-report.yml").read_text(encoding="utf-8")
+    wf = load_wf("data-report.yml")
+    assert wf["on"] == {"workflow_dispatch": None}
+    job = job_by_name(wf, "data-report")
+    assert job["environment"] == "staging"
+    assert job["permissions"] == {"id-token": "write"}
+    steps = cast(list[dict[str, object]], job["steps"])
+    report = next(str(s["run"]) for s in steps if "marketdata report" in str(s.get("run", "")))
+    assert "set -o pipefail" in report
+    assert "docker compose exec -T ingest python -m goatcash.marketdata report" in report
+    assert "${{" not in report
+    for forbidden in ("SOPS_AGE_KEY", "psql", "deploy.sh", "rsync", "docker compose up", "restart"):
         assert forbidden not in text

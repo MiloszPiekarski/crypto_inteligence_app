@@ -49,10 +49,17 @@ produktu (`docs/start-nowej-rozmowy.md`, sekcja „Przełączenie na ścieżkę 
    aż całe CI jest zielone. Właściciel przegląda i scala przez **Squash and merge
    w GitHubie**. Bez szkiców testowych `claude/…`, bez łatek do nakładania i bez
    przenoszenia zmian na gałąź właściciela.
-3. **Podpisy:** ruleset `main` wymaga podpisanych commitów. Squash and merge w GitHubie
-   tworzy na `main` nowy commit podpisany przez GitHub, więc commity asystenta na gałęzi
-   `claude/…` mogą być niepodpisane. Sprawdzone 26.11.2026 przez API: commity squash na
-   `main` (`d10535e`, `653a790`) mają committera „GitHub” i podpis `valid`.
+3. **Podpisy (poprawione 27.11.2026):** ruleset `main` (reguła `required_signatures`, bez
+   wyjątków) sprawdza **każdy commit w PR**, nie tylko commit squash na `main`; PR #129
+   z niepodpisanym commitem asystenta był zablokowany („Commits must have verified
+   signatures”). Wcześniejszy wniosek „commity asystenta mogą być niepodpisane” opierał się
+   na commitach squash z PR-ów, których commity podpisał właściciel. Procedura: asystent
+   wypycha niepodpisany commit na `claude/…` i doprowadza CI do zieleni; właściciel
+   podpisuje dokładnie ten stan jednym commitem (`git merge --squash` na aktualnym `main`,
+   `git commit -S`, sprawdzenie `git diff --quiet origin/claude/<nazwa> HEAD` → `IDENTYCZNE`,
+   `git push --force-with-lease` na tę samą gałąź); asystent sprawdza przez API podpis
+   `valid` i zgodność z testowanym commitem, czeka na CI; właściciel scala Squash and merge.
+   Komendy podaje asystent w PR (wzór: PR #129 i #130).
 4. **1–3 PR-y na etap** zamiast „jedna rzecz na PR”; podział etapu na PR-y asystent
    proponuje na początku rozmowy i czeka na akceptację. Mały PR z dowodem bramki
    (`G<nr>p.passed.json`) po zielonym CI na `main` nie wlicza się do limitu.

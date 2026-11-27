@@ -1,0 +1,58 @@
+# data-report (roadmapa E4, punkt 9 ścieżki pracy; dowód G4p `data-report`, F-04, F-06):
+# raport danych rynkowych z bazy staging.
+#   1. Tailscale (OIDC, tag goatcash-ci: tylko tcp:22) i klucz wdrożeń, jak deploy-staging.yml;
+#   2. w działającym kontenerze `ingest`: `python -m goatcash.marketdata report` (rola
+#      goatcash_readonly, tylko odczyt): 20 par x 2 giełdy od 2023-01-01, każda brakująca
+#      świeca opisana (luka po stronie giełdy albo odrzucona przez DQ), kompletność ≥ 99,9%
+#      względem świec udostępnianych przez giełdę, dane aktualne, cena referencyjna dla 100%
+#      chwil z poprawną świecą;
+#   3. tabela w zakładce Summary; kod ≠ 0, gdy któreś kryterium nie jest spełnione, więc
+#      zielony przebieg = kryterium spełnione (gates/G4p.yaml, blok evidence).
+# Tylko ręcznie, bez wejść; środowisko `staging` (tylko main). Pierwsze uruchomienie za zgodą
+# właściciela (CLAUDE.md). Statyczne wymagania: scripts/tests/test_workflows.py.
+name: data-report
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: data-report
+  cancel-in-progress: false
+
+jobs:
+  data-report:
+    name: data-report
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    permissions:
+      id-token: write # Tailscale OIDC
+    steps:
+      - uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:goatcash-ci
+          use-cache: "false"
+          ping: goatcash-staging
+      - name: klucz SSH wdrożeń
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf 'Host goatcash-*\n  User deploy\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' > ~/.ssh/config
+      - name: raport danych z bazy staging (kryteria G4p)
+        run: |
+          # Polecenie zdalne jest stałe (bez rozwijania zmiennych runnera); pipefail: kod raportu.
+          set -o pipefail
+          ssh goatcash-staging \
+            'cd /srv/goatcash/compose && GOATCASH_IMAGE_TAG="$(cat .image-tag)" docker compose exec -T ingest python -m goatcash.marketdata report' \
+            | tee "$RUNNER_TEMP/raport.md"
+      - name: raport w zakładce Summary
+        if: always()
+        run: |
+          { echo "## Raport danych (G4p)"; cat "$RUNNER_TEMP/raport.md" 2>/dev/null || echo "brak raportu"; } >> "$GITHUB_STEP_SUMMARY"
