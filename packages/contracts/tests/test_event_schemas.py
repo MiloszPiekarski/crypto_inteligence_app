@@ -3,6 +3,10 @@
 Bramka G2, sprawdzenie `event-schemas` (`make event-schemas-test`). Oprócz przykładów
 z plików test sam psuje każdy poprawny przykład (brak pola, pole nadmiarowe, zły typ,
 zła wersja), żeby schemat nie mógł po cichu przepuszczać niekompletnych zdarzeń.
+
+Wersje (ADR-0003, punkt 2): zmiana niezgodna wstecz = nowy plik `<typ>.v<N>.schema.json`,
+przykłady wersji N > 1 w `examples/<typ>/v<N>/`; poprzednia wersja zostaje (konsument
+obsługuje bieżącą i poprzednią). features.ready v2: decyzja właściciela 27.11.2026 (E5).
 """
 
 import copy
@@ -27,6 +31,8 @@ TYPES = (
     "order_intent.created",
     "order.updated",
 )
+# (typ, wersja) każdego schematu; wersje > 1 dopisujemy jawnie.
+SCHEMAS = (*((t, 1) for t in TYPES), ("features.ready", 2))
 ENVELOPE_FIELDS = (
     "event_id",
     "type",
@@ -50,26 +56,37 @@ def registry() -> Registry[Any]:
     return Registry[Any]().with_resources(resources)
 
 
-def validator(event_type: str) -> Draft202012Validator:
-    schema = load(EVENTS / f"{event_type}.v1.schema.json")
+def schema_path(event_type: str, version: int = 1) -> Path:
+    return EVENTS / f"{event_type}.v{version}.schema.json"
+
+
+def examples(event_type: str, version: int = 1) -> Path:
+    return EXAMPLES / event_type if version == 1 else EXAMPLES / event_type / f"v{version}"
+
+
+def validator(event_type: str, version: int = 1) -> Draft202012Validator:
+    schema = load(schema_path(event_type, version))
     return Draft202012Validator(schema, registry=registry(), format_checker=FormatChecker())
 
 
-def valid_example(event_type: str) -> dict[str, Any]:
-    return load(EXAMPLES / event_type / "valid" / "01.json")
+def valid_example(event_type: str, version: int = 1) -> dict[str, Any]:
+    return load(examples(event_type, version) / "valid" / "01.json")
 
 
-def errors(event_type: str, document: dict[str, Any]) -> list[str]:
-    found = validator(event_type).iter_errors(document)  # pyright: ignore[reportUnknownMemberType]
+def errors(event_type: str, document: dict[str, Any], version: int = 1) -> list[str]:
+    found = validator(event_type, version).iter_errors(document)  # pyright: ignore[reportUnknownMemberType]
     return [str(e.message) for e in found]
 
 
 def test_every_event_type_has_schema_and_examples() -> None:
-    schemas = {p.name.removesuffix(".v1.schema.json") for p in EVENTS.glob("*.v1.schema.json")}
-    assert schemas == set(TYPES)
-    for event_type in TYPES:
-        assert list((EXAMPLES / event_type / "valid").glob("*.json")), event_type
-        assert list((EXAMPLES / event_type / "invalid").glob("*.json")), event_type
+    found = {
+        (p.name.split(".v")[0], int(p.name.split(".v")[1].split(".")[0]))
+        for p in EVENTS.glob("*.v*.schema.json")
+    }
+    assert found == set(SCHEMAS)
+    for event_type, version in SCHEMAS:
+        assert list((examples(event_type, version) / "valid").glob("*.json")), event_type
+        assert list((examples(event_type, version) / "invalid").glob("*.json")), event_type
 
 
 @pytest.mark.parametrize("path", sorted(EVENTS.glob("*.schema.json")), ids=lambda p: p.name)
@@ -77,50 +94,62 @@ def test_schemas_are_valid_draft_2020_12(path: Path) -> None:
     Draft202012Validator.check_schema(load(path))
 
 
-@pytest.mark.parametrize("event_type", TYPES)
-def test_valid_examples_pass(event_type: str) -> None:
-    for path in sorted((EXAMPLES / event_type / "valid").glob("*.json")):
-        assert errors(event_type, load(path)) == [], path
+def _ids(item: tuple[str, int]) -> str:
+    return f"{item[0]}.v{item[1]}"
+
+
+@pytest.mark.parametrize("schema", SCHEMAS, ids=_ids)
+def test_valid_examples_pass(schema: tuple[str, int]) -> None:
+    event_type, version = schema
+    for path in sorted((examples(event_type, version) / "valid").glob("*.json")):
+        assert errors(event_type, load(path), version) == [], path
+
+
+def _invalid() -> list[tuple[str, int, Path]]:
+    return [
+        (t, v, p) for t, v in SCHEMAS for p in sorted((examples(t, v) / "invalid").glob("*.json"))
+    ]
 
 
 @pytest.mark.parametrize(
-    "path",
-    sorted(EXAMPLES.glob("*/invalid/*.json")),
-    ids=lambda p: f"{p.parts[-3]}/{p.stem}",
+    ("event_type", "version", "path"),
+    _invalid(),
+    ids=[f"{t}.v{v}/{p.stem}" for t, v, p in _invalid()],
 )
-def test_invalid_examples_are_rejected(path: Path) -> None:
+def test_invalid_examples_are_rejected(event_type: str, version: int, path: Path) -> None:
     document = load(path)
     why = document.pop("_why")  # opis przypadku, nie część zdarzenia
-    assert errors(path.parts[-3], document), f"{path}: przepuszczono ({why})"
+    assert errors(event_type, document, version), f"{path}: przepuszczono ({why})"
 
 
-@pytest.mark.parametrize("event_type", TYPES)
-def test_missing_required_fields_rejected(event_type: str) -> None:
-    example = valid_example(event_type)
+@pytest.mark.parametrize("schema", SCHEMAS, ids=_ids)
+def test_missing_required_fields_rejected(schema: tuple[str, int]) -> None:
+    event_type, version = schema
+    example = valid_example(event_type, version)
     for field in ENVELOPE_FIELDS:
         broken = copy.deepcopy(example)
         del broken[field]
-        assert errors(event_type, broken), f"brak {field}"
-    schema = load(EVENTS / f"{event_type}.v1.schema.json")
-    for field in schema["properties"]["payload"]["required"]:
+        assert errors(event_type, broken, version), f"brak {field}"
+    for field in load(schema_path(event_type, version))["properties"]["payload"]["required"]:
         broken = copy.deepcopy(example)
         del broken["payload"][field]
-        assert errors(event_type, broken), f"brak payload.{field}"
+        assert errors(event_type, broken, version), f"brak payload.{field}"
 
 
-@pytest.mark.parametrize("event_type", TYPES)
-def test_unknown_fields_and_wrong_versions_rejected(event_type: str) -> None:
-    example = valid_example(event_type)
+@pytest.mark.parametrize("schema", SCHEMAS, ids=_ids)
+def test_unknown_fields_and_wrong_versions_rejected(schema: tuple[str, int]) -> None:
+    event_type, version = schema
+    example = valid_example(event_type, version)
     for broken in (
         {**example, "extra": 1},
         {**example, "payload": {**example["payload"], "extra": 1}},
-        {**example, "schema_version": 2},
+        {**example, "schema_version": version + 1},
         {**example, "type": "other.event"},
         {**example, "event_id": "nie-uuid"},
         {**example, "occurred_at": "wczoraj"},
         {**example, "producer": "Worker"},
     ):
-        assert errors(event_type, broken), broken
+        assert errors(event_type, broken, version), broken
 
 
 def test_format_checks_are_enforced() -> None:

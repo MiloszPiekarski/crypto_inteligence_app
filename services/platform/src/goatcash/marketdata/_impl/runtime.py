@@ -29,7 +29,7 @@ from typing import Any
 
 import psycopg
 
-from goatcash.marketdata._impl.events import OutboxStore, relay_outbox
+from goatcash.marketdata._impl.events import EVENT_TYPE, OutboxStore, relay_outbox
 from goatcash.marketdata._impl.ingest import Ingest, InstrumentReport, instrument_report
 from goatcash.marketdata._impl.store import InstrumentStatus, MarketStore
 from goatcash.marketdata._impl.types import HOUR_MS, ms_to_datetime
@@ -157,7 +157,13 @@ def outbox_publisher(store: OutboxStore, valkey_url: str, producer: str) -> Call
     import redis  # noqa: PLC0415 (klient potrzebny tylko w procesie ingest)
 
     client = redis.Redis.from_url(valkey_url, decode_responses=True)  # pyright: ignore[reportUnknownMemberType]
-    return lambda: relay_outbox(store, client, producer=producer)  # pyright: ignore[reportArgumentType]
+    # ingest publikuje tylko własne zdarzenia (features.ready publikuje worker, E5)
+    return lambda: relay_outbox(
+        store,
+        client,  # pyright: ignore[reportArgumentType]
+        producer=producer,
+        types=(EVENT_TYPE,),
+    )
 
 
 # --- raport danych (G4p, staging) ---

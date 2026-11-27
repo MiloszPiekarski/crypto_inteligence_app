@@ -18,7 +18,7 @@ from goatcash.features.api import FEATURE_NAMES, FeatureVector, InMemoryRefSourc
 from goatcash.marketdata._impl.cassette import Cassette, ReplaySession
 from goatcash.marketdata._impl.record import SERIES_PAIRS, series_window
 from goatcash.marketdata._impl.sources import SOURCES, RetryPolicy
-from goatcash.marketdata.api import HOUR_MS, Candle, reference_candles
+from goatcash.marketdata.api import HOUR_MS, Candle, RefCandle, reference_candles
 
 H = HOUR_MS
 T0 = 1_704_067_200_000  # 2024-01-01T00:00:00Z
@@ -106,18 +106,23 @@ def _replay(exchange: str, name: str) -> Any:
     )
 
 
+def real_series_refs() -> list[RefCandle]:
+    """Cena referencyjna (mediana OKX i Bybit, kod E4) z nagranych serii 2000 h z E4."""
+    candles: list[Candle] = []
+    for exchange in ("okx", "bybit"):
+        for symbol in SERIES_PAIRS:
+            src = _replay(exchange, f"series_{symbol}")
+            candles.extend(src.candles(symbol, "1h", series_window()))
+    return reference_candles(candles)
+
+
 def real_series_source() -> InMemoryRefSource:
     """Cena referencyjna (mediana OKX i Bybit, kod E4) z nagranych serii 2000 h z E4.
 
     Prawdziwe dane: 5 par (BTC, ETH, SOL, DOGE, APT) od 2024-07-01, z ewentualnymi lukami
     po stronie giełdy. Zapis (`ingested_at`) godzinę po zamknięciu świecy.
     """
-    candles: list[Candle] = []
-    for exchange in ("okx", "bybit"):
-        for symbol in SERIES_PAIRS:
-            src = _replay(exchange, f"series_{symbol}")
-            candles.extend(src.candles(symbol, "1h", series_window()))
-    refs = reference_candles(candles)
+    refs = real_series_refs()
     ingested = {(r.base, r.quote, r.ts_ms): r.ts_ms + 2 * H for r in refs}
     return InMemoryRefSource.from_ref_candles(refs, ingested_at_ms=ingested)
 

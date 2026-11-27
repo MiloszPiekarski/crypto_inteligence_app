@@ -62,6 +62,9 @@ class OutboxEvent:
     schema_version: int
     payload: Mapping[str, Any]
     occurred_at: datetime
+    # Zdarzenie, którego skutkiem jest to zdarzenie (np. candle.closed dla features.ready);
+    # None: zdarzenie nie jest skutkiem innego (korelacja = ono samo). Migracja 0004.
+    correlation_id: uuid.UUID | None = None
 
 
 def candle_closed(
@@ -102,8 +105,8 @@ def envelope(event: OutboxEvent, producer: str) -> dict[str, Any]:
         "schema_version": event.schema_version,
         "occurred_at": _iso(event.occurred_at),
         "producer": producer,
-        # Zdarzenie z ingestu nie jest skutkiem innego zdarzenia: korelacja = ono samo.
-        "correlation_id": str(event.event_id),
+        # Zdarzenie, które nie jest skutkiem innego (np. z ingestu): korelacja = ono samo.
+        "correlation_id": str(event.correlation_id or event.event_id),
         "payload": dict(event.payload),
     }
 
@@ -122,23 +125,31 @@ class StreamClient(Protocol):
 
 
 class OutboxStore(Protocol):
-    def unpublished(self, limit: int) -> Sequence[tuple[int, OutboxEvent]]: ...
+    def unpublished(
+        self, limit: int, types: Sequence[str] | None = None
+    ) -> Sequence[tuple[int, OutboxEvent]]: ...
 
     def mark_published(self, outbox_ids: Sequence[int], published_at: datetime) -> None: ...
 
 
-def relay_outbox(
+def relay_outbox(  # noqa: PLR0913 (zależności i opcje przekaźnika)
     store: OutboxStore,
     client: StreamClient,
     *,
     producer: str,
     batch: int = 500,
     now: datetime | None = None,
+    types: Sequence[str] | None = None,
 ) -> int:
-    """Publikuje nieopublikowane zdarzenia (kolejność outbox_id); zwraca ich liczbę."""
+    """Publikuje nieopublikowane zdarzenia (kolejność outbox_id); zwraca ich liczbę.
+
+    `types`: tylko zdarzenia tych typów (każdy proces publikuje zdarzenia, które sam
+    wytworzył, pod własną nazwą `producer`: ingest `candle.closed`, worker
+    `features.ready`); None: wszystkie.
+    """
     total = 0
     while True:
-        rows = store.unpublished(batch)
+        rows = store.unpublished(batch, types)
         if not rows:
             return total
         for _, event in rows:

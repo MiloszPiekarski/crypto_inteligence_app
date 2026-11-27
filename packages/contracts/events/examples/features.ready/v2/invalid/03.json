@@ -1,0 +1,21 @@
+{
+  "_why": "symbol aktywa małymi literami",
+  "event_id": "019ac6a1-2b3c-7d4e-8f50-6a7b8c9d0e1f",
+  "type": "features.ready",
+  "schema_version": 2,
+  "occurred_at": "2026-11-27T10:02:30Z",
+  "producer": "worker@0.1.0",
+  "correlation_id": "019ac6a0-1a2b-7c3d-9e4f-5a6b7c8d9e0f",
+  "payload": {
+    "feature_set": "fs-1p",
+    "feature_set_version": "66ce07b92a443614",
+    "asset_id": 2,
+    "quote_asset_id": 1,
+    "base": "eth",
+    "quote": "USDT",
+    "as_of": "2026-11-27T10:00:00Z",
+    "data_cutoff": "2026-11-27T10:00:00Z",
+    "features_count": 19,
+    "ok_count": 19
+  }
+}

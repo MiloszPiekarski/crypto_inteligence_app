@@ -1,7 +1,14 @@
 """Publiczny interfejs modułu marketdata (roadmapa E4, ścieżka pracy: ADR-0008)."""
 
 from goatcash.marketdata._impl.dq import DqConfig, DqEvent, DqResult, PairDq, is_stale
-from goatcash.marketdata._impl.events import candle_closed, envelope, relay_outbox
+from goatcash.marketdata._impl.events import (
+    OutboxEvent,
+    StreamClient,
+    candle_closed,
+    envelope,
+    relay_outbox,
+    uuid7,
+)
 from goatcash.marketdata._impl.gaps import ClassifiedGap, Gap, classify_gap, find_gaps
 from goatcash.marketdata._impl.ingest import Ingest, InstrumentReport, instrument_report
 from goatcash.marketdata._impl.pgstore import PostgresStore
@@ -35,11 +42,13 @@ __all__ = [
     "MarketDataSource",
     "MarketStore",
     "OkxSource",
+    "OutboxEvent",
     "PairDq",
     "PostgresStore",
     "RefCandle",
     "RetryPolicy",
     "SourceUnavailableError",
+    "StreamClient",
     "TimeRange",
     "Universe",
     "candle_closed",
@@ -51,4 +60,5 @@ __all__ = [
     "load_universe",
     "reference_candles",
     "relay_outbox",
+    "uuid7",
 ]

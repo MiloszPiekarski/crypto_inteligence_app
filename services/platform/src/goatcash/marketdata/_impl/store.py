@@ -188,8 +188,14 @@ class InMemoryStore:
         return len({ts for ts in good if (base, quote, ts) not in self.refs})
 
     # OutboxStore (przekaźnik zdarzeń)
-    def unpublished(self, limit: int) -> list[tuple[int, OutboxEvent]]:
-        return [(oid, ev) for oid, ev, pub in self.outbox if pub is None][:limit]
+    def unpublished(
+        self, limit: int, types: Sequence[str] | None = None
+    ) -> list[tuple[int, OutboxEvent]]:
+        return [
+            (oid, ev)
+            for oid, ev, pub in self.outbox
+            if pub is None and (types is None or ev.type in types)
+        ][:limit]
 
     def mark_published(self, outbox_ids: Sequence[int], published_at: datetime) -> None:
         ids = set(outbox_ids)
