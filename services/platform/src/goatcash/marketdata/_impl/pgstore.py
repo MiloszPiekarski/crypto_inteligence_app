@@ -17,7 +17,7 @@ import psycopg
 
 from goatcash.marketdata._impl.dq import CROSS_DEVIATION, DATASET, PRICE_SPIKE, DqEvent
 from goatcash.marketdata._impl.events import OutboxEvent
-from goatcash.marketdata._impl.store import Checkpoint, CommitBatch
+from goatcash.marketdata._impl.store import Checkpoint, CommitBatch, InstrumentStatus
 from goatcash.marketdata._impl.types import (
     Candle,
     InstrumentInfo,
@@ -36,6 +36,16 @@ _GOOD: LiteralString = """
           AND e.decision = 'flagged' AND e.kind = ANY(%(flag_kinds)s)
     )
 """
+
+# Chwile z poprawną (nieoznaczoną) świecą pary bez wiersza candles_ref (F-06, ścieżka pracy).
+# Sklejanie tylko stałych (LiteralString); wartości idą parametrami.
+_MISSING_REFS: LiteralString = (
+    "SELECT count(DISTINCT c.ts) FROM candles c WHERE c.instrument_id = ANY(%(ids)s) "  # noqa: S608
+    "AND c.timeframe = '1h' AND "
+    + _GOOD
+    + " AND NOT EXISTS (SELECT 1 FROM candles_ref r WHERE r.asset_id = %(base)s "
+    "AND r.quote_asset_id = %(quote)s AND r.timeframe = '1h' AND r.ts = c.ts)"
+)
 
 
 class PostgresStore:
@@ -300,6 +310,33 @@ class PostgresStore:
             )
             for r in rows
         ]
+
+    def upsert_status(self, status: InstrumentStatus) -> None:
+        iid = self._require_id(status.exchange, status.symbol)
+        last = None if status.last_ts_ms is None else ms_to_datetime(status.last_ts_ms)
+        self._conn.execute(
+            "INSERT INTO dq_status (dataset, instrument_id, status, completeness, last_ts) "
+            "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (dataset, instrument_id) DO UPDATE SET "
+            "status = EXCLUDED.status, completeness = EXCLUDED.completeness, "
+            "last_ts = EXCLUDED.last_ts, updated_at = now()",
+            (DATASET, iid, status.status, status.completeness, last),
+        )
+
+    def missing_refs(self, symbol: str) -> int:
+        self._id("", symbol)  # odświeżenie mapy instrumentów
+        ids = [iid for (_, sym), iid in self._ids.items() if sym == symbol]
+        base, quote = symbol.split("-")
+        row = self._conn.execute(
+            _MISSING_REFS,
+            {
+                "ids": ids,
+                "base": self._assets.get(base),
+                "quote": self._assets.get(quote),
+                "dataset": DATASET,
+                "flag_kinds": list(FLAG_KINDS),
+            },
+        ).fetchone()
+        return 0 if row is None else int(row[0])
 
     # --- outbox (przekaźnik zdarzeń) ---
 

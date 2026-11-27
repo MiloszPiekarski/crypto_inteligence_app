@@ -10,10 +10,11 @@ sekcja „Tryb ścieżki pracy”.
 
 - **1–3 PR-y na etap** (zamiast „jeden punkt zakresu na PR”), plus mały PR z dowodem
   bramki po zielonym CI na `main`.
-- **Asystent w sesji w chmurze** wypycha gałąź `claude/E<nr>-<opis>` (commity mogą być
-  niepodpisane), otwiera właściwy PR z etykietą etapu i poprawia go do zielonego CI.
-  Właściciel przegląda i scala przez **Squash and merge** w GitHubie: commit na `main`
-  podpisuje GitHub, więc wymóg podpisanych commitów w rulesecie jest spełniony.
+- **Asystent w sesji w chmurze** wypycha gałąź `claude/E<nr>-<opis>` (niepodpisany
+  commit), otwiera właściwy PR z etykietą etapu i poprawia go do zielonego CI. Ruleset
+  `main` wymaga podpisu każdego commitu w PR, więc właściciel podpisuje przetestowany stan
+  jednym commitem i wypycha go na tę samą gałąź (`CLAUDE.md`, „Tryb ścieżki pracy”, pkt 3),
+  potem przegląda i scala przez **Squash and merge** w GitHubie.
 - **Przegląd:** CI, bramki pracy i CodeQL; bez szkiców testowych, bez niezależnego
   recenzenta (wyjątek: zmiany kontroli bramek i sekretów, za zgodą właściciela), bez
   triażu Graphify (wyłączony do końca pracy).

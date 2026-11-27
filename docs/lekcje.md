@@ -137,3 +137,22 @@ jak tego unikamy.
 - `pre-commit run --all-files` sprawdza tylko pliki śledzone przez git: nowe pliki (np. ADR)
   przeszły, a `make gate G=1` (Biome `ci .`) padł na ich formatowaniu → nowe pliki
   dodajemy (`git add`) przed pre-commit, a o wyniku decyduje bramka, nie sam pre-commit.
+
+## E4
+
+- Zasada „commity asystenta mogą być niepodpisane, bo squash podpisuje GitHub” sprawdzona
+  na commitach squash z PR-ów z commitami właściciela; ruleset sprawdza każdy commit w PR
+  i zablokował PR #129 → regułę sprawdzamy na przypadku, którego dotyczy (tu: PR
+  z niepodpisanym commitem), a nie na wyniku innej ścieżki; wymagania rulesetu czytamy
+  z API (`rulesets/<id>`).
+- Workflow uruchamiany ręcznie (`workflow_dispatch`) działa dopiero z `main`, więc sondy
+  na serwerze nie da się puścić z gałęzi PR → pracę zależną od takiego workflow dzielimy
+  na mały PR z workflow i PR z resztą (PR 2a i 2b E4), i mówimy o tym przy planie etapu.
+- Bybit blokuje kraj sesji asystenta (403 CloudFront), a ccxt raportuje to jako
+  `RateLimitExceeded` → dostęp do zewnętrznego API sprawdzamy z miejsca, w którym kod
+  będzie działał (sonda z serwera), a kasety nagrywamy tam, gdzie API odpowiada.
+- `statistics.pstdev` (ułamki dokładne) spowalniało test właściwości DQ ~5x → w pętlach
+  po świecach liczymy na float (`math.fsum`), wynik zależny tylko od zawartości okna.
+- Mutacja reguły OHLC (close poza [low, high]) przeżyła pierwsze testy, bo wstrzykiwane
+  błędy psuły zawsze to samo pole → dla każdej reguły test mutacyjny i błędy wstrzykiwane
+  w kilku wariantach.

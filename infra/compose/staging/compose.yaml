@@ -101,6 +101,39 @@ services:
       retries: 6
     logging: *logging
 
+  ingest:
+    # E4 (ścieżka pracy): świece 1 h z OKX i Bybit, DQ, luki, cena referencyjna, candle.closed.
+    # Adres bazy z api.env (bez nowego sekretu); proces przełącza się na rolę goatcash_app
+    # (SET ROLE, uprawnienia aplikacji). Sieć egress: publiczne API giełd; backend: baza, Valkey.
+    image: ghcr.io/miloszpiekarski/goatcash-platform:${GOATCASH_IMAGE_TAG:?ustaw GOATCASH_IMAGE_TAG (sha-<commit>)}
+    restart: unless-stopped
+    command: ["python", "-m", "goatcash.marketdata", "ingest"]
+    env_file: [./env/api.env]
+    environment:
+      GOATCASH_VALKEY_URL: redis://valkey:6379/0
+      # 1 = proces żyje, ale nie pyta giełd (test Compose w CI, awaryjne wstrzymanie).
+      GOATCASH_INGEST_PAUSED: ${GOATCASH_INGEST_PAUSED:-0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    networks: [backend, egress]
+    healthcheck:
+      # Heartbeat co minutę w oczekiwaniu i po każdej parze; zawieszony proces > 15 min = unhealthy.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os,sys,time; sys.exit(0 if time.time() - os.path.getmtime('/tmp/goatcash-ingest.heartbeat') < 900 else 1)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging: *logging
+
   caddy:
     image: caddy:2.11.9@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b45e84a75b
     restart: unless-stopped

@@ -192,3 +192,22 @@ def test_real_okx_series_single_source_under_1_percent_false_alarms() -> None:
     assert total > 9000
     print(f"OKX prawdziwe dane: {flagged}/{total} oznaczonych ({flagged / total:.3%})")
     assert flagged / total < 0.01
+
+
+def test_real_two_exchange_series_under_1_percent_false_alarms() -> None:
+    """Prawdziwe świece OKX i Bybit (te same 2000 h, 5 par): reguły z potwierdzeniem drugiej
+    giełdy (odchylenie > 3%, skok bez potwierdzenia) na danych bez wstrzykniętych błędów."""
+    total = flagged = 0
+    for symbol in SERIES_PAIRS:
+        okx, _ = replay_source("okx", [f"series_{symbol}"])
+        bybit, _ = replay_source("bybit", [f"series_{symbol}"])
+        candles = [
+            *okx.candles(symbol, "1h", series_window()),
+            *bybit.candles(symbol, "1h", series_window()),
+        ]
+        result = PairDq(("okx", "bybit")).process(candles)
+        total += len(candles)
+        flagged += len({(e.exchange, e.ts_ms) for e in result.events})
+    assert total > 19_000
+    print(f"OKX + Bybit prawdziwe dane: {flagged}/{total} oznaczonych ({flagged / total:.3%})")
+    assert flagged / total < 0.01

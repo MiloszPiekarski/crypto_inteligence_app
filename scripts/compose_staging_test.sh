@@ -26,7 +26,7 @@ chmod 0777 "$WORK/metrics" "$WORK/repo"
 # Repozytorium kopii poza wolumenem bazy (na serwerze: R2), żeby przeżyło usunięcie wolumenu.
 printf 'services:\n  postgres:\n    volumes:\n      - %s:/test-repo\n' "$WORK/repo" > "$WORK/compose/compose.override.yaml"
 export COMPOSE_PROJECT_NAME="$PROJECT" GOATCASH_HTTPS_PORT="$PORT" GOATCASH_TLS_DIR="$WORK/tls" \
-  GOATCASH_METRICS_DIR="$WORK/metrics" GOATCASH_SKIP_PULL=1 \
+  GOATCASH_METRICS_DIR="$WORK/metrics" GOATCASH_SKIP_PULL=1 GOATCASH_INGEST_PAUSED=1 \
   GOATCASH_DOCKER_CONTAINERS_DIR="$WORK/containers"
 dc() { (cd "$WORK/compose" && GOATCASH_IMAGE_TAG="${TAG:-$GOOD}" docker compose "$@"); }
 # Sprzątanie nie zmienia wyniku testu. Pliki repozytorium kopii należą do użytkownika
@@ -67,11 +67,14 @@ grep -q "test dymny: OK" "$WORK/deploy1.log" || fail "brak testu dymnego w deplo
 [ "$(cat "$WORK/compose/.image-tag")" = "$GOOD" ] || fail ".image-tag po wdrożeniu"
 ok "deploy.sh: migracje, healthchecki, test dymny przez Caddy (TLS)"
 
-for s in postgres valkey api caddy otel-collector; do
+for s in postgres valkey api ingest caddy otel-collector; do
   state="$(docker inspect -f '{{.State.Health.Status}}' "$(dc ps -q "$s")")"
   [ "$state" = healthy ] || fail "usługa $s: $state"
 done
-ok "healthchecki: postgres, valkey, api, caddy, otel-collector"
+ok "healthchecki: postgres, valkey, api, ingest, caddy, otel-collector"
+# ingest w teście wstrzymany (bez zapytań do giełd z CI), ale połączony z bazą jako goatcash_app.
+dc logs ingest 2>&1 | grep -q "ingest: wstrzymany" || fail "ingest: brak trybu wstrzymania w logu"
+ok "ingest: działa wstrzymany (GOATCASH_INGEST_PAUSED=1), bez zapytań do giełd"
 
 exts="$(dc exec -T postgres psql -U postgres -tAc "SELECT string_agg(extname, ',' ORDER BY extname) FROM pg_extension WHERE extname IN ('timescaledb','vector')")"
 ver="$(dc exec -T postgres psql -U postgres -tAc "SHOW server_version_num")"

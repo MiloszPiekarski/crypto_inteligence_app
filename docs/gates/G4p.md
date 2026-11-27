@@ -21,8 +21,8 @@
 | PR  | Gałąź                        | Zakres                                                                                                                                                                       | Stan    |
 | --- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
 | 1   | `claude/E4-marketdata-rdzen` | `MarketDataSource`, adaptery OKX i Bybit (ccxt), normalizacja, uniwersum 20 par, DQ, detektor luk, cena referencyjna, `candle.closed` (outbox), punkty kontrolne, testy, G4p | ✅ #129 |
-| 2a  | `claude/E4-sonda-gield`      | `marketdata-probe.yml` i polecenie `probe`: sonda dostępu z Amsterdamu, nagranie kaset Bybit (podział PR 2 na 2a i 2b: zgoda właściciela 27.11.2026)                         | ⏳      |
-| 2b  | `claude/E4-ingest-staging`   | kasety Bybit, proces `ingest` w Compose staging, `data-report.yml`, poprawka podpisów w `CLAUDE.md`                                                                          | ⬜      |
+| 2a  | `claude/E4-sonda-gield`      | `marketdata-probe.yml` i polecenie `probe`: sonda dostępu z Amsterdamu, nagranie kaset Bybit (podział PR 2 na 2a i 2b: zgoda właściciela 27.11.2026)                         | ✅ #130 |
+| 2b  | `claude/E4-ingest-staging`   | kasety Bybit, proces `ingest` w Compose staging, `data-report.yml`, poprawka podpisów w `CLAUDE.md`                                                                          | ⏳      |
 | 3   | `claude/E4-g4p`              | G4p do macierzy `gate`, ten raport z dowodami, dokumentacja etapu                                                                                                            | ⬜      |
 
 ## Wybór giełd
@@ -35,11 +35,11 @@ Coinbase (mało par USDT, cena referencyjna wymaga tej samej pary na obu giełda
 
 Dostęp sprawdzony 26.11.2026:
 
-| Skąd                       | OKX                                                                              | Bybit                                                    |
-| -------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| sesja asystenta w chmurze  | HTTP 200; 20/20 par spot, pierwsza świeca 1 h każdej pary = 2023-01-01 00:00 UTC | HTTP 403 („CloudFront … block access from your country”) |
-| serwer staging (Amsterdam) | ⬜ sonda na początku PR 2                                                        | ⬜ sonda na początku PR 2                                |
-| GitHub Actions             | nie dotyczy: CI testuje na kasetach, bez sieci                                   | nie dotyczy                                              |
+| Skąd                       | OKX                                                                                            | Bybit                                                                        |
+| -------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| sesja asystenta w chmurze  | HTTP 200; 20/20 par spot, pierwsza świeca 1 h każdej pary = 2023-01-01 00:00 UTC               | HTTP 403 („CloudFront … block access from your country”)                     |
+| serwer staging (Amsterdam) | HTTP 200; 20/20 par, pierwsza świeca 2023-01-01 00:00 UTC (`marketdata-probe.yml` 45917575053) | HTTP 200; 20/20 par, pierwsza świeca 2023-01-01 00:00 UTC (ten sam przebieg) |
+| GitHub Actions             | nie dotyczy: CI testuje na kasetach, bez sieci                                                 | nie dotyczy                                                                  |
 
 ## Uproszczenia ścieżki pracy i jawne decyzje
 
@@ -47,9 +47,15 @@ Dostęp sprawdzony 26.11.2026:
   20 par (symbol, nazwa, `coingecko_id`) zapisane raz w
   `services/platform/src/goatcash/marketdata/config/universe.toml`, ze źródłem i datą
   w komentarzu (odczyt CoinGecko `/coins/markets` 26.11.2026). Bez klucza, bez SOPS.
-- **Kasety Bybit z serwera w Amsterdamie** (PR 2): Bybit blokuje kraj sesji asystenta,
-  więc w PR 1 test normalizacji działa na kasetach OKX, a sprawdzenie „kasety obu giełd”
-  (`make marketdata-normalization-test`) jest czerwone do PR 2.
+- **Kasety Bybit z serwera w Amsterdamie:** Bybit blokuje kraj sesji asystenta (403
+  CloudFront), więc kasety Bybit nagrała sonda na serwerze staging (`marketdata-probe.yml`
+  45917575053, obraz `sha-ab9dae6`, 27.11.2026): 26 plików, archiwum SHA-256
+  `82ae3965207f39a60aeba2c4c076ec79175c2810642d28a5436c39d4e90871a1`, wypisane w logu
+  przebiegu i rozpakowane do `services/platform/tests/marketdata/fixtures/bybit/` (PR 2b).
+- **Proces `ingest` bez nowego sekretu:** adres bazy z `api.env`, po połączeniu `SET ROLE
+  goatcash_app` (raport: `goatcash_readonly`); `GOATCASH_INGEST_PAUSED=1` wstrzymuje
+  zapytania do giełd (test Compose w CI). Raport i sonda łączą się kluczem wdrożeń
+  (środowisko `staging`, tylko `main`), ze stałym poleceniem zdalnym.
 - **Lista instrumentów w kasecie przycięta do 20 par** (pełna odpowiedź OKX ma 1,5 MB);
   świece zapisane dosłownie.
 - **Świece przez API niejawne ccxt**, nie `fetch_ohlcv`: `fetch_ohlcv` zamienia ceny na

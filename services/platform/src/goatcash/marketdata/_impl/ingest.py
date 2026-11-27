@@ -199,6 +199,7 @@ class InstrumentReport:
     rejected: int  # brakujące, bo giełda dała błędną świecę (odrzucona przez DQ)
     completeness: float
     stale: bool
+    last_ts_ms: int | None = None  # ostatnia zapisana świeca
 
 
 REJECT_KINDS = ("nonpositive_price", "ohlc_inconsistent", "negative_volume")
@@ -242,4 +243,5 @@ def instrument_report(
         rejected=len(rejected_ts & missing),
         completeness=completeness(len(expected), stored, len(gap_ts)),
         stale=is_stale(max(present) if present else None, now_ms),
+        last_ts_ms=max(present) if present else None,
     )

@@ -31,6 +31,8 @@ from testcontainers.community.postgres import PostgresContainer
 from testcontainers.community.redis import RedisContainer
 
 from goatcash.marketdata._impl.events import STREAM
+from goatcash.marketdata._impl.runtime import connect, report_rows
+from goatcash.marketdata._impl.store import Checkpoint, CommitBatch
 from goatcash.marketdata.api import (
     HOUR_MS,
     InMemoryStore,
@@ -208,3 +210,18 @@ def test_relay_to_valkey_and_events_match_contract(
     v = validator()
     for _, fields in entries:
         v.validate(json.loads(fields["event"]))  # pyright: ignore[reportUnknownMemberType]
+
+
+def test_report_with_readonly_role_matches_memory(store: PostgresStore, db_url: str) -> None:
+    mem = InMemoryStore()
+    run_scenario(mem, lambda ts: None)
+    run_scenario(store, lambda ts: None)
+    universe = scenario()[0].universe
+    readonly = PostgresStore(
+        connect(db_url.replace("postgresql://", "postgresql+psycopg://"), "goatcash_readonly")
+    )
+    pg_rows = report_rows(readonly, universe, NOW)
+    assert pg_rows == report_rows(mem, universe, NOW)
+    assert all(r.unexplained == 0 for r in pg_rows)
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        readonly.commit(CommitBatch(checkpoint=Checkpoint("x", "BTC-USDT", START)))
