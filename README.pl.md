@@ -10,13 +10,15 @@ Otwarta platforma analityczna rynku kryptowalut: agenci analityczni, prognozy ro
 w Forecast Ledger, kalibracja i samouczenie z twardymi granicami, a w dalszych etapach
 bot handlowy w trybach o rosnącej autonomii.
 
-> **Status:** etapy **E0–E3** zakończone (bramki G0–G3 zaliczone: konta i narzędzia;
-> repozytorium, CI i sekrety; architektura, model danych i kontrakty; infrastruktura staging
-> odtwarzalna od zera, z kopiami i alertami). Następny: **E4** (pozyskiwanie danych rynkowych
-> i normalizacja) w **ścieżce pracy inżynierskiej**: od E4 etapy w zakresie okrojonym
-> z bramkami pracy `G<nr>p`, a pełny produkt (roadmapa E0–E18) po obronie pracy (ADR-0008).
-> Każdy etap kończy się bramką jakości sprawdzaną automatycznie. Bieżący stan:
-> `docs/stan-pracy.md`.
+> **Status:** etapy **E0–E4** zakończone (bramki G0–G3 i bramka pracy G4p zaliczone: konta
+> i narzędzia; repozytorium, CI i sekrety; architektura, model danych i kontrakty;
+> infrastruktura staging odtwarzalna od zera, z kopiami i alertami; dane rynkowe: świece 1 h
+> z OKX i Bybit dla 20 par od 2023-01-01, kontrola jakości, detektor luk i cena
+> referencyjna, pobierane co godzinę na staging). Etapy od E4 są realizowane w **ścieżce
+> pracy inżynierskiej** (zakres okrojony, bramki pracy `G<nr>p`), a pełny produkt (roadmapa
+> E0–E18) po obronie pracy (ADR-0008). Następny: **E5** (magazyn danych i point-in-time
+> feature store). Każdy etap kończy się bramką jakości sprawdzaną automatycznie. Bieżący
+> stan: `docs/stan-pracy.md`.
 
 ## Struktura
 

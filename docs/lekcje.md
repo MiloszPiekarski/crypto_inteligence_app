@@ -156,3 +156,10 @@ jak tego unikamy.
 - Mutacja reguły OHLC (close poza [low, high]) przeżyła pierwsze testy, bo wstrzykiwane
   błędy psuły zawsze to samo pole → dla każdej reguły test mutacyjny i błędy wstrzykiwane
   w kilku wariantach.
+- `scripts/gate_pass.py` odczytuje nazwę repozytorium przez `gh repo view` (GraphQL),
+  zablokowany w sesji w chmurze → na czas komendy podstawione `gh` zwracające nazwę
+  repozytorium (bez zmiany skryptu, która wymagałaby recenzenta); opis w `docs/gates/G4p.md`.
+  Przy następnej zmianie `gate_pass` (z recenzentem): nazwa z `GITHUB_REPOSITORY` albo REST.
+- Pierwszy raport danych uruchomiony „na czas” przed końcem pobierania historii wyszedł
+  czerwony → czas pobierania bierzemy z pierwszego przebiegu (tu ok. 60 min dla 20 par × 2
+  giełdy), a raport puszczamy po nim; czerwony przebieg zostaje w historii jako próba.

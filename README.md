@@ -10,12 +10,14 @@ An open crypto market intelligence platform: analytical agents, forecasts settle
 Forecast Ledger, calibration and self-learning within hard limits, and, in later stages, a
 trading bot with gradually increasing autonomy.
 
-> **Status:** stages **E0–E3** are complete (gates G0–G3 passed: accounts and tools;
-> repository, CI and secrets; architecture, data model and contracts; staging infrastructure
-> rebuildable from scratch, with backups and alerts). Next: **E4** (market data ingestion and
-> normalization) in the **engineering-thesis track**: from E4 on, stages are delivered in
-> a reduced scope with thesis gates `G<nr>p`, and the full product (E0–E18 roadmap) follows
-> after the thesis defense (ADR-0008). Every stage ends with a quality gate that is checked
+> **Status:** stages **E0–E4** are complete (gates G0–G3 and thesis gate G4p passed: accounts
+> and tools; repository, CI and secrets; architecture, data model and contracts; staging
+> infrastructure rebuildable from scratch, with backups and alerts; market data: 1 h candles
+> from OKX and Bybit for 20 pairs since 2023-01-01, data quality checks, gap detector and
+> reference price, ingested hourly on staging). From E4 on, stages are delivered in the
+> **engineering-thesis track** (reduced scope, thesis gates `G<nr>p`), and the full product
+> (E0–E18 roadmap) follows after the thesis defense (ADR-0008). Next: **E5** (data store and
+> point-in-time feature store). Every stage ends with a quality gate that is checked
 > automatically. Current state: `docs/stan-pracy.md`.
 
 ## Layout
