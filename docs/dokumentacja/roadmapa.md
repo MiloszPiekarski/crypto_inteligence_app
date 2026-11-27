@@ -396,6 +396,24 @@ Etap kończy się, gdy ta sama biblioteka cech daje bit w bit identyczne wyniki 
 5. Braki danych: cecha = `NaN` + status, nigdy cicha interpolacja.
 6. Wzory, okna i ograniczenia cech w `docs/praca/metody.md` (przy domknięciu etapu).
 
+**Decyzje właściciela 27.11.2026 (doprecyzowanie zakresu w ścieżce pracy, zapis jawny):**
+
+1. **Klucz cech:** cechy liczymy z ceny referencyjnej, która nie należy do żadnej giełdy,
+   więc `feature_values` dostaje klucz `(asset_id, quote_asset_id)` zamiast `instrument_id`
+   i kolumnę `status` (migracja 0004, PR 2 E5); `features.ready` przechodzi na
+   `schema_version 2` z tymi polami (v1 nie miało konsumentów).
+2. **`MarketView(as_of, known_at=None)`:** zawsze tylko świece zamknięte najpóźniej
+   w `as_of` (`ts + 1 h ≤ as_of`; dla `as_of` wyrównanego do godziny to `time < as_of`
+   z punktu 1); warunek `ingested_at ≤ known_at` tylko w replay okresu zbieranego na żywo
+   (podane `known_at`). Pełne przeliczenie historii działa bez `known_at`: historię od 2023 r.
+   pobrano w listopadzie 2026 r., więc warunek `ingested_at ≤ as_of` z punktu 1 dawałby dla
+   przeszłości pusty widok. Opis: `docs/praca/metody.md`, sekcja 2.
+3. **Worker na staging dopiero w E7:** w E5 powstaje kod i testy zadania liczenia cech po
+   `candle.closed` i przeliczenia wsadowego (PR 2 E5); uruchomienie na staging (usługa
+   w Compose, przeliczenie historii na prawdziwej bazie) razem z agentami E7, którzy
+   konsumują `features.ready`. G5p nie ma kryterium na staging (dowód `ci`).
+4. **Korelacja BTC z BTC:** `NaN` ze statusem „nie dotyczy” (`not_applicable`).
+
 **Dokończenie w ścieżce produktu:** pozostałe cechy do ok. 60 w `fs-1` (nierównowaga kupna i sprzedaży, funding i jego
 z-score, zmiana OI, rozpiętość i głębokość order booku, dominacja BTC, Fear & Greed, TVL;
 wymagają danych z pełnego E4); eksport miesięczny Parquet na R2 (DuckDB); retencja

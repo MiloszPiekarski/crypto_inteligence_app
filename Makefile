@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 G ?=
 
-.PHONY: ansible-test help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test iac-lint compose-staging-test backup-restore-test marketdata-normalization-test marketdata-dq-test marketdata-resilience-test marketdata-logic-test marketdata-db-test event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
+.PHONY: ansible-test help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test iac-lint compose-staging-test backup-restore-test marketdata-normalization-test marketdata-dq-test marketdata-resilience-test marketdata-logic-test marketdata-db-test features-reference-test features-pit-test features-gaps-test features-determinism-test event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
 
 help: ## Lista komend
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -75,6 +75,18 @@ marketdata-logic-test: ## Luki, kompletność, cena referencyjna, candle.closed,
 
 marketdata-db-test: ## marketdata na Postgresie z Timescale i Valkey w kontenerach (Docker; G4p)
 	uv run pytest --no-cov -m db services/platform/tests/marketdata/test_pgstore.py
+
+features-reference-test: ## Cechy fs-1p vs TA-Lib, czysty Python i przykłady ręczne, dane syntetyczne i prawdziwe (G5p)
+	uv run pytest --no-cov services/platform/tests/features/test_reference.py
+
+features-pit-test: ## Brak zaglądania w przyszłość: 1000 losowych chwil, replay known_at, mutacje (G5p, F-07)
+	uv run pytest --no-cov services/platform/tests/features/test_point_in_time.py services/platform/tests/features/test_view.py
+
+features-gaps-test: ## Braki danych: NaN + status, bez interpolacji, DQ E4, mutacja wypełniania luk (G5p)
+	uv run pytest --no-cov services/platform/tests/features/test_gaps.py
+
+features-determinism-test: ## Dwa pełne przeliczenia historii bit w bit, wersja zbioru cech (G5p, F-08)
+	uv run pytest --no-cov services/platform/tests/features/test_determinism.py
 
 event-schemas-test: ## JSON Schema zdarzeń: poprawne przykłady przechodzą, błędne odrzucone (G2)
 	uv run pytest packages/contracts/tests/test_event_schemas.py

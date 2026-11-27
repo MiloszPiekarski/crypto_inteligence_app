@@ -1,0 +1,34 @@
+# Bramka pracy G5p (E5, ścieżka pracy inżynierskiej, ADR-0008): cechy fs-1p i MarketView.
+# Kryteria: docs/dokumentacja/testy.md, sekcja 3a (wiersz G5p). Uruchomienie: make gate G=5p.
+#
+# Wszystkie sprawdzenia działają w CI (w G5p nie ma części „staging”), więc dowód G5p jest
+# typu `ci`: przebieg ci.yml na main z zielonym jobem „8 bramka G5p (ubuntu-latest)”.
+# Zapis do Postgresa (feature_sets, feature_values) i przeliczenie historii w bazie: PR 2 E5
+# (sprawdzenie `database`); do tego czasu bramka jest czerwona (job gate-next poza ci-ok).
+gate: G5p
+stage: E5
+criteria: >-
+  100% cech fs-1p przechodzi test point-in-time (Hypothesis, 1000 losowych chwil: dane
+  obcięte do t = pełne dane w chwili t); wartości referencyjne liczone niezależnie, różnica
+  < 1e-9 po okresie rozgrzewki; luka w danych daje NaN ze statusem; dwa pełne przeliczenia
+  historii identyczne bit w bit
+checks:
+  - id: point-in-time
+    name: "brak zaglądania w przyszłość: 19 cech, 1000 losowych chwil bit w bit, replay known_at, mutacje wykryte (F-07)"
+    run: make -s features-pit-test
+  - id: reference
+    name: "wartości referencyjne: TA-Lib i czysty Python (|różnica| <= 1e-9 · max(1, |wzorzec|)), przykłady ręczne, ceny OKX i Bybit"
+    run: make -s features-reference-test
+  - id: gaps
+    name: "luka i zła DQ: NaN ze statusem, po luce pełne okno nowych danych, mutacja interpolacji wykryta"
+    run: make -s features-gaps-test
+  - id: determinism
+    name: "dwa pełne przeliczenia historii identyczne bit w bit (także osobny proces, 1 wątek Polars); hash definicji fs-1p (F-08)"
+    run: make -s features-determinism-test
+  - id: database
+    name: "feature_values w Postgresie z Timescale = przeliczenie w pamięci; features.ready v2 zgodne z kontraktem"
+    run: make -s features-db-test
+    skip_on_ci_os: [macOS]
+    reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
+reports:
+  - docs/gates/G5p.md
