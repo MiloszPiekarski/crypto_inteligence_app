@@ -152,3 +152,21 @@ def test_otel_reads_container_logs_from_docker_data_root() -> None:
     data_root = json.loads(daemon)["data-root"]
     compose = (ROOT / "infra/compose/staging/compose.yaml").read_text(encoding="utf-8")
     assert f":-{data_root}/containers}}:/var/lib/docker/containers:ro" in compose
+
+
+def test_marketdata_probe_is_manual_fixed_and_leaves_nothing() -> None:
+    """Sonda E4: tylko ręcznie, bez wejść, środowisko staging (main), stałe polecenie zdalne
+    z jednorazowym kontenerem (`--rm`), bez klucza age i bez dostępu do bazy."""
+    text = (WF / "marketdata-probe.yml").read_text(encoding="utf-8")
+    wf = load_wf("marketdata-probe.yml")
+    assert wf["on"] == {"workflow_dispatch": None}
+    assert wf["permissions"] == {}
+    job = job_by_name(wf, "probe")
+    assert job["environment"] == "staging"
+    assert job["permissions"] == {"id-token": "write"}
+    runs = "\n".join(str(s.get("run", "")) for s in cast(list[dict[str, object]], job["steps"]))
+    assert "docker run --rm" in runs
+    assert "goatcash.marketdata probe --record bybit" in runs
+    assert "${{" not in runs  # żadnych wyrażeń w poleceniach (wstrzyknięcie)
+    for forbidden in ("SOPS_AGE_KEY", "psql", "compose exec", "deploy.sh", "rsync"):
+        assert forbidden not in text

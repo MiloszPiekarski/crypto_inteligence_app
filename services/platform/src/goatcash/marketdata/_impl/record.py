@@ -91,7 +91,8 @@ def record(
     infos = source.instruments(universe.symbols)
     ids = {i.exchange_symbol for i in infos}
     for interaction in cassette.interactions:
-        interaction.body = _trim_instruments(exchange, interaction.body, ids)
+        if "instruments" in interaction.url:  # inne zapytania ccxt zostają dosłownie
+            interaction.body = _trim_instruments(exchange, interaction.body, ids)
     path = target / "instruments.json"
     cassette.save(path)
     written.append(path)

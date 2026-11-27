@@ -1,0 +1,50 @@
+# marketdata-probe (roadmapa E4, punkt 1 ścieżki pracy): sonda dostępu do giełd z serwera
+# staging (Amsterdam) i nagranie kaset testowych Bybit (Bybit blokuje kraj sesji asystenta).
+#   1. Tailscale (OIDC, tag goatcash-ci: tylko tcp:22) i klucz wdrożeń, jak deploy-staging.yml;
+#   2. na serwerze jednorazowy kontener z obrazu, który jest właśnie wdrożony (`.image-tag`):
+#      `python -m goatcash.marketdata probe --record bybit` (publiczne API giełd, bez kluczy,
+#      bez bazy, `--rm`: nic nie zostaje na serwerze);
+#   3. wynik sondy i kasety (tar.gz w base64 z SHA-256) w logu przebiegu.
+# Tylko ręcznie (workflow_dispatch), bez wejść; środowisko `staging` (tylko main). Pierwsze
+# uruchomienie za zgodą właściciela (CLAUDE.md, zgoda 27.11.2026). Kod wyjścia ≠ 0, gdy któraś
+# giełda jest niedostępna albo brakuje par. Statyczne wymagania: scripts/tests/test_workflows.py.
+name: marketdata-probe
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: marketdata-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    permissions:
+      id-token: write # Tailscale OIDC
+    steps:
+      - uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:goatcash-ci
+          use-cache: "false"
+          ping: goatcash-staging
+      - name: klucz SSH wdrożeń
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf 'Host goatcash-*\n  User deploy\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' > ~/.ssh/config
+      - name: sonda giełd z serwera i nagranie kaset Bybit
+        run: |
+          # Polecenie zdalne jest stałe (bez rozwijania zmiennych runnera); obraz = wdrożony tag.
+          ssh goatcash-staging \
+            'tag="$(cat /srv/goatcash/compose/.image-tag)" && echo "obraz: $tag" && docker run --rm "ghcr.io/miloszpiekarski/goatcash-platform:${tag}" python -m goatcash.marketdata probe --record bybit'

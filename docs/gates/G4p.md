@@ -18,11 +18,12 @@
 
 ## Podział E4 na PR-y (zaakceptowany przez właściciela 26.11.2026)
 
-| PR  | Gałąź                        | Zakres                                                                                                                                                                       | Stan      |
-| --- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| 1   | `claude/E4-marketdata-rdzen` | `MarketDataSource`, adaptery OKX i Bybit (ccxt), normalizacja, uniwersum 20 par, DQ, detektor luk, cena referencyjna, `candle.closed` (outbox), punkty kontrolne, testy, G4p | ⏳ ten PR |
-| 2   | `claude/E4-ingest-staging`   | sonda dostępu z Amsterdamu (najpierw), kasety Bybit z serwera, proces `ingest` w Compose staging, `data-report.yml`                                                          | ⬜        |
-| 3   | `claude/E4-g4p`              | G4p do macierzy `gate`, ten raport z dowodami, dokumentacja etapu                                                                                                            | ⬜        |
+| PR  | Gałąź                        | Zakres                                                                                                                                                                       | Stan    |
+| --- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| 1   | `claude/E4-marketdata-rdzen` | `MarketDataSource`, adaptery OKX i Bybit (ccxt), normalizacja, uniwersum 20 par, DQ, detektor luk, cena referencyjna, `candle.closed` (outbox), punkty kontrolne, testy, G4p | ✅ #129 |
+| 2a  | `claude/E4-sonda-gield`      | `marketdata-probe.yml` i polecenie `probe`: sonda dostępu z Amsterdamu, nagranie kaset Bybit (podział PR 2 na 2a i 2b: zgoda właściciela 27.11.2026)                         | ⏳      |
+| 2b  | `claude/E4-ingest-staging`   | kasety Bybit, proces `ingest` w Compose staging, `data-report.yml`, poprawka podpisów w `CLAUDE.md`                                                                          | ⬜      |
+| 3   | `claude/E4-g4p`              | G4p do macierzy `gate`, ten raport z dowodami, dokumentacja etapu                                                                                                            | ⬜      |
 
 ## Wybór giełd
 
