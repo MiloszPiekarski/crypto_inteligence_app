@@ -76,6 +76,17 @@ zrealizowana i Parkinsona, ATR, RSI, MACD, ADX, EMA i nachylenie, wstęgi Bollin
 z-score, Donchian, wolumen względny, korelacja z BTC. Wartości referencyjne liczone
 niezależnie.
 
+**Zasada point-in-time (`MarketView`, doprecyzowanie z 27.11.2026, karta E5).** Cechy
+i agenci widzą dane rynkowe wyłącznie przez `MarketView(as_of, known_at=None)`. Widok
+zawsze zwraca tylko świece zamknięte najpóźniej w chwili `as_of` (`ts + 1 h ≤ as_of`;
+dla `as_of` wyrównanego do godziny to dokładnie `time < as_of`). Parametr `known_at`
+służy do odtwarzania okresu zbieranego na żywo: widok pokazuje wtedy tylko wiersze
+zapisane najpóźniej w `known_at` (`ingested_at ≤ known_at`), czyli świecę uzupełnioną
+później traktuje jak lukę. Pełne przeliczenie historii działa bez `known_at`, bo historia
+od 2023 r. została pobrana w listopadzie 2026 r. i warunek `ingested_at ≤ as_of` dawałby
+dla przeszłości pusty widok. Widok sprawdza dane ze źródła drugi raz i zgłasza błąd, gdy
+źródło zwróci wiersz spoza widoku. Wzory i okna cech: przy domknięciu E5.
+
 ## 3. Agenci analityczni (E7, G7p) ⬜
 
 - Trend: EMA i ADX, kalibrowana regresja logistyczna → `p_up`.

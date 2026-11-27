@@ -34,6 +34,10 @@ dev = [
   "python-hcl2>=8.1.4,<8.2",
   "rfc3339-validator>=0.1.4",
   "httpx>=0.28",
+  # E5: niezależna implementacja wskaźników (TA-Lib, C) do wartości referencyjnych cech
+  # (bramka G5p); tylko testy, nie trafia do obrazu. Wersja z 28.10.2026, wheele dla Linuksa
+  # (x86_64, aarch64) i macOS arm64, więc bez kompilacji biblioteki C.
+  "ta-lib==0.8.3",
 ]
 
 # ---------------- ruff (lint + format) ----------------

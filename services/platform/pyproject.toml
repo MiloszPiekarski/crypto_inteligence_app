@@ -15,6 +15,10 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-http>=1.45.2,<1.46",
     "opentelemetry-instrumentation-fastapi==0.66b2",
     "opentelemetry-sdk>=1.45.2,<1.46",
+    # E5: biblioteka cech fs-1p (roadmapa E5, zakres 3: Polars, wektorowo); wersja z 25.10.2026
+    # (2.2.0 z 24.11.2026 jest młodsza niż 2 tygodnie). Górna granica: cechy muszą być bit
+    # w bit powtarzalne (G5p), więc zmiana wersji Polars to świadoma zmiana z testem.
+    "polars>=2.1.0,<2.2",
     "psycopg[binary]>=3.2",
     "pydantic>=2.11",
     # E4: klient Valkey (protokół Redis) do publikacji candle.closed (ADR-0003); wersja z 30.07.2026.
