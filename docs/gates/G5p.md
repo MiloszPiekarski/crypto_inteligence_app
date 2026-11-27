@@ -17,9 +17,20 @@
 
 | PR  | Gałąź                    | Zakres                                                                                                                                                                                       | Stan      |
 | --- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| 1   | `claude/E5-cechy-fs1p`   | Polars, TA-Lib (tylko testy), `MarketView(as_of, known_at)`, 19 cech `fs-1p` z oknem i źródłami, hash definicji, statusy braków; testy point-in-time, wartości referencyjne, luki, bit w bit | ⏳ ten PR |
-| 2   | `claude/E5-magazyn-cech` | migracja 0004 (klucz `(asset_id, quote_asset_id)`, `status`), zapis `feature_sets` i `feature_values`, zadanie po `candle.closed` → `features.ready` v2, przeliczenie wsadowe; testy w bazie | ⬜        |
+| 1   | `claude/E5-cechy-fs1p`   | Polars, TA-Lib (tylko testy), `MarketView(as_of, known_at)`, 19 cech `fs-1p` z oknem i źródłami, hash definicji, statusy braków; testy point-in-time, wartości referencyjne, luki, bit w bit | ✅ #133   |
+| 2   | `claude/E5-magazyn-cech` | migracja 0004 (klucz `(asset_id, quote_asset_id)`, `status`), zapis `feature_sets` i `feature_values`, zadanie po `candle.closed` → `features.ready` v2, przeliczenie wsadowe; testy w bazie | ⏳ ten PR |
 | 3   | `claude/E5-g5p`          | G5p do macierzy `gate`, ten raport z dowodami, wzory w `metody.md`, dokumentacja etapu; potem mały PR z `G5p.passed.json`                                                                    | ⬜        |
+
+## Zmiany poza modułem `features` (PR 2)
+
+- **`event_outbox.correlation_id`** (migracja 0004): `features.ready` niesie w kopercie
+  identyfikator `candle.closed`, które je wywołało (ADR-0003, pole `correlation_id`).
+- **Przekaźnik outbox z filtrem typów** (`relay_outbox(..., types=...)`): każdy proces
+  publikuje tylko własne zdarzenia pod własną nazwą `producer` (ingest `candle.closed`,
+  worker `features.ready`). Bez filtra ingest publikowałby też `features.ready` jako
+  `ingest@…`.
+- **Kontrakt `features.ready` v2** obok v1 (ADR-0003: nowa wersja przy zmianie niezgodnej
+  wstecz); test kontraktów obsługuje wersje schematów.
 
 ## Decyzje właściciela 27.11.2026
 

@@ -186,8 +186,8 @@ class PostgresStore:
                 ],
             )
             cur.executemany(
-                "INSERT INTO event_outbox (event_id, type, schema_version, payload, occurred_at) "
-                "VALUES (%s, %s, %s, %s, %s)",
+                "INSERT INTO event_outbox (event_id, type, schema_version, payload, occurred_at, "
+                "correlation_id) VALUES (%s, %s, %s, %s, %s, %s)",
                 [
                     (
                         o.event_id,
@@ -195,6 +195,7 @@ class PostgresStore:
                         o.schema_version,
                         json.dumps(dict(o.payload)),
                         o.occurred_at,
+                        o.correlation_id,
                     )
                     for o in batch.outbox
                 ],
@@ -340,11 +341,14 @@ class PostgresStore:
 
     # --- outbox (przekaźnik zdarzeń) ---
 
-    def unpublished(self, limit: int) -> list[tuple[int, OutboxEvent]]:
+    def unpublished(
+        self, limit: int, types: Sequence[str] | None = None
+    ) -> list[tuple[int, OutboxEvent]]:
         rows = self._conn.execute(
-            "SELECT outbox_id, event_id, type, schema_version, payload, occurred_at "
-            "FROM event_outbox WHERE published_at IS NULL ORDER BY outbox_id LIMIT %s",
-            (limit,),
+            "SELECT outbox_id, event_id, type, schema_version, payload, occurred_at, "
+            "correlation_id FROM event_outbox WHERE published_at IS NULL "
+            "AND (%s::text[] IS NULL OR type = ANY(%s::text[])) ORDER BY outbox_id LIMIT %s",
+            (None if types is None else list(types), None if types is None else list(types), limit),
         ).fetchall()
         return [
             (
@@ -355,6 +359,7 @@ class PostgresStore:
                     schema_version=int(r[3]),
                     payload=cast(dict[str, Any], r[4]),
                     occurred_at=cast(datetime, r[5]),
+                    correlation_id=r[6],
                 ),
             )
             for r in rows

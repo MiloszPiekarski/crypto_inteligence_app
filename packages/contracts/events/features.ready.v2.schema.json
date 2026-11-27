@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goatcash.app/schemas/events/features.ready.v2.schema.json",
+  "title": "Zdarzenie features.ready (schema_version 2)",
+  "description": "Policzone cechy pary aktywów (cena referencyjna) w chwili as_of (worker, E5). Zmiana względem v1 (decyzja właściciela 27.11.2026, karta E5): para aktywów (asset_id, quote_asset_id) zamiast instrument_id, liczba cech ze statusem ok.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "features.ready"
+    },
+    "schema_version": {
+      "const": 2
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feature_set",
+        "feature_set_version",
+        "asset_id",
+        "quote_asset_id",
+        "base",
+        "quote",
+        "as_of",
+        "data_cutoff",
+        "features_count",
+        "ok_count"
+      ],
+      "properties": {
+        "feature_set": {
+          "type": "string",
+          "minLength": 1
+        },
+        "feature_set_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "asset_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "quote_asset_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "base": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]+$"
+        },
+        "quote": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]+$"
+        },
+        "as_of": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "data_cutoff": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "features_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ok_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}
