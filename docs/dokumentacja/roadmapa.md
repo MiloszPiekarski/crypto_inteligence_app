@@ -16,17 +16,17 @@ pracy inżynierskiej. Karty etapów niżej nadal opisują pełny produkt; w karc
 i co przechodzi do produktu („Dokończenie w ścieżce produktu”). Kryteria bramek pracy
 `G<nr>p`: `testy.md`, sekcja 3a. Zależności egzekwuje `gate-guard` (`gates/requirements.yaml`).
 
-| Kolejność | Etap | Zależności (ścieżka pracy)                | Minimum w ścieżce pracy                                                                           | Bramka pracy | Status |
-| --------- | ---- | ----------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------ | ------ |
-| 1         | E4   | G3                                        | 2 giełdy, 20 par, świece 1 h od 2023-01-01, detektor luk, DQ, cena referencyjna                   | G4p          | ⬜     |
-| 2         | E5   | G4p                                       | `MarketView(as_of)`, ok. 15–20 cech `fs-1p`, test point-in-time, wartości referencyjne            | G5p          | ⬜     |
-| 3         | E6   | G2, G3 (może biec równolegle z E4–E5)     | API tylko do odczytu, bez kont użytkowników                                                       | G6p          | ⬜     |
-| 4         | E12a | G2 (może biec równolegle; zalecane po E5) | persony, 4 zadania kluczowe, makiety w Figma Free, mini design system                             | część G12p   | ⬜     |
-| 5         | E7   | G5p                                       | agenci Trend, Ryzyko i zmienność, Reżim, Historyczny (kNN); 2 punkty odniesienia; Ledger          | G7p          | ⬜     |
-| 6         | E8   | G5p, G7p                                  | LightGBM: kierunek + kwantyle 24 h, walk-forward, uczciwy raport, bez MLOps                       | G8p          | ⬜     |
-| 7         | E9   | G7p, G8p                                  | fuzja, ocena ryzyka, komunikaty ostrzegawcze, podpowiedzi z szablonów bez LLM                     | G9p          | ⬜     |
-| 8         | E11  | G5p, G9p                                  | silnik backtestu, 3 strategie, metryki (zwrot, Sharpe, maks. obsunięcie, trafność)                | G11p         | ⬜     |
-| 9         | E12b | G6p, G9p, G11p                            | panel wyników (wykresy, wskaźniki, agenci, ryzyko, scenariusze ML, ostrzeżenia), test z 3 osobami | G12p         | ⬜     |
+| Kolejność | Etap | Zależności (ścieżka pracy)                | Minimum w ścieżce pracy                                                                           | Bramka pracy | Status                            |
+| --------- | ---- | ----------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------ | --------------------------------- |
+| 1         | E4   | G3                                        | 2 giełdy, 20 par, świece 1 h od 2023-01-01, detektor luk, DQ, cena referencyjna                   | G4p          | ✅ zakres pracy (G4p, 27.11.2026) |
+| 2         | E5   | G4p                                       | `MarketView(as_of)`, ok. 15–20 cech `fs-1p`, test point-in-time, wartości referencyjne            | G5p          | ⬜                                |
+| 3         | E6   | G2, G3 (może biec równolegle z E4–E5)     | API tylko do odczytu, bez kont użytkowników                                                       | G6p          | ⬜                                |
+| 4         | E12a | G2 (może biec równolegle; zalecane po E5) | persony, 4 zadania kluczowe, makiety w Figma Free, mini design system                             | część G12p   | ⬜                                |
+| 5         | E7   | G5p                                       | agenci Trend, Ryzyko i zmienność, Reżim, Historyczny (kNN); 2 punkty odniesienia; Ledger          | G7p          | ⬜                                |
+| 6         | E8   | G5p, G7p                                  | LightGBM: kierunek + kwantyle 24 h, walk-forward, uczciwy raport, bez MLOps                       | G8p          | ⬜                                |
+| 7         | E9   | G7p, G8p                                  | fuzja, ocena ryzyka, komunikaty ostrzegawcze, podpowiedzi z szablonów bez LLM                     | G9p          | ⬜                                |
+| 8         | E11  | G5p, G9p                                  | silnik backtestu, 3 strategie, metryki (zwrot, Sharpe, maks. obsunięcie, trafność)                | G11p         | ⬜                                |
+| 9         | E12b | G6p, G9p, G11p                            | panel wyników (wykresy, wskaźniki, agenci, ryzyko, scenariusze ML, ostrzeżenia), test z 3 osobami | G12p         | ⬜                                |
 
 **Odłożone do ścieżki produktu (⏸, karty bez zmian):** E10, E10a, E11a, E13, E14 (a–c),
 E15, E16, E17, E18, z E0 konto Resend (klucz API i sprawdzenie w E13), a w etapach ścieżki
@@ -288,7 +288,7 @@ Bramka **G3: zaliczona** · dowód: `docs/gates/G3.md`, `docs/gates/G3.passed.js
 
 ## E4. Pozyskiwanie danych rynkowych i normalizacja
 
-**Status:** ⬜ nie rozpoczęto · ścieżka pracy: zakres okrojony, bramka G4p (pełny zakres: ⏸ produkt)
+**Status:** ✅ zakres pracy (G4p zaliczona 27.11.2026, dowód `docs/gates/G4p.passed.json`, raport `docs/gates/G4p.md`) · ⏸ reszta w produkcie (pełna bramka G4)
 
 Etap kończy się, gdy dla 150 par z czterech giełd dane płyną na żywo, historia jest uzupełniona, a kontrola jakości wykrywa celowo wstrzyknięte błędy.
 

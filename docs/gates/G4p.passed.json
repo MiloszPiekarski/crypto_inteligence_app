@@ -1,0 +1,17 @@
+{
+  "gate": "G4p",
+  "type": "mixed",
+  "ci": {
+    "run_id": 45973429769,
+    "commit": "cadf19bf66f4bc931fea174272c8b2d85de9412a",
+    "job": "8 bramka G4p (ubuntu-latest)",
+    "url": "https://github.com/MiloszPiekarski/crypto_inteligence_app/actions/runs/45973429769"
+  },
+  "workflows": {
+    "data-report": {
+      "run_id": 45981882350
+    }
+  },
+  "local": {},
+  "recorded_at": "2026-11-27T10:25:57Z"
+}

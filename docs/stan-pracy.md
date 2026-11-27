@@ -3,7 +3,7 @@
 Ten plik pozwala wznowić pracę w nowej rozmowie z asystentem AI bez utraty kontekstu:
 na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku.
 
-**Ostatnia aktualizacja:** 2026-11-26
+**Ostatnia aktualizacja:** 2026-11-27
 
 ## Aktualna ścieżka: praca inżynierska (od 26.11.2026, ADR-0008)
 
@@ -19,12 +19,24 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
   w etapach ścieżki pracy podsekcje „Dokończenie w ścieżce produktu”.
 - **Sposób pracy:** `CLAUDE.md`, sekcja „Tryb ścieżki pracy” (sesja w chmurze, 1–3 PR-y
   na etap, właściciel scala Squash and merge). Start etapu: `docs/start-nowej-rozmowy.md`.
-- **Następny krok:** E4 w ścieżce pracy, nowa rozmowa w chmurze (prompt:
-  `docs/start-nowej-rozmowy.md`, sekcja „Ścieżka pracy”). Warunek: scalony PR z przełącznikiem
-  ścieżki w `gate_guard` (osobny PR, z niezależnym recenzentem), bo bez niego `gate-guard`
-  i `gate_pass` nie znają nazw `G<nr>p`.
+- **Następny krok:** E5 w ścieżce pracy (magazyn danych i point-in-time feature store,
+  bramka G5p; wymaga G4p, zaliczonej 27.11.2026), nowa rozmowa w chmurze (prompt:
+  `docs/start-nowej-rozmowy.md`, sekcja „Ścieżka pracy”); pierwszy PR E5: `gates/G5p.yaml`
+  i job `gate-next` dla G5p. Podpis: właściciel podpisuje każdy PR asystenta przed scaleniem
+  (`CLAUDE.md`, tryb pkt 3).
 
 ## Gdzie jesteśmy
+
+- **E4 (ścieżka pracy):** zakres pracy zakończony, G4p zaliczona 27.11.2026
+  (`docs/gates/G4p.passed.json`, dowód mixed: CI 45973429769 + `data-report.yml`
+  45981882350; raport `docs/gates/G4p.md`). PR-y: #129 (moduł `marketdata`, G4p), #130
+  (sonda z Amsterdamu: OKX i Bybit 20/20 par od 2023-01-01), #131 (proces `ingest` na
+  staging, raport danych, kasety Bybit), PR zamykający (G4p w `ci-ok`, raport, dokumentacja).
+  Na staging działa usługa `ingest` (co godzinę, 2 min po pełnej): 20 par × OKX i Bybit,
+  1,37 mln świec od 2023-01-01, kompletność 100%, 0 luk. Wstrzymanie bez zatrzymania usługi:
+  `GOATCASH_INGEST_PAUSED=1`. Podział PR 2 na 2a i 2b (4 PR-y zamiast 3): zgoda właściciela
+  27.11.2026. Odkryte i poprawione: ruleset wymaga podpisu każdego commitu w PR (`CLAUDE.md`,
+  tryb pkt 3; lekcja E4).
 
 - **E0:** zakończony, G0 zaliczona (`docs/gates/G0.passed.json`, dowód lokalny). R2 i bot
   Telegram zamknięte dowodem z E3 (roadmapa E0, punkty 4 i 7; decyzja właściciela
@@ -182,7 +194,11 @@ Decyzje właściciela do planu (22.11.2026):
 - Sentry na koncie prywatnym: przepięcie na konto projektu ⏸ produkt (w ścieżce pracy
   Sentry nie jest używany).
 - Graphify wyłączony do końca pracy (decyzja właściciela 26.11.2026; wyłącza właściciel
-  w ustawieniach GitHub App). Repozytorium jest publiczne (`gh repo view`, 26.11.2026).
+  w ustawieniach GitHub App). **Do sprawdzenia:** na PR #130 (27.11.2026) pojawił się check
+  „Graphify Formal Verification” (neutralny), więc aplikacja nadal działa na repozytorium.
+- E4: środowisko sesji asystenta „crypto_inteligence_app” (własne, z dostępem do
+  `www.okx.com` i `api.bybit.com` do nagrań kaset; Bybit blokuje kraj sesji, kasety Bybit
+  nagrywa `marketdata-probe.yml` na serwerze). Repozytorium jest publiczne (`gh repo view`, 26.11.2026).
 - Błędy asystenta z E0–E2 i jak ich unikamy: `docs/lekcje.md`.
 - Stary ruleset „Protect main” usunięty przez właściciela (API 23.11.2026: aktywny tylko
   `main-protection`).
