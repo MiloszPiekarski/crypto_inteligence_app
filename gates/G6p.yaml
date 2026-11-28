@@ -4,8 +4,7 @@
 #
 # Wszystkie sprawdzenia działają w CI (w G6p nie ma części „staging”), więc dowód G6p jest
 # typu `ci`: przebieg ci.yml na main z zielonym jobem „8 bramka G6p (ubuntu-latest)”.
-# Do zamknięcia E6 bramka jest w jobie `gate-next` (poza ci-ok); sprawdzenie `cache`
-# (zakres E6, punkt 3 ścieżki pracy) jest czerwone do PR 2 E6.
+# Do zamknięcia E6 bramka jest w jobie `gate-next` (poza ci-ok).
 gate: G6p
 stage: E6
 criteria: >-
@@ -22,7 +21,7 @@ checks:
     name: "świece = candles_ref, 4h i 1d = niezależne przeliczenie, okres z luką pominięty, paginacja bez dubli i braków, RFC 9457"
     run: make -s api-data-test
   - id: database
-    name: "API na Postgresie z Timescale: odpowiedzi = czytnik w pamięci, konto tylko do odczytu bez eskalacji, Schemathesis"
+    name: "API na Postgresie z Timescale i Valkey: odpowiedzi = czytnik w pamięci, konto tylko do odczytu, Schemathesis, XREAD na każdej instancji"
     run: make -s api-db-test
     skip_on_ci_os: [macOS]
     reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
@@ -35,7 +34,7 @@ checks:
     name: "specyfikacja OpenAPI i klient TypeScript zgodne z kodem, Spectral bez uwag (zakres E6, punkt 4)"
     run: make -s openapi-lint
   - id: cache
-    name: "cache Valkey: TTL do końca świecy, unieważnianie po candle.closed (XREAD), brak Valkey bez nieaktualnych danych (zakres E6, punkt 3)"
+    name: "cache Valkey (atrapa): TTL do końca okresu, unieważnianie po candle.closed bez wyścigu, brak Valkey bez nieaktualnych danych (zakres E6, punkt 3)"
     run: make -s api-cache-test
 reports:
   - docs/gates/G6p.md

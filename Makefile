@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 G ?=
 
-.PHONY: ansible-test help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test iac-lint compose-staging-test backup-restore-test marketdata-normalization-test marketdata-dq-test marketdata-resilience-test marketdata-logic-test marketdata-db-test features-reference-test features-pit-test features-gaps-test features-determinism-test features-db-test api-schema-test api-security-test api-data-test api-db-test api-migration-test event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
+.PHONY: ansible-test help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test iac-lint compose-staging-test backup-restore-test marketdata-normalization-test marketdata-dq-test marketdata-resilience-test marketdata-logic-test marketdata-db-test features-reference-test features-pit-test features-gaps-test features-determinism-test features-db-test api-schema-test api-security-test api-data-test api-db-test api-cache-test api-migration-test event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
 
 help: ## Lista komend
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -100,8 +100,11 @@ api-security-test: ## Nagłówki bezpieczeństwa na każdej odpowiedzi i CORS ty
 api-data-test: ## Endpointy rynkowe: świece = candles_ref, 4h/1d vs niezależne przeliczenie, paginacja, błędy (G6p)
 	uv run pytest --no-cov services/platform/tests/api/test_api_market.py services/platform/tests/test_http_api.py
 
-api-db-test: ## API na Postgresie z Timescale: baza = pamięć, konto tylko do odczytu, Schemathesis (Docker; G6p)
-	uv run pytest --no-cov -m db services/platform/tests/api/test_api_db.py
+api-db-test: ## API na Postgresie z Timescale i Valkey: baza = pamięć, konto tylko do odczytu, Schemathesis, cache XREAD (Docker; G6p)
+	uv run pytest --no-cov -m db services/platform/tests/api/test_api_db.py services/platform/tests/api/test_api_cache_valkey.py
+
+api-cache-test: ## Cache Valkey (atrapa): trafienie, unieważnianie po candle.closed, wyścig, brak Valkey, TTL (G6p)
+	uv run pytest --no-cov services/platform/tests/api/test_api_cache.py
 
 api-migration-test: ## Migracja 0005 w górę i w dół z danymi, bez utraty danych (Docker; G6p)
 	uv run pytest --no-cov -m migration services/platform/tests/migrations/test_migration_0005.py
