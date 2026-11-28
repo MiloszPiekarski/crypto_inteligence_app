@@ -16,7 +16,8 @@ from fastapi import HTTPException
 
 MAX_LEN = 200
 _SYMBOL = re.compile(r"[A-Z0-9]{2,15}")
-_TS = re.compile(r"[0-9]{1,15}")
+# Do 13 cyfr ms (rok 2286): dłuższy znacznik przekracza zakres datetime (500 zamiast 400).
+_TS = re.compile(r"[0-9]{1,13}")
 
 
 def encode(kind: str, scope: str, key: str) -> str:

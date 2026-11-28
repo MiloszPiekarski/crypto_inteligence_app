@@ -22,17 +22,18 @@ PORT="${GOATCASH_HTTPS_PORT:-443}"
 # poza repo, poza SOPS i poza rozmową) i zostaje między wdrożeniami (rsync pomija env/).
 # ensure-api-role.sh ustawia je kontu przy każdym wdrożeniu, więc nowy serwer (nowy plik)
 # albo usunięcie pliku = nowe hasło bez ręcznych kroków. Gdy plik SOPS ma sekcję
-# `api-read`, goatcash-render-env zapisuje ten plik z SOPS i to hasło ma pierwszeństwo.
+# `api-read` z hasłem [0-9a-f], goatcash-render-env zapisuje ten plik z SOPS i to hasło ma
+# pierwszeństwo (hasło spoza [0-9a-f] jest zastępowane losowym).
 api_secret() {
-  local f=env/api-read.env pass=""
-  if [ -f "$f" ]; then
-    # shellcheck disable=SC1090
-    pass="$(. "./$f" && printf '%s' "${PGPASSWORD:-}")"
-  fi
+  local f=env/api-read.env pass="" new
+  # Odczyt bez wykonywania pliku (sed, nie `.`).
+  [ ! -f "$f" ] || pass="$(sed -n 's/^PGPASSWORD=//p' "$f" | head -n 1)"
   case "$pass" in
     "" | *[!0-9a-f]*)
+      new="$(openssl rand -hex 24)"
+      [ "${#new}" -eq 48 ] || { echo "hasło konta api: openssl nie wygenerował hasła"; return 1; }
       mkdir -p env
-      (umask 077 && printf 'PGPASSWORD=%s\n' "$(openssl rand -hex 24)" > "$f.tmp" && mv "$f.tmp" "$f")
+      (umask 077 && printf 'PGPASSWORD=%s\n' "$new" > "$f.tmp" && mv "$f.tmp" "$f")
       echo "hasło konta api: utworzone ($f)"
       ;;
   esac

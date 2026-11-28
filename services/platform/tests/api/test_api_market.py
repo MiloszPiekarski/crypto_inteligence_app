@@ -24,6 +24,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from goatcash.http_api.app import create_app
+from goatcash.http_api.cursor import encode
 from goatcash.http_api.market import dec
 from goatcash.marketdata.api import HOUR_MS, RefCandle, asset_public_id
 
@@ -246,6 +247,15 @@ UNKNOWN = "0193a4f2-7c1e-7a3b-9d2e-000000000099"
         ("/v1/assets", {"limit": 201}, 422),
         ("/v1/assets", {"cursor": "!!!"}, 400),
         ("/v1/assets", {"cursor": "Zm9v"}, 400),
+        # znacznik poza zakresem datetime (recenzja E6): 400, nie 500
+        (
+            candles_url("BTC"),
+            {
+                "timeframe": "1h",
+                "cursor": encode("candles", f"{asset_public_id('BTC')}:1h", "9" * 14),
+            },
+            400,
+        ),
         (candles_url("BTC"), {"timeframe": "1h", "cursor": "x" * 201}, 422),
         ("/v1/nie-ma", {}, 404),
     ],

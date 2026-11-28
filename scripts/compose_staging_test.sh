@@ -86,7 +86,9 @@ ok "ingest: działa wstrzymany (GOATCASH_INGEST_PAUSED=1), bez zapytań do gieł
 # RESET ROLE i wyłączeniu trybu tylko do odczytu nie zapisuje i nie przełącza się na postgres.
 API_ENV="$(dc exec -T api env)"
 if grep -qF "$PW" <<<"$API_ENV"; then fail "api ma w środowisku hasło konta postgres"; fi
-API_DB="$(dc exec -T api python - <<'PY' 2>&1 || true
+api_db_check() {
+  local API_DB
+  API_DB="$(dc exec -T api python - <<'PY' 2>&1 || true
 import os
 import psycopg
 conn = psycopg.connect(os.environ["GOATCASH_DATABASE_URL"], autocommit=True)
@@ -105,7 +107,9 @@ for sql in ("INSERT INTO assets (symbol, name) VALUES ('ZZ', 'z')", "SET ROLE po
 print("api-db: OK")
 PY
 )"
-grep -q "^api-db: OK$" <<<"$API_DB" || { echo "$API_DB" >&2; fail "konto bazy procesu api"; }
+  grep -q "^api-db: OK$" <<<"$API_DB" || { echo "$API_DB" >&2; fail "konto bazy procesu api"; }
+}
+api_db_check
 ASSETS="$(curl -fsS -k --resolve "api.goatcash.app:$PORT:127.0.0.1" "https://api.goatcash.app:$PORT/v1/assets")" || fail "/v1/assets przez Caddy"
 grep -q '"items":' <<<"$ASSETS" || fail "/v1/assets: $ASSETS"
 ok "api: konto goatcash_api tylko do odczytu (bez zapisu i eskalacji po RESET ROLE), /v1/assets 200 przez Caddy"
@@ -166,8 +170,14 @@ ok "zepsuty obraz: deploy.sh kod błędu, automatyczny powrót do $GOOD, /v1/hea
 echo "== nowy serwer: pusty wolumen bazy, odtworzenie z kopii w deploy.sh"
 dc down >/dev/null 2>&1
 docker volume rm "${PROJECT}_pgdata" >/dev/null || fail "usunięcie wolumenu bazy"
+# Nowy serwer to też brak env/api-read.env: rola z kopii ma stare hasło, deploy.sh tworzy nowe
+# i ensure-api-role.sh ustawia je kontu (recenzja E6, D7).
+rm -f "$AR"
 "$WORK/compose/deploy.sh" "$GOOD" > "$WORK/deploy3.log" 2>&1 || { tail -40 "$WORK/deploy3.log" >&2; fail "deploy.sh na pustym wolumenie"; }
 grep -q "odtworzenie z kopii: OK" "$WORK/deploy3.log" || { tail -30 "$WORK/deploy3.log" >&2; fail "deploy.sh nie odtworzył bazy z kopii"; }
+[ "$(sha256sum "$AR")" != "$AR_SUM" ] || fail "nowy serwer: hasło konta api się nie zmieniło"
+api_db_check
+ok "nowy serwer: nowe hasło konta api, konto z kopii działa z nowym hasłem i nadal tylko do odczytu"
 marker="$(dc exec -T postgres psql -U postgres -tAc "SELECT v FROM g3_marker")"
 [ "$marker" = przed-kopia ] || fail "po odtworzeniu brak danych sprzed kopii ('$marker')"
 ok "pusty wolumen: deploy.sh odtworzył bazę z kopii, dane na miejscu, test dymny OK"
