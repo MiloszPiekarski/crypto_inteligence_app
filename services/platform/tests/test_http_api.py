@@ -1,4 +1,7 @@
-"""Szkic API v1 (E2): specyfikacja OpenAPI 3.1, `/v1`, błędy RFC 9457, model Evidence."""
+"""API v1: specyfikacja OpenAPI 3.1, `/v1`, endpointy E7 i E9 jako 501 (RFC 9457), Evidence.
+
+Endpointy rynkowe E6 sprawdzają testy w `tests/api/`.
+"""
 
 import json
 from pathlib import Path
@@ -40,15 +43,12 @@ def test_health() -> None:
 @pytest.mark.parametrize(
     "url",
     [
-        "/v1/assets",
-        f"/v1/assets/{ASSET}",
-        f"/v1/assets/{ASSET}/candles?timeframe=1h",
         f"/v1/assets/{ASSET}/evidence",
         f"/v1/assets/{ASSET}/assessment?horizon=1d",
         "/v1/agents",
     ],
 )
-def test_unimplemented_endpoints_return_problem_501(url: str) -> None:
+def test_later_stage_endpoints_return_problem_501(url: str) -> None:
     response = get(url)
     assert response.status_code == 501
     assert response.headers["content-type"] == "application/problem+json"
@@ -62,6 +62,7 @@ def test_every_declared_get_is_covered_by_tests() -> None:
         "/v1/assets",
         "/v1/assets/{asset_id}",
         "/v1/assets/{asset_id}/candles",
+        "/v1/market/overview",
         "/v1/assets/{asset_id}/evidence",
         "/v1/assets/{asset_id}/assessment",
         "/v1/agents",
@@ -96,3 +97,11 @@ def test_evidence_rules_beyond_json_schema(change: dict[str, Any], reason: str) 
     with pytest.raises(ValidationError, match=r"zaglądanie|kwantyle"):
         Evidence.model_validate({**document, **change})
     assert reason
+
+
+def test_error_responses_documented_as_problem_json() -> None:
+    for ops in SPEC["paths"].values():
+        for op in ops.values():
+            for status, response in op["responses"].items():
+                if status[0] in "45":
+                    assert list(response["content"]) == ["application/problem+json"], status

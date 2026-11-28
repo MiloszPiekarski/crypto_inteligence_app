@@ -1,158 +1,96 @@
-"""Aplikacja FastAPI: szkic kontraktu API v1 (roadmapa E2, „Kontrakty”).
+"""Aplikacja FastAPI: API v1 tylko do odczytu (roadmapa E6, ścieżka pracy, ADR-0008).
 
-Endpointy z roadmapy E6, E7 i E9 są zadeklarowane z modelami odpowiedzi, żeby powstała
-specyfikacja OpenAPI 3.1 i klient TypeScript. Implementacje dochodzą w tych etapach;
-do tego czasu każdy endpoint poza `/v1/health` zwraca 501 w formacie RFC 9457.
+Routery per moduł: system (`/v1/health`), rynek (marketdata, E6) i analiza (kontrakt E2,
+implementacje w E7 i E9; do tego czasu 501). Każdy błąd w formacie RFC 9457, nagłówki
+bezpieczeństwa na każdej odpowiedzi, CORS tylko dla `https://app.goatcash.app`.
+
+Dane rynkowe: `create_app(reader=...)` w testach; w procesie api `MarketReader`
+w Postgresie z `GOATCASH_DATABASE_URL` (konto `goatcash_api`, tylko odczyt). Bez adresu
+bazy endpointy rynkowe zwracają 503, a `/v1/health` działa.
 """
 
-from typing import Annotated, NoReturn
-from uuid import UUID
+import os
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from typing import Any
 
-from fastapi import APIRouter, FastAPI, HTTPException, Path, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, FastAPI
+from fastapi.openapi.utils import get_openapi
 
 from goatcash.common.api import package_version
-from goatcash.http_api.schemas import (
-    Agent,
-    Assessment,
-    Asset,
-    Candle,
-    Evidence,
-    Health,
-    Horizon,
-    Page,
-    Problem,
-    Timeframe,
-)
+from goatcash.http_api import analysis, errors, market, security
+from goatcash.http_api.schemas import Health
 from goatcash.http_api.telemetry import setup_tracing
+from goatcash.marketdata.api import MarketReader, PostgresReader, load_universe
 
-PROBLEM = "application/problem+json"
-ERRORS: dict[int | str, dict[str, object]] = {
-    501: {"model": Problem, "description": "Jeszcze nie zaimplementowane (szkic E2)"},
-}
-AssetId = Annotated[UUID, Path(description="publiczny identyfikator aktywa")]
-Cursor = Annotated[str | None, Query(description="kursor następnej strony")]
-Limit = Annotated[int, Query(ge=1, le=200, description="liczba elementów na stronie")]
+system = APIRouter(tags=["system"])
 
 
-def not_implemented(stage: str) -> NoReturn:
-    raise HTTPException(status_code=501, detail=f"Endpoint powstaje w {stage}.")
-
-
-v1 = APIRouter(prefix="/v1")
-
-
-@v1.get("/health", tags=["system"], summary="Stan procesu api", operation_id="getHealth")
+@system.get("/health", summary="Stan procesu api", operation_id="getHealth")
 def health() -> Health:
-    """Stan procesu i wersja pakietu; nie wymaga uwierzytelnienia."""
+    """Stan procesu i wersja pakietu; nie wymaga uwierzytelnienia ani bazy."""
     return Health(status="ok", version=package_version())
 
 
-@v1.get(
-    "/assets", tags=["market"], summary="Lista aktywów", operation_id="listAssets", responses=ERRORS
-)
-def list_assets(cursor: Cursor = None, limit: Limit = 50) -> Page[Asset]:
-    """Aktywa obsługiwane przez platformę, z paginacją kursorową (E6)."""
-    not_implemented("E6")
+def reader_from_env() -> MarketReader | None:
+    url = os.environ.get("GOATCASH_DATABASE_URL")
+    if not url:
+        return None
+    return PostgresReader.from_url(url, load_universe().quote.symbol)
 
 
-@v1.get(
-    "/assets/{asset_id}",
-    tags=["market"],
-    summary="Aktywo",
-    operation_id="getAsset",
-    responses=ERRORS,
-)
-def get_asset(asset_id: AssetId) -> Asset:
-    """Szczegóły jednego aktywa (E6)."""
-    not_implemented("E6")
+def create_app(reader: MarketReader | None = None) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
+        yield
+        close = getattr(app.state.reader, "close", None)
+        if callable(close):
+            close()
 
-
-@v1.get(
-    "/assets/{asset_id}/candles",
-    tags=["market"],
-    summary="Świece referencyjne aktywa",
-    operation_id="listCandles",
-    responses=ERRORS,
-)
-def list_candles(
-    asset_id: AssetId,
-    timeframe: Annotated[Timeframe, Query(description="interwał świec")],
-    cursor: Cursor = None,
-    limit: Limit = 200,
-) -> Page[Candle]:
-    """Świece ceny referencyjnej (mediana giełd) dla interwału, od najnowszej (E6)."""
-    not_implemented("E6")
-
-
-@v1.get(
-    "/assets/{asset_id}/evidence",
-    tags=["analysis"],
-    summary="Dowody agentów dla aktywa",
-    operation_id="listEvidence",
-    responses=ERRORS,
-)
-def list_evidence(
-    asset_id: AssetId,
-    horizon: Annotated[Horizon | None, Query(description="filtr horyzontu")] = None,
-    cursor: Cursor = None,
-    limit: Limit = 50,
-) -> Page[Evidence]:
-    """Dowody agentów dla aktywa w formacie kontraktu Evidence v1 (E7)."""
-    not_implemented("E7")
-
-
-@v1.get(
-    "/assets/{asset_id}/assessment",
-    tags=["analysis"],
-    summary="Bieżąca ocena aktywa",
-    operation_id="getAssessment",
-    responses=ERRORS,
-)
-def get_assessment(
-    asset_id: AssetId, horizon: Annotated[Horizon, Query(description="horyzont oceny")]
-) -> Assessment:
-    """Ocena po fuzji dowodów dla horyzontu (E9)."""
-    not_implemented("E9")
-
-
-@v1.get(
-    "/agents",
-    tags=["analysis"],
-    summary="Rejestr agentów",
-    operation_id="listAgents",
-    responses=ERRORS,
-)
-def list_agents() -> list[Agent]:
-    """Agenci analityczni z wersjami i horyzontami (E7)."""
-    not_implemented("E7")
-
-
-def problem_response(request: Request, exc: Exception) -> JSONResponse:
-    status = exc.status_code if isinstance(exc, HTTPException) else 500
-    title = str(exc.detail) if isinstance(exc, HTTPException) else "Błąd serwera"
-    body = Problem(type="about:blank", title=title, status=status)
-    return JSONResponse(body.model_dump(exclude_none=True), status, media_type=PROBLEM)
-
-
-def create_app() -> FastAPI:
     app = FastAPI(
         title="GoatCash API",
-        version="0.1.0",
+        version="0.2.0",
         description=(
-            "Publiczne API platformy GoatCash (szkic kontraktu z etapu E2). "
-            "Endpointy oznaczone 501 powstają w etapach E6, E7 i E9."
+            "Publiczne API platformy GoatCash, tylko do odczytu (ścieżka pracy, E6). "
+            "Endpointy oznaczone 501 powstają w etapach E7 i E9."
         ),
         license_info={"name": "AGPL-3.0-only", "identifier": "AGPL-3.0-only"},
         contact={"name": "GoatCash", "url": "https://goatcash.app"},
-        servers=[{"url": "https://api.goatcash.app", "description": "produkcja (od E16)"}],
+        servers=[{"url": "https://api.goatcash.app", "description": "staging (produkcja od E16)"}],
         openapi_tags=[
             {"name": "system", "description": "Stan procesu"},
             {"name": "market", "description": "Dane rynkowe (E6)"},
             {"name": "analysis", "description": "Dowody agentów i oceny (E7, E9)"},
         ],
+        docs_url=None,
+        redoc_url=None,
+        lifespan=lifespan,
     )
+    app.state.reader = reader if reader is not None else reader_from_env()
+    v1 = APIRouter(prefix="/v1")
+    v1.include_router(system)
+    v1.include_router(market.router)
+    v1.include_router(analysis.router)
     app.include_router(v1)
-    app.add_exception_handler(HTTPException, problem_response)
+    errors.install(app)
+    security.install(app)
+
+    def openapi() -> dict[str, Any]:
+        if app.openapi_schema is None:
+            spec = get_openapi(
+                title=app.title,
+                version=app.version,
+                openapi_version=app.openapi_version,
+                description=app.description,
+                routes=app.routes,
+                tags=app.openapi_tags,
+                servers=app.servers,
+                contact=app.contact,
+                license_info=app.license_info,
+            )
+            app.openapi_schema = errors.problem_openapi(spec)
+        return app.openapi_schema
+
+    app.openapi = openapi
     setup_tracing(app)
     return app

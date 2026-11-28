@@ -66,6 +66,12 @@ echo "== wdrożenie deploy.sh $GOOD"
 grep -q "test dymny: OK" "$WORK/deploy1.log" || fail "brak testu dymnego w deploy.sh"
 [ "$(cat "$WORK/compose/.image-tag")" = "$GOOD" ] || fail ".image-tag po wdrożeniu"
 ok "deploy.sh: migracje, healthchecki, test dymny przez Caddy (TLS)"
+# E6: hasło konta api powstało na serwerze (plik 600, tylko [0-9a-f]), nie z repo.
+AR="$WORK/compose/env/api-read.env"
+[ -f "$AR" ] && [ "$(stat -c %a "$AR")" = 600 ] || fail "deploy.sh nie utworzył env/api-read.env (600)"
+grep -Eq '^PGPASSWORD=[0-9a-f]{48}$' "$AR" || fail "env/api-read.env: niepoprawny format"
+grep -q "hasło konta api: utworzone" "$WORK/deploy1.log" || fail "brak komunikatu o utworzeniu hasła api"
+AR_SUM="$(sha256sum "$AR")"
 
 for s in postgres valkey api ingest caddy otel-collector; do
   state="$(docker inspect -f '{{.State.Health.Status}}' "$(dc ps -q "$s")")"
@@ -75,6 +81,38 @@ ok "healthchecki: postgres, valkey, api, ingest, caddy, otel-collector"
 # ingest w teście wstrzymany (bez zapytań do giełd z CI), ale połączony z bazą jako goatcash_app.
 dc logs ingest 2>&1 | grep -q "ingest: wstrzymany" || fail "ingest: brak trybu wstrzymania w logu"
 ok "ingest: działa wstrzymany (GOATCASH_INGEST_PAUSED=1), bez zapytań do giełd"
+
+# E6: api łączy się kontem goatcash_api (tylko odczyt), nie kontem postgres; nawet po
+# RESET ROLE i wyłączeniu trybu tylko do odczytu nie zapisuje i nie przełącza się na postgres.
+API_ENV="$(dc exec -T api env)"
+if grep -qF "$PW" <<<"$API_ENV"; then fail "api ma w środowisku hasło konta postgres"; fi
+api_db_check() {
+  local API_DB
+  API_DB="$(dc exec -T api python - <<'PY' 2>&1 || true
+import os
+import psycopg
+conn = psycopg.connect(os.environ["GOATCASH_DATABASE_URL"], autocommit=True)
+user, ro = conn.execute("SELECT current_user, current_setting('default_transaction_read_only')").fetchone()
+assert (user, ro) == ("goatcash_api", "on"), (user, ro)
+conn.execute("SELECT count(*) FROM candles_ref")
+conn.execute("RESET ROLE")
+conn.execute("SET default_transaction_read_only = off")
+for sql in ("INSERT INTO assets (symbol, name) VALUES ('ZZ', 'z')", "SET ROLE postgres",
+            "SET ROLE goatcash_app", 'SELECT * FROM "user"'):
+    try:
+        conn.execute(sql)
+    except psycopg.errors.Error:
+        continue
+    raise SystemExit(f"konto api wykonało: {sql}")
+print("api-db: OK")
+PY
+)"
+  grep -q "^api-db: OK$" <<<"$API_DB" || { echo "$API_DB" >&2; fail "konto bazy procesu api"; }
+}
+api_db_check
+ASSETS="$(curl -fsS -k --resolve "api.goatcash.app:$PORT:127.0.0.1" "https://api.goatcash.app:$PORT/v1/assets")" || fail "/v1/assets przez Caddy"
+grep -q '"items":' <<<"$ASSETS" || fail "/v1/assets: $ASSETS"
+ok "api: konto goatcash_api tylko do odczytu (bez zapisu i eskalacji po RESET ROLE), /v1/assets 200 przez Caddy"
 
 exts="$(dc exec -T postgres psql -U postgres -tAc "SELECT string_agg(extname, ',' ORDER BY extname) FROM pg_extension WHERE extname IN ('timescaledb','vector')")"
 ver="$(dc exec -T postgres psql -U postgres -tAc "SHOW server_version_num")"
@@ -127,12 +165,19 @@ running="$(docker inspect -f '{{.Config.Image}}' "$(dc ps -q api)")"
 HEALTH="$(curl -fsS -k --resolve "api.goatcash.app:$PORT:127.0.0.1" "https://api.goatcash.app:$PORT/v1/health")" || fail "/v1/health po rollbacku"
 grep -q '"status":"ok"' <<<"$HEALTH" || fail "/v1/health po rollbacku: $HEALTH"
 ok "zepsuty obraz: deploy.sh kod błędu, automatyczny powrót do $GOOD, /v1/health ok"
+[ "$(sha256sum "$AR")" = "$AR_SUM" ] || fail "kolejne wdrożenie zmieniło hasło konta api"
 
 echo "== nowy serwer: pusty wolumen bazy, odtworzenie z kopii w deploy.sh"
 dc down >/dev/null 2>&1
 docker volume rm "${PROJECT}_pgdata" >/dev/null || fail "usunięcie wolumenu bazy"
+# Nowy serwer to też brak env/api-read.env: rola z kopii ma stare hasło, deploy.sh tworzy nowe
+# i ensure-api-role.sh ustawia je kontu (recenzja E6, D7).
+rm -f "$AR"
 "$WORK/compose/deploy.sh" "$GOOD" > "$WORK/deploy3.log" 2>&1 || { tail -40 "$WORK/deploy3.log" >&2; fail "deploy.sh na pustym wolumenie"; }
 grep -q "odtworzenie z kopii: OK" "$WORK/deploy3.log" || { tail -30 "$WORK/deploy3.log" >&2; fail "deploy.sh nie odtworzył bazy z kopii"; }
+[ "$(sha256sum "$AR")" != "$AR_SUM" ] || fail "nowy serwer: hasło konta api się nie zmieniło"
+api_db_check
+ok "nowy serwer: nowe hasło konta api, konto z kopii działa z nowym hasłem i nadal tylko do odczytu"
 marker="$(dc exec -T postgres psql -U postgres -tAc "SELECT v FROM g3_marker")"
 [ "$marker" = przed-kopia ] || fail "po odtworzeniu brak danych sprzed kopii ('$marker')"
 ok "pusty wolumen: deploy.sh odtworzył bazę z kopii, dane na miejscu, test dymny OK"

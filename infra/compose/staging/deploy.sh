@@ -4,7 +4,9 @@
 #   1. zapamiętuje bieżący tag obrazu (do rollbacku);
 #   2. pobiera nowe obrazy; pusty wolumen bazy + kopia w repozytorium = odtworzenie z kopii;
 #      uruchamia bazę i Valkey, zakłada stanzę pgBackRest (idempotentnie);
-#   3. uruchamia migracje z nowego obrazu (alembic upgrade head);
+#   0. tworzy hasło konta api tylko do odczytu, jeśli go nie ma (env/api-read.env, E6);
+#   3. uruchamia migracje z nowego obrazu (alembic upgrade head, kontener ingest z api.env)
+#      i zakłada konto api tylko do odczytu (ensure-api-role.sh, po migracjach);
 #   4. podnosi całość i czeka na healthchecki;
 #   5. test dymny: /v1/health przez Caddy (TLS, nagłówek Host jak z Cloudflare);
 #   6. przy błędzie w krokach 4-5: powrót do poprzedniego tagu i kod błędu 1.
@@ -15,6 +17,28 @@ TAG="${1:?Użycie: deploy.sh sha-<commit>}"
 case "$TAG" in sha-[0-9a-f]*) ;; *) echo "Niepoprawny tag obrazu: $TAG"; exit 2 ;; esac
 PREV="$(cat .image-tag 2>/dev/null || true)"
 PORT="${GOATCASH_HTTPS_PORT:-443}"
+
+# Hasło konta goatcash_api (E6): powstaje na serwerze przy pierwszym wdrożeniu (tryb 600,
+# poza repo, poza SOPS i poza rozmową) i zostaje między wdrożeniami (rsync pomija env/).
+# ensure-api-role.sh ustawia je kontu przy każdym wdrożeniu, więc nowy serwer (nowy plik)
+# albo usunięcie pliku = nowe hasło bez ręcznych kroków. Gdy plik SOPS ma sekcję
+# `api-read` z hasłem [0-9a-f], goatcash-render-env zapisuje ten plik z SOPS i to hasło ma
+# pierwszeństwo (hasło spoza [0-9a-f] jest zastępowane losowym).
+api_secret() {
+  local f=env/api-read.env pass="" new
+  # Odczyt bez wykonywania pliku (sed, nie `.`).
+  [ ! -f "$f" ] || pass="$(sed -n 's/^PGPASSWORD=//p' "$f" | head -n 1)"
+  case "$pass" in
+    "" | *[!0-9a-f]*)
+      new="$(openssl rand -hex 24)"
+      [ "${#new}" -eq 48 ] || { echo "hasło konta api: openssl nie wygenerował hasła"; return 1; }
+      mkdir -p env
+      (umask 077 && printf 'PGPASSWORD=%s\n' "$new" > "$f.tmp" && mv "$f.tmp" "$f")
+      echo "hasło konta api: utworzone ($f)"
+      ;;
+  esac
+}
+api_secret
 
 compose() { GOATCASH_IMAGE_TAG="$1" docker compose "${@:2}"; }
 
@@ -86,7 +110,9 @@ wait_primary "$TAG"
 compose "$TAG" exec -T postgres pgbackrest --stanza=goatcash stanza-create
 compose "$TAG" exec -T postgres pgbackrest --stanza=goatcash check
 ./ensure-roles.sh "$TAG"
-compose "$TAG" run --rm --no-deps -T api alembic upgrade head
+# Migracje kontenerem ingest (api.env, konto postgres); api ma tylko konto do odczytu (E6).
+compose "$TAG" run --rm --no-deps -T ingest alembic upgrade head
+./ensure-api-role.sh "$TAG"
 
 if compose "$TAG" up -d --wait --remove-orphans && smoke; then
   echo "$TAG" > .image-tag
