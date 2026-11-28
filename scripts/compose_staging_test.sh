@@ -113,6 +113,15 @@ api_db_check
 ASSETS="$(curl -fsS -k --resolve "api.goatcash.app:$PORT:127.0.0.1" "https://api.goatcash.app:$PORT/v1/assets")" || fail "/v1/assets przez Caddy"
 grep -q '"items":' <<<"$ASSETS" || fail "/v1/assets: $ASSETS"
 ok "api: konto goatcash_api tylko do odczytu (bez zapisu i eskalacji po RESET ROLE), /v1/assets 200 przez Caddy"
+# E6 (PR 2): cache w Valkey; drugie zapytanie z cache, gdy słuchacz candle.closed działa.
+hit=""
+for _ in $(seq 1 20); do
+  HDRS="$(curl -fsS -k -o /dev/null -D - --resolve "api.goatcash.app:$PORT:127.0.0.1" "https://api.goatcash.app:$PORT/v1/market/overview")" || fail "/v1/market/overview przez Caddy"
+  if grep -qi '^cache-status: goatcash; hit' <<<"$HDRS"; then hit=1; break; fi
+  sleep 1
+done
+[ -n "$hit" ] || fail "cache api w Valkey: brak trafienia (Cache-Status)"
+ok "api: cache w Valkey (Cache-Status: hit przez Caddy)"
 
 exts="$(dc exec -T postgres psql -U postgres -tAc "SELECT string_agg(extname, ',' ORDER BY extname) FROM pg_extension WHERE extname IN ('timescaledb','vector')")"
 ver="$(dc exec -T postgres psql -U postgres -tAc "SHOW server_version_num")"

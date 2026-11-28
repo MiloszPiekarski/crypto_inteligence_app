@@ -7,18 +7,23 @@ bezpieczeństwa na każdej odpowiedzi, CORS tylko dla `https://app.goatcash.app`
 Dane rynkowe: `create_app(reader=...)` w testach; w procesie api `MarketReader`
 w Postgresie z `GOATCASH_DATABASE_URL` (konto `goatcash_api`, tylko odczyt). Bez adresu
 bazy endpointy rynkowe zwracają 503, a `/v1/health` działa.
+
+Cache odpowiedzi (`cache.py`): Valkey z `GOATCASH_VALKEY_URL` (albo `valkey=` w testach)
+i słuchacz `candle.closed` uruchamiany razem z aplikacją; bez Valkey odpowiedzi idą prosto
+z bazy.
 """
 
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, cast
 
+import redis
 from fastapi import APIRouter, FastAPI
 from fastapi.openapi.utils import get_openapi
 
 from goatcash.common.api import package_version
-from goatcash.http_api import analysis, errors, market, security
+from goatcash.http_api import analysis, cache, errors, market, security
 from goatcash.http_api.schemas import Health
 from goatcash.http_api.telemetry import setup_tracing
 from goatcash.marketdata.api import MarketReader, PostgresReader, load_universe
@@ -39,10 +44,42 @@ def reader_from_env() -> MarketReader | None:
     return PostgresReader.from_url(url, load_universe().quote.symbol)
 
 
-def create_app(reader: MarketReader | None = None) -> FastAPI:
+def valkey_from_env(*, listener: bool = False) -> cache.Valkey | None:
+    """Klient Valkey z `GOATCASH_VALKEY_URL`. Cache: krótkie limity (wolny albo niedostępny
+    Valkey nie spowalnia odpowiedzi z bazy); słuchacz: limit dłuższy niż XREAD BLOCK."""
+    url = os.environ.get("GOATCASH_VALKEY_URL")
+    if not url:
+        return None
+    timeout = cache.BLOCK_MS / 1000 + 5 if listener else 0.25
+    client = redis.Redis.from_url(  # pyright: ignore[reportUnknownMemberType]
+        url, socket_timeout=timeout, socket_connect_timeout=2 if listener else 0.25
+    )
+    return cast(cache.Valkey, client)
+
+
+def create_app(
+    reader: MarketReader | None = None,
+    *,
+    valkey: cache.Valkey | None = None,
+    invalidator: cache.Invalidator | None = None,
+) -> FastAPI:
+    """`valkey` i `invalidator` podają testy; bez nich konfiguracja z `GOATCASH_VALKEY_URL`
+    (słuchacz w osobnym wątku startuje i kończy się razem z aplikacją)."""
+    started: list[cache.Invalidator] = []
+    if valkey is None and invalidator is None:
+        valkey = valkey_from_env()
+        listener = valkey_from_env(listener=True)
+        if valkey is not None and listener is not None:
+            invalidator = cache.Invalidator(listener)
+            started.append(invalidator)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
+        for inv in started:
+            inv.start()
         yield
+        for inv in started:
+            inv.stop()
         close = getattr(app.state.reader, "close", None)
         if callable(close):
             close()
@@ -73,6 +110,8 @@ def create_app(reader: MarketReader | None = None) -> FastAPI:
     v1.include_router(analysis.router)
     app.include_router(v1)
     errors.install(app)
+    # Cache wewnątrz CORS i nagłówków bezpieczeństwa: odpowiedź z cache dostaje je tak samo.
+    app.add_middleware(cache.ResponseCache, client=valkey, invalidator=invalidator)
     security.install(app)
 
     def openapi() -> dict[str, Any]:

@@ -85,6 +85,8 @@ services:
     env_file: [./env/api-read.env]
     environment:
       GOATCASH_DATABASE_URL: postgresql://goatcash_api@postgres:5432/postgres
+      # E6: cache odpowiedzi i unieważnianie po candle.closed (XREAD); bez Valkey prosto z bazy.
+      GOATCASH_VALKEY_URL: redis://valkey:6379/0
       # Ślady do kolektora (sieć backend), stamtąd do Grafana Cloud Tempo (roadmapa E3, zakres 6).
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_SERVICE_NAME: goatcash-api

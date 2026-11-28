@@ -2,6 +2,9 @@
 
 from goatcash.marketdata._impl.dq import DqConfig, DqEvent, DqResult, PairDq, is_stale
 from goatcash.marketdata._impl.events import (
+    STREAM as CANDLE_STREAM,
+)
+from goatcash.marketdata._impl.events import (
     OutboxEvent,
     StreamClient,
     candle_closed,
@@ -37,6 +40,7 @@ from goatcash.marketdata._impl.types import HOUR_MS, Candle, InstrumentInfo, Tim
 from goatcash.marketdata._impl.universe import Universe, load_universe
 
 __all__ = [
+    "CANDLE_STREAM",
     "HOUR_MS",
     "SOURCES",
     "ApiTimeframe",

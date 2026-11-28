@@ -1,8 +1,7 @@
 # Bramka pracy G6p (E6, ścieżka pracy inżynierskiej): raport
 
-- **Status:** w toku (szkic z PR 1 E6). Bramka jest w jobie `gate-next` (poza `ci-ok`);
-  sprawdzenie `cache` jest czerwone do PR 2 E6. Dowód i statusy powstają przy zamknięciu
-  etapu (PR 3 E6).
+- **Status:** w toku. Bramka jest w jobie `gate-next` (poza `ci-ok`); od PR 2 E6 wszystkie
+  sprawdzenia mają implementację. Dowód i statusy powstają przy zamknięciu etapu (PR 3 E6).
 - **Kryteria (`testy.md`, sekcja 3a, wiersz G6p; ADR-0008):** Schemathesis: 0 odpowiedzi
   niezgodnych ze schematem i 0 błędów 500; nagłówki bezpieczeństwa i CORS sprawdzone
   testem; migracje w górę i w dół z danymi bez utraty danych. Wymaganie F-09
@@ -50,6 +49,14 @@ takie same. Publiczne identyfikatory API są więc stabilne także po cofnięciu
    tryb pkt 5).
 7. **PR 2 (cache):** unieważnianie przez `XREAD` (każda instancja api dostaje każde
    zdarzenie `candle.closed`); niedostępny Valkey nie może dawać nieaktualnych danych.
+   Realizacja (`http_api/cache.py`): wersje (globalna i aktywa) są częścią klucza
+   i są czytane przed zapytaniem do bazy, a zdarzenie je podbija, więc odpowiedź policzona
+   przed zdarzeniem i zapisana po nim nie jest serwowana; cache działa tylko przy zdrowym
+   słuchaczu tej instancji (ostatnie udane `XREAD` < 15 s), po ponownym połączeniu
+   wersja globalna jest podbijana (zdarzenia z przerwy mogły przepaść); błąd Valkey =
+   odpowiedź prosto z bazy. Ograniczenie: między zapisem świecy a dostarczeniem zdarzenia
+   (milisekundy) cache może jeszcze oddać poprzednią odpowiedź; status DQ w przeglądzie
+   zmienia się bez zdarzenia, opóźnienie ogranicza TTL (koniec bieżącej godziny).
 
 ## Doprecyzowania techniczne (do przeglądu przy zamknięciu)
 
@@ -72,5 +79,5 @@ takie same. Publiczne identyfikatory API są więc stabilne także po cofnięciu
 | PR  | Gałąź                    | Zakres                                                                                                                                                                                            | Stan |
 | --- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | 1   | `claude/E6-api-odczyt`   | `gates/G6p.yaml`, `gate-next`, migracja 0005, czytnik rynku (pamięć, Postgres), 4 endpointy, RFC 9457, kursor, nagłówki, CORS, OpenAPI i klient TS, Schemathesis, konto `goatcash_api` na staging | ⏳   |
-| 2   | `claude/E6-cache-valkey` | cache Valkey z TTL i unieważnianiem po `candle.closed` (XREAD), brak Valkey bez nieaktualnych danych                                                                                              | ⬜   |
+| 2   | `claude/E6-cache-valkey` | cache Valkey: klucze z wersjami (INCR po `candle.closed`, XREAD w każdej instancji), TTL do końca okresu, cache tylko przy zdrowym słuchaczu, `Cache-Status`                                      | ⏳   |
 | 3   | `claude/E6-g6p`          | G6p do macierzy `gate`, ten raport z dowodami, dokumentacja etapu                                                                                                                                 | ⬜   |
