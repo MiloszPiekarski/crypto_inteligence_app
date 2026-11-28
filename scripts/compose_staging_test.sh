@@ -56,6 +56,7 @@ PGBACKREST_REPO1_PATH=/test-repo
 PGBACKREST_REPO1_CIPHER_PASS=cipher-$$
 EOF
 echo "GOATCASH_DATABASE_URL=postgresql+psycopg://postgres:$PW@postgres:5432/postgres" > "$WORK/compose/env/api.env"
+echo "PGPASSWORD=$(openssl rand -hex 24)" > "$WORK/compose/env/api-read.env"
 printf 'GRAFANA_OTLP_ENDPOINT=http://127.0.0.1:9\nGRAFANA_OTLP_INSTANCE_ID=0\nGRAFANA_OTLP_TOKEN=test\n' > "$WORK/compose/env/otel.env"
 printf 'DATA_SOURCE_URI=postgres:5432/postgres?sslmode=disable\nDATA_SOURCE_USER=goatcash_monitor\nDATA_SOURCE_PASS=mon-%s\n' "$$" \
   > "$WORK/compose/env/postgres-exporter.env"
@@ -75,6 +76,34 @@ ok "healthchecki: postgres, valkey, api, ingest, caddy, otel-collector"
 # ingest w teście wstrzymany (bez zapytań do giełd z CI), ale połączony z bazą jako goatcash_app.
 dc logs ingest 2>&1 | grep -q "ingest: wstrzymany" || fail "ingest: brak trybu wstrzymania w logu"
 ok "ingest: działa wstrzymany (GOATCASH_INGEST_PAUSED=1), bez zapytań do giełd"
+
+# E6: api łączy się kontem goatcash_api (tylko odczyt), nie kontem postgres; nawet po
+# RESET ROLE i wyłączeniu trybu tylko do odczytu nie zapisuje i nie przełącza się na postgres.
+API_ENV="$(dc exec -T api env)"
+if grep -qF "$PW" <<<"$API_ENV"; then fail "api ma w środowisku hasło konta postgres"; fi
+API_DB="$(dc exec -T api python - <<'PY' 2>&1 || true
+import os
+import psycopg
+conn = psycopg.connect(os.environ["GOATCASH_DATABASE_URL"], autocommit=True)
+user, ro = conn.execute("SELECT current_user, current_setting('default_transaction_read_only')").fetchone()
+assert (user, ro) == ("goatcash_api", "on"), (user, ro)
+conn.execute("SELECT count(*) FROM candles_ref")
+conn.execute("RESET ROLE")
+conn.execute("SET default_transaction_read_only = off")
+for sql in ("INSERT INTO assets (symbol, name) VALUES ('ZZ', 'z')", "SET ROLE postgres",
+            "SET ROLE goatcash_app", 'SELECT * FROM "user"'):
+    try:
+        conn.execute(sql)
+    except psycopg.errors.Error:
+        continue
+    raise SystemExit(f"konto api wykonało: {sql}")
+print("api-db: OK")
+PY
+)"
+grep -q "^api-db: OK$" <<<"$API_DB" || { echo "$API_DB" >&2; fail "konto bazy procesu api"; }
+ASSETS="$(curl -fsS -k --resolve "api.goatcash.app:$PORT:127.0.0.1" "https://api.goatcash.app:$PORT/v1/assets")" || fail "/v1/assets przez Caddy"
+grep -q '"items":' <<<"$ASSETS" || fail "/v1/assets: $ASSETS"
+ok "api: konto goatcash_api tylko do odczytu (bez zapisu i eskalacji po RESET ROLE), /v1/assets 200 przez Caddy"
 
 exts="$(dc exec -T postgres psql -U postgres -tAc "SELECT string_agg(extname, ',' ORDER BY extname) FROM pg_extension WHERE extname IN ('timescaledb','vector')")"
 ver="$(dc exec -T postgres psql -U postgres -tAc "SHOW server_version_num")"

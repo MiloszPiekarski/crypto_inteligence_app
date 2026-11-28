@@ -10,7 +10,10 @@ from uuid import UUID
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 Horizon = Literal["1h", "4h", "1d", "7d"]
-Timeframe = Literal["1m", "5m", "15m", "1h", "4h", "1d"]
+# Ścieżka pracy (decyzja D3, 28.11.2026): 1h z `candles_ref`, 4h i 1d z pełnych okresów 1h;
+# 1m, 5m i 15m wracają w ścieżce produktu (dane minutowe nie są zbierane).
+Timeframe = Literal["1h", "4h", "1d"]
+DqStatus = Literal["ok", "degraded", "stale", "down"]
 Regime = Literal["trend_up", "trend_down", "range", "high_volatility", "crisis"]
 Symbol = Annotated[str, Field(pattern=r"^[A-Z0-9]{2,15}$", examples=["BTC"])]
 Decimal = Annotated[
@@ -54,12 +57,34 @@ class Page[T](Model):
 
 
 class Candle(Model):
-    ts: Timestamp
+    ts: Timestamp = Field(description="początek okresu świecy (UTC)")
     open: Decimal
     high: Decimal
     low: Decimal
     close: Decimal
     volume: Decimal
+
+
+class OverviewItem(Model):
+    """Stan aktywa w przeglądzie rynku (ostatnia świeca 1h ceny referencyjnej)."""
+
+    asset: Asset
+    ts: Timestamp = Field(description="początek ostatniej świecy 1h (UTC)")
+    close: Decimal
+    change_24h: float | None = Field(
+        description="zmiana zamknięcia względem świecy sprzed 24 h (ułamek, 0.01 = 1%); "
+        "null, gdy tamtej świecy brak"
+    )
+    volume_24h: Decimal | None = Field(
+        description="wolumen 24 ostatnich świec 1h; null, gdy którejś brak"
+    )
+    dq_status: DqStatus | None = Field(
+        description="najgorszy status jakości danych giełd pary; null, gdy brak oceny"
+    )
+
+
+class MarketOverview(Model):
+    items: list[OverviewItem]
 
 
 class AgentRef(Model):

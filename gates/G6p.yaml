@@ -1,0 +1,41 @@
+# Bramka pracy G6p (E6, ścieżka pracy inżynierskiej, ADR-0008): API v1 tylko do odczytu.
+# Kryteria: docs/dokumentacja/testy.md, sekcja 3a (wiersz G6p); doprecyzowanie kryterium
+# migracji: docs/gates/G6p.md. Uruchomienie: make gate G=6p.
+#
+# Wszystkie sprawdzenia działają w CI (w G6p nie ma części „staging”), więc dowód G6p jest
+# typu `ci`: przebieg ci.yml na main z zielonym jobem „8 bramka G6p (ubuntu-latest)”.
+# Do zamknięcia E6 bramka jest w jobie `gate-next` (poza ci-ok); sprawdzenie `cache`
+# (zakres E6, punkt 3 ścieżki pracy) jest czerwone do PR 2 E6.
+gate: G6p
+stage: E6
+criteria: >-
+  Schemathesis: 0 odpowiedzi niezgodnych ze schematem i 0 błędów 500; nagłówki
+  bezpieczeństwa i CORS sprawdzone testem; migracje w górę i w dół z danymi bez utraty danych
+checks:
+  - id: schemathesis
+    name: "Schemathesis na API v1 (dane w pamięci): 0 odpowiedzi niezgodnych ze schematem, 0 błędów 5xx (F-09)"
+    run: make -s api-schema-test
+  - id: security
+    name: "nagłówki bezpieczeństwa na każdej odpowiedzi (także 4xx, 500, CORS); CORS tylko https://app.goatcash.app, tylko GET"
+    run: make -s api-security-test
+  - id: data
+    name: "świece = candles_ref, 4h i 1d = niezależne przeliczenie, okres z luką pominięty, paginacja bez dubli i braków, RFC 9457"
+    run: make -s api-data-test
+  - id: database
+    name: "API na Postgresie z Timescale: odpowiedzi = czytnik w pamięci, konto tylko do odczytu bez eskalacji, Schemathesis"
+    run: make -s api-db-test
+    skip_on_ci_os: [macOS]
+    reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
+  - id: migrations
+    name: "migracja 0005 w górę, w dół i znów w górę z danymi: sumy kontrolne wszystkich tabel bez zmian, te same public_id"
+    run: make -s api-migration-test
+    skip_on_ci_os: [macOS]
+    reason: brak Dockera na runnerach macOS w GitHub Actions (decyzja właściciela 22.11.2026, G2.md)
+  - id: openapi
+    name: "specyfikacja OpenAPI i klient TypeScript zgodne z kodem, Spectral bez uwag (zakres E6, punkt 4)"
+    run: make -s openapi-lint
+  - id: cache
+    name: "cache Valkey: TTL do końca świecy, unieważnianie po candle.closed (XREAD), brak Valkey bez nieaktualnych danych (zakres E6, punkt 3)"
+    run: make -s api-cache-test
+reports:
+  - docs/gates/G6p.md

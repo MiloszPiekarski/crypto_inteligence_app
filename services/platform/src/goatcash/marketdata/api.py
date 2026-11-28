@@ -12,6 +12,17 @@ from goatcash.marketdata._impl.events import (
 from goatcash.marketdata._impl.gaps import ClassifiedGap, Gap, classify_gap, find_gaps
 from goatcash.marketdata._impl.ingest import Ingest, InstrumentReport, instrument_report
 from goatcash.marketdata._impl.pgstore import PostgresStore
+from goatcash.marketdata._impl.read import (
+    ApiTimeframe,
+    AssetInfo,
+    Bar,
+    InMemoryReader,
+    MarketReader,
+    OverviewRow,
+    PostgresReader,
+    aggregate,
+    asset_public_id,
+)
 from goatcash.marketdata._impl.refprice import RefCandle, reference_candles
 from goatcash.marketdata._impl.sources import (
     SOURCES,
@@ -28,6 +39,9 @@ from goatcash.marketdata._impl.universe import Universe, load_universe
 __all__ = [
     "HOUR_MS",
     "SOURCES",
+    "ApiTimeframe",
+    "AssetInfo",
+    "Bar",
     "BybitSource",
     "Candle",
     "ClassifiedGap",
@@ -35,15 +49,19 @@ __all__ = [
     "DqEvent",
     "DqResult",
     "Gap",
+    "InMemoryReader",
     "InMemoryStore",
     "Ingest",
     "InstrumentInfo",
     "InstrumentReport",
     "MarketDataSource",
+    "MarketReader",
     "MarketStore",
     "OkxSource",
     "OutboxEvent",
+    "OverviewRow",
     "PairDq",
+    "PostgresReader",
     "PostgresStore",
     "RefCandle",
     "RetryPolicy",
@@ -51,6 +69,8 @@ __all__ = [
     "StreamClient",
     "TimeRange",
     "Universe",
+    "aggregate",
+    "asset_public_id",
     "candle_closed",
     "classify_gap",
     "envelope",

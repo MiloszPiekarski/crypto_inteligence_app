@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # scripts/sops_staging_init.sh: tworzy infra/secrets/staging.enc.yaml (SOPS, klucz age staging)
 # bez sekretów w czacie, w historii powłoki ani w repo w postaci jawnej.
-#   1. generuje hasła (Postgres, rola monitora, szyfrowanie kopii pgBackRest): tylko [0-9a-f],
-#      bo pliki .env są czytane przez Compose i przez `.` w ensure-roles.sh;
+#   1. generuje hasła (Postgres, rola monitora, konto api tylko do odczytu, szyfrowanie kopii
+#      pgBackRest): tylko [0-9a-f], bo pliki .env są czytane przez Compose i przez `.`
+#      w ensure-roles.sh i ensure-api-role.sh;
 #   2. otwiera wzór w edytorze ($EDITOR, domyślnie nano) w katalogu tymczasowym (0700);
 #      właściciel wkleja w miejsca WSTAW_… tokeny R2 i dane Grafana OTLP (jednolinijkowe);
 #   3. klucz prywatny Origin CA (wielolinijkowy PEM) bierze ze schowka (pbpaste) i wstawia
@@ -41,6 +42,8 @@ postgres:
   PGBACKREST_REPO1_CIPHER_PASS: "$(gen)"
 api:
   GOATCASH_DATABASE_URL: "postgresql+psycopg://postgres:$PG@postgres:5432/postgres"
+api-read:
+  PGPASSWORD: "$(gen)"
 otel:
   # Grafana Cloud: endpoint OTLP Z https:// (kończy się na /otlp), Instance ID, token.
   GRAFANA_OTLP_ENDPOINT: "WSTAW_GRAFANA_OTLP_ENDPOINT"
@@ -88,6 +91,7 @@ want = {
     "postgres": ["POSTGRES_PASSWORD", "PGBACKREST_REPO1_S3_ENDPOINT", "PGBACKREST_REPO1_S3_KEY",
                  "PGBACKREST_REPO1_S3_KEY_SECRET", "PGBACKREST_REPO1_CIPHER_PASS"],
     "api": ["GOATCASH_DATABASE_URL"],
+    "api-read": ["PGPASSWORD"],
     "otel": ["GRAFANA_OTLP_ENDPOINT", "GRAFANA_OTLP_INSTANCE_ID", "GRAFANA_OTLP_TOKEN"],
     "postgres-exporter": ["DATA_SOURCE_URI", "DATA_SOURCE_USER", "DATA_SOURCE_PASS"],
 }

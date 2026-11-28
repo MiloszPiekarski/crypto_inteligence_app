@@ -4,7 +4,8 @@
 #   1. zapamiętuje bieżący tag obrazu (do rollbacku);
 #   2. pobiera nowe obrazy; pusty wolumen bazy + kopia w repozytorium = odtworzenie z kopii;
 #      uruchamia bazę i Valkey, zakłada stanzę pgBackRest (idempotentnie);
-#   3. uruchamia migracje z nowego obrazu (alembic upgrade head);
+#   3. uruchamia migracje z nowego obrazu (alembic upgrade head, kontener ingest z api.env)
+#      i zakłada konto api tylko do odczytu (ensure-api-role.sh, po migracjach);
 #   4. podnosi całość i czeka na healthchecki;
 #   5. test dymny: /v1/health przez Caddy (TLS, nagłówek Host jak z Cloudflare);
 #   6. przy błędzie w krokach 4-5: powrót do poprzedniego tagu i kod błędu 1.
@@ -86,7 +87,9 @@ wait_primary "$TAG"
 compose "$TAG" exec -T postgres pgbackrest --stanza=goatcash stanza-create
 compose "$TAG" exec -T postgres pgbackrest --stanza=goatcash check
 ./ensure-roles.sh "$TAG"
-compose "$TAG" run --rm --no-deps -T api alembic upgrade head
+# Migracje kontenerem ingest (api.env, konto postgres); api ma tylko konto do odczytu (E6).
+compose "$TAG" run --rm --no-deps -T ingest alembic upgrade head
+./ensure-api-role.sh "$TAG"
 
 if compose "$TAG" up -d --wait --remove-orphans && smoke; then
   echo "$TAG" > .image-tag

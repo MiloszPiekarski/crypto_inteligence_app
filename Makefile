@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 G ?=
 
-.PHONY: ansible-test help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test iac-lint compose-staging-test backup-restore-test marketdata-normalization-test marketdata-dq-test marketdata-resilience-test marketdata-logic-test marketdata-db-test features-reference-test features-pit-test features-gaps-test features-determinism-test features-db-test event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
+.PHONY: ansible-test help install tools dev lint audit fmt typecheck imports test db-migration-test image-migration-test iac-lint compose-staging-test backup-restore-test marketdata-normalization-test marketdata-dq-test marketdata-resilience-test marketdata-logic-test marketdata-db-test features-reference-test features-pit-test features-gaps-test features-determinism-test features-db-test api-schema-test api-security-test api-data-test api-db-test api-migration-test event-schemas-test evidence-test openapi-lint openapi requirements-check build secrets-scan doctor gate
 
 help: ## Lista komend
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -90,6 +90,21 @@ features-determinism-test: ## Dwa pełne przeliczenia historii bit w bit, wersja
 
 features-db-test: ## Cechy w Postgresie z Timescale i Valkey: zapis bit w bit, outbox, konsument (Docker; G5p)
 	uv run pytest --no-cov -m db services/platform/tests/features/test_feature_db.py
+
+api-schema-test: ## Schemathesis: API v1 zgodne z OpenAPI, 0 odpowiedzi niezgodnych, 0 błędów 5xx (G6p, F-09)
+	uv run pytest --no-cov services/platform/tests/api/test_api_schemathesis.py
+
+api-security-test: ## Nagłówki bezpieczeństwa na każdej odpowiedzi i CORS tylko dla app.goatcash.app (G6p)
+	uv run pytest --no-cov services/platform/tests/api/test_api_security.py
+
+api-data-test: ## Endpointy rynkowe: świece = candles_ref, 4h/1d vs niezależne przeliczenie, paginacja, błędy (G6p)
+	uv run pytest --no-cov services/platform/tests/api/test_api_market.py services/platform/tests/test_http_api.py
+
+api-db-test: ## API na Postgresie z Timescale: baza = pamięć, konto tylko do odczytu, Schemathesis (Docker; G6p)
+	uv run pytest --no-cov -m db services/platform/tests/api/test_api_db.py
+
+api-migration-test: ## Migracja 0005 w górę i w dół z danymi, bez utraty danych (Docker; G6p)
+	uv run pytest --no-cov -m migration services/platform/tests/migrations/test_migration_0005.py
 
 event-schemas-test: ## JSON Schema zdarzeń: poprawne przykłady przechodzą, błędne odrzucone (G2)
 	uv run pytest packages/contracts/tests/test_event_schemas.py

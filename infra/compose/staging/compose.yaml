@@ -77,8 +77,13 @@ services:
         "--forwarded-allow-ips",
         "*",
       ]
-    env_file: [./env/api.env]
+    # E6: proces wystawiony do internetu łączy się z bazą własnym kontem logowania tylko do
+    # odczytu `goatcash_api` (członek goatcash_readonly, ensure-api-role.sh), nie kontem
+    # postgres (decyzja właściciela 28.11.2026). Hasło: PGPASSWORD z api-read.env (SOPS);
+    # api.env z adresem konta postgres zostaje tylko dla ingest i migracji.
+    env_file: [./env/api-read.env]
     environment:
+      GOATCASH_DATABASE_URL: postgresql://goatcash_api@postgres:5432/postgres
       # Ślady do kolektora (sieć backend), stamtąd do Grafana Cloud Tempo (roadmapa E3, zakres 6).
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_SERVICE_NAME: goatcash-api

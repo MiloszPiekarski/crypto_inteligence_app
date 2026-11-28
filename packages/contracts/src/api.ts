@@ -33,7 +33,7 @@ export interface paths {
         };
         /**
          * Lista aktywów
-         * @description Aktywa obsługiwane przez platformę, z paginacją kursorową (E6).
+         * @description Aktywa obsługiwane przez platformę (rosnąco po symbolu), paginacja kursorowa.
          */
         get: operations["listAssets"];
         put?: never;
@@ -53,7 +53,7 @@ export interface paths {
         };
         /**
          * Aktywo
-         * @description Szczegóły jednego aktywa (E6).
+         * @description Szczegóły jednego aktywa.
          */
         get: operations["getAsset"];
         put?: never;
@@ -93,7 +93,9 @@ export interface paths {
         };
         /**
          * Świece referencyjne aktywa
-         * @description Świece ceny referencyjnej (mediana giełd) dla interwału, od najnowszej (E6).
+         * @description Świece ceny referencyjnej (mediana giełd) od najnowszej.
+         *
+         *     4h i 1d to pełne okresy UTC ze świec 1h; okres z brakującą świecą 1h nie jest zwracany.
          */
         get: operations["listCandles"];
         put?: never;
@@ -133,9 +135,29 @@ export interface paths {
         };
         /**
          * Stan procesu api
-         * @description Stan procesu i wersja pakietu; nie wymaga uwierzytelnienia.
+         * @description Stan procesu i wersja pakietu; nie wymaga uwierzytelnienia ani bazy.
          */
         get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/market/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Przegląd rynku
+         * @description Ostatnia cena, zmiana i wolumen 24 h oraz status jakości danych każdego aktywa.
+         */
+        get: operations["getMarketOverview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -236,6 +258,7 @@ export interface components {
             /**
              * Ts
              * Format: date-time
+             * @description początek okresu świecy (UTC)
              */
             ts: string;
             /**
@@ -299,11 +322,6 @@ export interface components {
              */
             status: "active" | "invalidated" | "expired" | "settled";
         };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
         /** Health */
         Health: {
             /**
@@ -313,6 +331,44 @@ export interface components {
             status: "ok";
             /** Version */
             version: string;
+        };
+        /** MarketOverview */
+        MarketOverview: {
+            /** Items */
+            items: components["schemas"]["OverviewItem"][];
+        };
+        /**
+         * OverviewItem
+         * @description Stan aktywa w przeglądzie rynku (ostatnia świeca 1h ceny referencyjnej).
+         */
+        OverviewItem: {
+            asset: components["schemas"]["Asset"];
+            /**
+             * Change 24H
+             * @description zmiana zamknięcia względem świecy sprzed 24 h (ułamek, 0.01 = 1%); null, gdy tamtej świecy brak
+             */
+            change_24h: number | null;
+            /**
+             * Close
+             * @description liczba dziesiętna jako tekst
+             */
+            close: string;
+            /**
+             * Dq Status
+             * @description najgorszy status jakości danych giełd pary; null, gdy brak oceny
+             */
+            dq_status: ("ok" | "degraded" | "stale" | "down") | null;
+            /**
+             * Ts
+             * Format: date-time
+             * @description początek ostatniej świecy 1h (UTC)
+             */
+            ts: string;
+            /**
+             * Volume 24H
+             * @description wolumen 24 ostatnich świec 1h; null, gdy którejś brak
+             */
+            volume_24h: string | null;
         };
         /** Page[Asset] */
         Page_Asset_: {
@@ -366,19 +422,6 @@ export interface components {
             /** Q95 */
             q95: number;
         };
-        /** ValidationError */
-        ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
     };
     responses: never;
     parameters: never;
@@ -406,13 +449,13 @@ export interface operations {
                     "application/json": components["schemas"]["Agent"][];
                 };
             };
-            /** @description Jeszcze nie zaimplementowane (szkic E2) */
+            /** @description Jeszcze nie zaimplementowane */
             501: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -420,7 +463,7 @@ export interface operations {
     listAssets: {
         parameters: {
             query?: {
-                /** @description kursor następnej strony */
+                /** @description kursor następnej strony: nieprzezroczysty, tylko wartość `next_cursor` z poprzedniej strony tego samego zasobu; inny kursor daje 400 */
                 cursor?: string | null;
                 /** @description liczba elementów na stronie */
                 limit?: number;
@@ -440,22 +483,31 @@ export interface operations {
                     "application/json": components["schemas"]["Page_Asset_"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Niepoprawne zapytanie */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Niepoprawne parametry zapytania */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Jeszcze nie zaimplementowane (szkic E2) */
-            501: {
+            /** @description Usługa chwilowo niedostępna */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -481,22 +533,31 @@ export interface operations {
                     "application/json": components["schemas"]["Asset"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Nie znaleziono */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Niepoprawne parametry zapytania */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Jeszcze nie zaimplementowane (szkic E2) */
-            501: {
+            /** @description Usługa chwilowo niedostępna */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -525,22 +586,22 @@ export interface operations {
                     "application/json": components["schemas"]["Assessment"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Niepoprawne parametry zapytania */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Jeszcze nie zaimplementowane (szkic E2) */
+            /** @description Jeszcze nie zaimplementowane */
             501: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -549,8 +610,8 @@ export interface operations {
         parameters: {
             query: {
                 /** @description interwał świec */
-                timeframe: "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
-                /** @description kursor następnej strony */
+                timeframe: "1h" | "4h" | "1d";
+                /** @description kursor następnej strony: nieprzezroczysty, tylko wartość `next_cursor` z poprzedniej strony tego samego zasobu; inny kursor daje 400 */
                 cursor?: string | null;
                 /** @description liczba elementów na stronie */
                 limit?: number;
@@ -573,22 +634,40 @@ export interface operations {
                     "application/json": components["schemas"]["Page_Candle_"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Niepoprawne zapytanie */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Nie znaleziono */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Niepoprawne parametry zapytania */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Jeszcze nie zaimplementowane (szkic E2) */
-            501: {
+            /** @description Usługa chwilowo niedostępna */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -598,7 +677,7 @@ export interface operations {
             query?: {
                 /** @description filtr horyzontu */
                 horizon?: ("1h" | "4h" | "1d" | "7d") | null;
-                /** @description kursor następnej strony */
+                /** @description kursor następnej strony: nieprzezroczysty, tylko wartość `next_cursor` z poprzedniej strony tego samego zasobu; inny kursor daje 400 */
                 cursor?: string | null;
                 /** @description liczba elementów na stronie */
                 limit?: number;
@@ -621,22 +700,22 @@ export interface operations {
                     "application/json": components["schemas"]["Page_Evidence_"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Niepoprawne parametry zapytania */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Jeszcze nie zaimplementowane (szkic E2) */
+            /** @description Jeszcze nie zaimplementowane */
             501: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -657,6 +736,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+        };
+    };
+    getMarketOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketOverview"];
+                };
+            };
+            /** @description Usługa chwilowo niedostępna */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };

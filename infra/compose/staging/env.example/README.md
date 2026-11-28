@@ -12,6 +12,8 @@ postgres:
   # … pozostałe zmienne z tabeli
 api:
   GOATCASH_DATABASE_URL: postgresql+psycopg://postgres:…@postgres:5432/postgres
+api-read:
+  PGPASSWORD: … # konto goatcash_api procesu api (tylko odczyt, E6)
 otel: { … }
 postgres-exporter: { … }
 tls:
@@ -26,6 +28,7 @@ SOPS szyfruje przy zapisie kluczem age `staging` z `infra/secrets/.sops.yaml`).
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `postgres.env`          | `POSTGRES_PASSWORD`, `PGBACKREST_REPO1_S3_ENDPOINT`, `PGBACKREST_REPO1_S3_KEY`, `PGBACKREST_REPO1_S3_KEY_SECRET`, `PGBACKREST_REPO1_CIPHER_PASS` |
 | `api.env`               | `GOATCASH_DATABASE_URL`                                                                                                                          |
+| `api-read.env`          | `PGPASSWORD` (hasło konta `goatcash_api`, tylko `[0-9a-f]`; konto zakłada `ensure-api-role.sh`)                                                  |
 | `otel.env`              | `GRAFANA_OTLP_ENDPOINT`, `GRAFANA_OTLP_INSTANCE_ID`, `GRAFANA_OTLP_TOKEN`                                                                        |
 | `postgres-exporter.env` | `DATA_SOURCE_URI` (`postgres:5432/postgres?sslmode=disable`), `DATA_SOURCE_USER` (`goatcash_monitor`), `DATA_SOURCE_PASS`                        |
 
