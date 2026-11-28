@@ -56,7 +56,6 @@ PGBACKREST_REPO1_PATH=/test-repo
 PGBACKREST_REPO1_CIPHER_PASS=cipher-$$
 EOF
 echo "GOATCASH_DATABASE_URL=postgresql+psycopg://postgres:$PW@postgres:5432/postgres" > "$WORK/compose/env/api.env"
-echo "PGPASSWORD=$(openssl rand -hex 24)" > "$WORK/compose/env/api-read.env"
 printf 'GRAFANA_OTLP_ENDPOINT=http://127.0.0.1:9\nGRAFANA_OTLP_INSTANCE_ID=0\nGRAFANA_OTLP_TOKEN=test\n' > "$WORK/compose/env/otel.env"
 printf 'DATA_SOURCE_URI=postgres:5432/postgres?sslmode=disable\nDATA_SOURCE_USER=goatcash_monitor\nDATA_SOURCE_PASS=mon-%s\n' "$$" \
   > "$WORK/compose/env/postgres-exporter.env"
@@ -67,6 +66,12 @@ echo "== wdrożenie deploy.sh $GOOD"
 grep -q "test dymny: OK" "$WORK/deploy1.log" || fail "brak testu dymnego w deploy.sh"
 [ "$(cat "$WORK/compose/.image-tag")" = "$GOOD" ] || fail ".image-tag po wdrożeniu"
 ok "deploy.sh: migracje, healthchecki, test dymny przez Caddy (TLS)"
+# E6: hasło konta api powstało na serwerze (plik 600, tylko [0-9a-f]), nie z repo.
+AR="$WORK/compose/env/api-read.env"
+[ -f "$AR" ] && [ "$(stat -c %a "$AR")" = 600 ] || fail "deploy.sh nie utworzył env/api-read.env (600)"
+grep -Eq '^PGPASSWORD=[0-9a-f]{48}$' "$AR" || fail "env/api-read.env: niepoprawny format"
+grep -q "hasło konta api: utworzone" "$WORK/deploy1.log" || fail "brak komunikatu o utworzeniu hasła api"
+AR_SUM="$(sha256sum "$AR")"
 
 for s in postgres valkey api ingest caddy otel-collector; do
   state="$(docker inspect -f '{{.State.Health.Status}}' "$(dc ps -q "$s")")"
@@ -156,6 +161,7 @@ running="$(docker inspect -f '{{.Config.Image}}' "$(dc ps -q api)")"
 HEALTH="$(curl -fsS -k --resolve "api.goatcash.app:$PORT:127.0.0.1" "https://api.goatcash.app:$PORT/v1/health")" || fail "/v1/health po rollbacku"
 grep -q '"status":"ok"' <<<"$HEALTH" || fail "/v1/health po rollbacku: $HEALTH"
 ok "zepsuty obraz: deploy.sh kod błędu, automatyczny powrót do $GOOD, /v1/health ok"
+[ "$(sha256sum "$AR")" = "$AR_SUM" ] || fail "kolejne wdrożenie zmieniło hasło konta api"
 
 echo "== nowy serwer: pusty wolumen bazy, odtworzenie z kopii w deploy.sh"
 dc down >/dev/null 2>&1

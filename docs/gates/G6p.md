@@ -41,8 +41,13 @@ takie same. Publiczne identyfikatory API są więc stabilne także po cofnięciu
 6. **Konto bazy procesu api:** api wystawione do internetu nie łączy się kontem `postgres`
    z `SET ROLE` (`RESET ROLE` przywraca superużytkownika), tylko osobnym kontem logowania
    `goatcash_api` (członek wyłącznie `goatcash_readonly`, sesja tylko do odczytu, limit
-   20 połączeń); hasło w SOPS (`api-read.PGPASSWORD`). Zmiana sekretów: z niezależnym
-   recenzentem i zgodą właściciela przed scaleniem PR 1 (`CLAUDE.md`, tryb pkt 5).
+   20 połączeń, `statement_timeout` 5 s), zakładanym przez `ensure-api-role.sh` przy każdym
+   wdrożeniu. Hasło nie jest w SOPS: właściciel nie ma dostępu do konsoli (28.11.2026), więc
+   `deploy.sh` tworzy je na serwerze przy pierwszym wdrożeniu (`env/api-read.env`, tryb 600)
+   i ustawia kontu przy każdym wdrożeniu; nowy serwer = nowe hasło bez ręcznych kroków.
+   Sekcja `api-read` w SOPS, jeśli kiedyś powstanie, ma pierwszeństwo. Zmiana sekretów:
+   niezależny recenzent (zgoda właściciela 28.11.2026) przed scaleniem PR 1 (`CLAUDE.md`,
+   tryb pkt 5).
 7. **PR 2 (cache):** unieważnianie przez `XREAD` (każda instancja api dostaje każde
    zdarzenie `candle.closed`); niedostępny Valkey nie może dawać nieaktualnych danych.
 

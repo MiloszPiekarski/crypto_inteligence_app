@@ -4,6 +4,7 @@
 #   1. zapamiętuje bieżący tag obrazu (do rollbacku);
 #   2. pobiera nowe obrazy; pusty wolumen bazy + kopia w repozytorium = odtworzenie z kopii;
 #      uruchamia bazę i Valkey, zakłada stanzę pgBackRest (idempotentnie);
+#   0. tworzy hasło konta api tylko do odczytu, jeśli go nie ma (env/api-read.env, E6);
 #   3. uruchamia migracje z nowego obrazu (alembic upgrade head, kontener ingest z api.env)
 #      i zakłada konto api tylko do odczytu (ensure-api-role.sh, po migracjach);
 #   4. podnosi całość i czeka na healthchecki;
@@ -16,6 +17,27 @@ TAG="${1:?Użycie: deploy.sh sha-<commit>}"
 case "$TAG" in sha-[0-9a-f]*) ;; *) echo "Niepoprawny tag obrazu: $TAG"; exit 2 ;; esac
 PREV="$(cat .image-tag 2>/dev/null || true)"
 PORT="${GOATCASH_HTTPS_PORT:-443}"
+
+# Hasło konta goatcash_api (E6): powstaje na serwerze przy pierwszym wdrożeniu (tryb 600,
+# poza repo, poza SOPS i poza rozmową) i zostaje między wdrożeniami (rsync pomija env/).
+# ensure-api-role.sh ustawia je kontu przy każdym wdrożeniu, więc nowy serwer (nowy plik)
+# albo usunięcie pliku = nowe hasło bez ręcznych kroków. Gdy plik SOPS ma sekcję
+# `api-read`, goatcash-render-env zapisuje ten plik z SOPS i to hasło ma pierwszeństwo.
+api_secret() {
+  local f=env/api-read.env pass=""
+  if [ -f "$f" ]; then
+    # shellcheck disable=SC1090
+    pass="$(. "./$f" && printf '%s' "${PGPASSWORD:-}")"
+  fi
+  case "$pass" in
+    "" | *[!0-9a-f]*)
+      mkdir -p env
+      (umask 077 && printf 'PGPASSWORD=%s\n' "$(openssl rand -hex 24)" > "$f.tmp" && mv "$f.tmp" "$f")
+      echo "hasło konta api: utworzone ($f)"
+      ;;
+  esac
+}
+api_secret
 
 compose() { GOATCASH_IMAGE_TAG="$1" docker compose "${@:2}"; }
 

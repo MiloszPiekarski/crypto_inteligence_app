@@ -79,7 +79,8 @@ services:
       ]
     # E6: proces wystawiony do internetu łączy się z bazą własnym kontem logowania tylko do
     # odczytu `goatcash_api` (członek goatcash_readonly, ensure-api-role.sh), nie kontem
-    # postgres (decyzja właściciela 28.11.2026). Hasło: PGPASSWORD z api-read.env (SOPS);
+    # postgres (decyzja właściciela 28.11.2026). Hasło: PGPASSWORD z api-read.env (tworzy je
+    # deploy.sh na serwerze);
     # api.env z adresem konta postgres zostaje tylko dla ingest i migracji.
     env_file: [./env/api-read.env]
     environment:

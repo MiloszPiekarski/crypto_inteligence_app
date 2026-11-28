@@ -5,7 +5,8 @@
 # goatcash_readonly, bez atrybutów uprzywilejowanych, sesja tylko do odczytu, limit połączeń.
 # Po migracjach (grupa goatcash_readonly powstaje w migracji 0001). Idempotentne; atrybuty
 # i członkostwa ustawiane przy każdym wdrożeniu (ręczna zmiana na serwerze nie przetrwa).
-# Hasło z ./env/api-read.env (PGPASSWORD, z SOPS), nie z repo; nie jest wypisywane.
+# Hasło z ./env/api-read.env (PGPASSWORD; tworzy je deploy.sh na serwerze), nie z repo;
+# nie jest wypisywane.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 TAG="${1:?Użycie: ensure-api-role.sh sha-<commit>}"
