@@ -163,3 +163,25 @@ jak tego unikamy.
 - Pierwszy raport danych uruchomiony „na czas” przed końcem pobierania historii wyszedł
   czerwony → czas pobierania bierzemy z pierwszego przebiegu (tu ok. 60 min dla 20 par × 2
   giełdy), a raport puszczamy po nim; czerwony przebieg zostaje w historii jako próba.
+
+## E5
+
+- Ta sama nazwa pliku testów w dwóch katalogach (`test_pgstore.py` w `marketdata`
+  i `features`) przy testach bez pakietów: błąd zbierania testów w pełnym `pytest`, choć
+  każdy katalog osobno przechodził → nazwy plików testów unikalne w całym repozytorium;
+  przed wypchnięciem zawsze pełne `pytest`, nie tylko nowe pliki.
+- Przekaźnik outbox z E4 publikował wszystkie zdarzenia z `event_outbox` pod nazwą swojego
+  procesu, więc pierwszy nowy typ zdarzenia (`features.ready`) poszedłby jako `ingest@…`
+  → przy nowym producencie zdarzeń sprawdzamy, kto publikuje outbox; każdy proces publikuje
+  tylko własne typy (`relay_outbox(..., types=...)`).
+- Warunek z roadmapy `ingested_at ≤ as_of` dawał dla historii pobranej później pusty widok
+  → wymagania czasowe sprawdzamy na prawdziwym przebiegu danych (kiedy dane powstały, kiedy
+  je zapisano), a doprecyzowanie zapisujemy jawnie z decyzją właściciela (`known_at`).
+- Próg pokrycia (80%) prawie przekroczony, bo nowy kod bazy i konsumenta był testowany
+  tylko w teście z Dockerem (poza `make test`) → logikę sprawdzamy też bez Dockera
+  (atrapa strumienia o tej samej semantyce), a test z Dockerem sprawdza integrację.
+- Lokalny test bazy bez Timescale (Postgres 16 w sesji) wymaga schematu odtworzonego
+  z migracji bez poleceń Timescale; to nie zastępuje CI → raportujemy, co sprawdzono
+  lokalnie, a co dopiero w CI.
+- Tryb leniwy Polars (eliminacja wspólnych podwyrażeń) okazał się 3x wolniejszy na małych
+  ramkach niż tryb natychmiastowy → optymalizację mierzymy, zanim ją zostawimy.

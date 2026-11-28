@@ -19,7 +19,7 @@ i co przechodzi do produktu („Dokończenie w ścieżce produktu”). Kryteria 
 | Kolejność | Etap | Zależności (ścieżka pracy)                | Minimum w ścieżce pracy                                                                           | Bramka pracy | Status                            |
 | --------- | ---- | ----------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------ | --------------------------------- |
 | 1         | E4   | G3                                        | 2 giełdy, 20 par, świece 1 h od 2023-01-01, detektor luk, DQ, cena referencyjna                   | G4p          | ✅ zakres pracy (G4p, 27.11.2026) |
-| 2         | E5   | G4p                                       | `MarketView(as_of)`, ok. 15–20 cech `fs-1p`, test point-in-time, wartości referencyjne            | G5p          | ⬜                                |
+| 2         | E5   | G4p                                       | `MarketView(as_of)`, ok. 15–20 cech `fs-1p`, test point-in-time, wartości referencyjne            | G5p          | ✅ zakres pracy (G5p, 27.11.2026) |
 | 3         | E6   | G2, G3 (może biec równolegle z E4–E5)     | API tylko do odczytu, bez kont użytkowników                                                       | G6p          | ⬜                                |
 | 4         | E12a | G2 (może biec równolegle; zalecane po E5) | persony, 4 zadania kluczowe, makiety w Figma Free, mini design system                             | część G12p   | ⬜                                |
 | 5         | E7   | G5p                                       | agenci Trend, Ryzyko i zmienność, Reżim, Historyczny (kNN); 2 punkty odniesienia; Ledger          | G7p          | ⬜                                |
@@ -367,7 +367,7 @@ Giełda (websocket/REST) → adapter → normalizacja → walidacja DQ → zapis
 
 ## E5. Magazyn danych i point-in-time feature store
 
-**Status:** ⬜ nie rozpoczęto · ścieżka pracy: zakres okrojony, bramka G5p (pełny zakres: ⏸ produkt)
+**Status:** ✅ zakres pracy (G5p zaliczona 27.11.2026, dowód `docs/gates/G5p.passed.json`, raport `docs/gates/G5p.md`) · ⏸ reszta w produkcie (pełna bramka G5)
 
 Etap kończy się, gdy ta sama biblioteka cech daje bit w bit identyczne wyniki na żywo i przy odtwarzaniu historii, a test "brak zaglądania w przyszłość" przechodzi dla wszystkich cech.
 

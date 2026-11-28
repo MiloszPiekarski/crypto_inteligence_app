@@ -19,13 +19,24 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
   w etapach ścieżki pracy podsekcje „Dokończenie w ścieżce produktu”.
 - **Sposób pracy:** `CLAUDE.md`, sekcja „Tryb ścieżki pracy” (sesja w chmurze, 1–3 PR-y
   na etap, właściciel scala Squash and merge). Start etapu: `docs/start-nowej-rozmowy.md`.
-- **Następny krok:** E5 w ścieżce pracy (magazyn danych i point-in-time feature store,
-  bramka G5p; wymaga G4p, zaliczonej 27.11.2026), nowa rozmowa w chmurze (prompt:
-  `docs/start-nowej-rozmowy.md`, sekcja „Ścieżka pracy”); pierwszy PR E5: `gates/G5p.yaml`
-  i job `gate-next` dla G5p. Podpis: właściciel podpisuje każdy PR asystenta przed scaleniem
-  (`CLAUDE.md`, tryb pkt 3).
+- **Następny krok:** E6 w ścieżce pracy (backend API tylko do odczytu, bez kont
+  użytkowników, bramka G6p; wymaga G2 i G3, zaliczonych), nowa rozmowa w chmurze (prompt:
+  `docs/start-nowej-rozmowy.md`, sekcja „Ścieżka pracy”); pierwszy PR E6: `gates/G6p.yaml`
+  i job `gate-next` dla G6p. E7 (wymaga G5p, zaliczonej 27.11.2026) uruchamia też worker
+  cech na staging (decyzja właściciela 27.11.2026). Podpis: właściciel podpisuje każdy PR
+  asystenta przed scaleniem (`CLAUDE.md`, tryb pkt 3).
 
 ## Gdzie jesteśmy
+
+- **E5 (ścieżka pracy):** zakres pracy zakończony, G5p zaliczona 27.11.2026
+  (`docs/gates/G5p.passed.json`, dowód ci: przebieg 46053939823; raport `docs/gates/G5p.md`).
+  PR-y: #133 (`MarketView(as_of, known_at)`, 19 cech `fs-1p` w Polars, testy G5p), #134
+  (migracja 0004, zapis cech w Postgresie, zadanie po `candle.closed`, `features.ready` v2,
+  konsument strumienia, przekaźnik z filtrem typów), PR zamykający (G5p w `ci-ok`, raport,
+  wzory w `metody.md`). Decyzje właściciela 27.11.2026 (karta E5): klucz cech
+  `(asset_id, quote_asset_id)` + `status`, `known_at` tylko w replay, worker na staging
+  w E7, korelacja BTC z BTC = `not_applicable`. Worker nie działa jeszcze na staging
+  (tabela `feature_values` na staging pusta do E7).
 
 - **E4 (ścieżka pracy):** zakres pracy zakończony, G4p zaliczona 27.11.2026
   (`docs/gates/G4p.passed.json`, dowód mixed: CI 45973429769 + `data-report.yml`

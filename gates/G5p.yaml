@@ -3,8 +3,8 @@
 #
 # Wszystkie sprawdzenia działają w CI (w G5p nie ma części „staging”), więc dowód G5p jest
 # typu `ci`: przebieg ci.yml na main z zielonym jobem „8 bramka G5p (ubuntu-latest)”.
-# Zapis do Postgresa (feature_sets, feature_values) i przeliczenie historii w bazie: PR 2 E5
-# (sprawdzenie `database`); do tego czasu bramka jest czerwona (job gate-next poza ci-ok).
+# Od zamknięcia E5 job „8 bramka G5p” jest w macierzy joba `gate` i w `ci-ok` (ochrona
+# przed regresją), jak G1–G4p.
 gate: G5p
 stage: E5
 criteria: >-
