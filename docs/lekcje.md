@@ -185,3 +185,21 @@ jak tego unikamy.
   lokalnie, a co dopiero w CI.
 - Tryb leniwy Polars (eliminacja wspólnych podwyrażeń) okazał się 3x wolniejszy na małych
   ramkach niż tryb natychmiastowy → optymalizację mierzymy, zanim ją zostawimy.
+- Komendy „po scaleniu” (usunięcie gałęzi) podane w tej samej wiadomości co kroki podpisu:
+  właściciel wykonał je po kolei, gałąź zniknęła przed scaleniem i GitHub zamknął PR #135
+  bez scalenia (naprawa: odtworzenie gałęzi z podpisanego commitu i ponowne otwarcie PR) →
+  komendy po scaleniu podajemy dopiero po potwierdzeniu scalenia, w osobnej wiadomości;
+  gałęzie #133 i #134 GitHub usunął sam po scaleniu.
+- Audyt E5: próg testu sformułowany „po swojemu” (1e-9 · max(1, |b|)) był słabszy od zapisu
+  kryterium („różnica < 1e-9”) i przepuszczał odchylenie RSI o 1,5e-8 → próg w teście
+  dosłownie jak w kryterium; interpretację, która je osłabia, zatwierdza właściciel.
+- Audyt E5: losowanie chwil jako dowolnych milisekund dawało 6/1000 chwil na pełnej
+  godzinie, czyli prawie nie sprawdzało przypadku na żywo; mutację brzegu łapał jeden test
+  deterministyczny → przy testach właściwości losujemy jawnie także przypadki brzegowe
+  (tu: pełne godziny) i asercją pilnujemy ich liczby; mutacje brzegu w każdym teście.
+- Audyt E5: „porównanie z TA-Lib” dla MACD było porównaniem ze złożonymi EMA, a
+  `talib.MACD` ma inną inicjalizację → przy wzorcu złożonym z funkcji podstawowych mówimy
+  to wprost i sprawdzamy też funkcję gotową, jeśli istnieje.
+- Audyt E5: znany problem poprzedniego etapu (`ingested_at` nadpisywane przy upsercie
+  w E4) nie trafił do opisu ograniczeń E5, choć dotyczył replay → przy zamknięciu etapu
+  przeglądamy otwarte problemy poprzednich etapów, które dotykają jego zakresu.

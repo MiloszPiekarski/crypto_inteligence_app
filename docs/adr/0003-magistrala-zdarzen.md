@@ -56,3 +56,20 @@ muszą pozostać spójne. Valkey jest już w stosie (ADR-0001) i nie jest widocz
 - W E7/E13 test: zabity konsument w trakcie przetwarzania → komunikat przejęty i przetworzony
   dokładnie raz w skutkach (G13: „dokładnie raz” dla alertów).
 - Metryki: opóźnienie konsumentów, długość `pending`, liczba w `ev:dead-letter` (Grafana).
+
+## Zmiany
+
+- **27.11.2026 (E5, PR #134; zapis po audycie E5 28.11.2026):**
+  - `event_outbox.correlation_id` (migracja 0004, opcjonalne): zdarzenie będące skutkiem
+    innego (np. `features.ready` po `candle.closed`) niesie w kopercie `correlation_id`
+    zdarzenia, które je wywołało; puste = zdarzenie nie jest skutkiem innego (korelacja =
+    ono samo, jak dotąd).
+  - Przekaźnik outbox publikuje tylko typy zdarzeń swojego procesu
+    (`relay_outbox(..., types=...)`): ingest `candle.closed`, worker `features.ready`.
+    Bez tego przekaźnik ingestu publikowałby też zdarzenia workera pod nazwą `ingest@…`
+    w polu `producer`.
+  - Nowa wersja schematu przy zmianie niezgodnej wstecz: `features.ready` v2 (para aktywów
+    zamiast `instrument_id`, decyzja właściciela 27.11.2026); v1 zostaje w
+    `packages/contracts/events/`. Konsument cech obsługuje `candle.closed` v1, grupa
+    `features`, `XAUTOCLAIM` po 60 s, `ev:dead-letter` po 5 dostarczeniach
+    (`goatcash.features`, punkt 4 tej decyzji).

@@ -65,12 +65,22 @@ Zapis w karcie E5 (`roadmapa.md`, „Ścieżka pracy inżynierskiej”):
 - **Dwie niezależne implementacje:** TA-Lib 0.8.3 (biblioteka C; tylko w testach, wheele dla
   Linuksa i macOS arm64, CI na obu systemach) i czysty Python na pętlach z `math.fsum`
   (`services/platform/tests/features/reference.py`, bez kodu z modułu `features`).
-- **Tolerancja:** |nasza − wzorcowa| ≤ 1e-9 · max(1, |wzorcowa|), po okresie rozgrzewki;
-  cecha ma wartość (`ok`) dokładnie tam, gdzie wzorzec ją ma (to samo okno rozgrzewki).
+- **Tolerancja:** różnica bezwzględna < 1e-9 dla każdej cechy, dokładnie jak w kryterium
+  (od audytu 28.11.2026; wcześniej 1e-9 · max(1, |wzorcowa|), patrz „Audyt E5”); cecha ma
+  wartość (`ok`) dokładnie tam, gdzie wzorzec ją ma (to samo okno rozgrzewki).
 - **Inicjalizacja rekurencji jak w TA-Lib** (EMA od średniej prostej pierwszych n wartości,
   ATR, RSI i ADX z wygładzaniem Wildera i sumami startowymi z `ta_ADX.c`), więc zgodność
   z TA-Lib obowiązuje od pierwszej wartości. Jedno jawne odejście: RSI przy płaskiej cenie
   (brak zysków i strat w oknie) = 50, a nie 0 jak w TA-Lib.
+- **MACD** to EMA12 − EMA26 z EMA jak w `talib.EMA`; funkcja `talib.MACD` zaczyna szybką EMA
+  inaczej, więc różni się od naszej definicji na początku odcinka (rzędu 1e-4..1e-2
+  w skali `macd_rel`) i zbiega do < 1e-9 po 130 h (test
+  `test_macd_definition_vs_talib_macd_function`). Wzorcem dla `macd_rel` i `macd_hist_rel`
+  są EMA z TA-Lib, nie funkcja `talib.MACD`.
+- **Niezależność wzorców:** TA-Lib to niezależna implementacja arytmetyki. Dla zwrotów,
+  zmienności, z-score, Donchiana i wolumenu wzorzec z TA-Lib jest złożony z jej funkcji
+  podstawowych według tych samych wzorów, a wersję w czystym Pythonie napisał ten sam autor
+  według tych samych konwencji; same wzory potwierdzają przykłady policzone ręcznie.
 - **Dane:** losowe serie (3 ziarna × 3 pary × 700 h) i prawdziwa cena referencyjna z kaset E4
   (mediana OKX i Bybit, 5 par × 2000 h od 2024-07-01), do tego przykłady policzone ręcznie.
 
@@ -91,8 +101,19 @@ na runnerach macOS). Wartości z TA-Lib i test point-in-time przechodzą na obu 
 
 - **Doprecyzowanie `MarketView`** (decyzja 2): `ts + 1 h ≤ as_of` zawsze, `ingested_at ≤ known_at`
   tylko w replay okresu na żywo; opis w `docs/praca/metody.md`, sekcja 2.
-- **Tolerancja wartości referencyjnych:** „różnica < 1e-9” rozumiana jako
-  |a − b| ≤ 1e-9 · max(1, |b|) (RSI i ADX w skali 0..100; reszta cech bezwymiarowa).
+- **Tolerancja wartości referencyjnych:** od audytu 28.11.2026 dokładnie jak w kryterium
+  (różnica bezwzględna < 1e-9). Dowód G5p (46053939823) powstał jeszcze ze słabszym progiem
+  dla RSI i ADX; przebieg z poprawionym progiem: PR audytu.
+- **Replay z `known_at` przy poprawionych świecach (ograniczenie z E4):** upsert ceny
+  referencyjnej w E4 nadpisuje `ingested_at` (`marketdata/_impl/pgstore.py`), więc replay
+  sprzed aktualizacji widzi lukę zamiast wcześniejszej wersji świecy. Bez zaglądania
+  w przyszłość, ale nie dokładnie „jak wiedzieliśmy wtedy”; rozwiązanie do decyzji przed
+  workerem w E7 (`docs/stan-pracy.md`, otwarte sprawy).
+- **Dowód w PR zamykającym:** jak przy G4p, część CI dowodu pochodzi z przebiegu na `main`
+  sprzed PR zamykającego (job „8 bramka G5p” był wtedy w `gate-next`), a plik dowodu jest
+  w tym samym PR; procedura w `docs/start-nowej-rozmowy.md` mówi o pliku po scaleniu.
+  Jawne odstępstwo (bez wpływu na wiarygodność: `gate-guard` sprawdza przebieg, commit
+  i job). Po scaleniu PR zamykającego G5p w macierzy `gate` też jest zielona: 46130500409.
 - **RSI przy płaskiej cenie = 50** (TA-Lib: 0). Jedyne odejście od wzorca; wartość
   neutralna zamiast „skrajnie wyprzedany”.
 - **Bit w bit zamiast tolerancji 1e-9** (F-08, `work_target`): test sprawdza identyczność
@@ -100,6 +121,26 @@ na runnerach macOS). Wartości z TA-Lib i test point-in-time przechodzą na obu 
 - **„Live vs replay”:** w ścieżce pracy miniatura w teście (cechy liczone godzina po
   godzinie po każdym `candle.closed` = pełne przeliczenie, bit w bit); 7 dni na staging:
   produkt. Worker na staging od E7 (decyzja 3), więc `feature_values` na staging jest puste.
+
+## Audyt E5 (28.11.2026)
+
+Audyt na prośbę właściciela (asystent sprawdzał własną pracę z rozmowy E5, więc nie jest to
+recenzja niezależna). Mutacje w kopii kodu: 15 z 15 wykrytych (przeciek otwartej świecy,
+`known_at` pominięty, NaN → 0, luka jako rozgrzewka, okno EMA o 1, szum 1 ulp, korelacja
+BTC = 1, upsert bez wykrycia zmiany, zapis jako `real`, `XACK` przed skutkiem i inne).
+Znalezione luki i poprawki (PR audytu):
+
+| Luka                                                                                                                                            | Poprawka                                                                              |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Próg wartości referencyjnych 1e-9 · max(1, \|b\|) przepuszczał odchylenie RSI o 1,5e-8                                                          | próg bezwzględny < 1e-9 (`fs_helpers.py`); RSI + 5e-9 i ADX · (1 + 1e-10) wykryte     |
+| 6 z 1000 chwil na pełnej godzinie; mutację „świeca zamknięta w as_of odrzucona” wykrywał tylko jeden test                                       | połowa chwil na pełnej godzinie, asercja ≥ 300; mutacja wykryta przez test 1000 chwil |
+| MACD porównany z EMA z TA-Lib, nie z `talib.MACD` (różnica na starcie 1e-3)                                                                     | definicja opisana, test różnicy i jej wygaśnięcia po 130 h                            |
+| `ingested_at` nadpisywane przez upsert E4: replay `known_at` niewierny dla poprawionych świec                                                   | opis ograniczenia; decyzja przed E7                                                   |
+| Dowód z przebiegu sprzed PR zamykającego, bez zapisu odstępstwa                                                                                 | zapis wyżej                                                                           |
+| ADR-0003 bez `correlation_id` w outbox i filtra typów w przekaźniku; brak lekcji o usuniętej gałęzi; `metody.md` bez źródeł cech i ID przebiegu | dopisane                                                                              |
+
+**NIESPRAWDZONE w audycie:** to, że w CI uruchomił się konkretnie `test_migration_0004.py`
+(log bramki G2 pokazuje tylko wynik zbiorczy, artefakty niedostępne z sesji).
 
 ## Przechodzi do ścieżki produktu (pełna G5)
 

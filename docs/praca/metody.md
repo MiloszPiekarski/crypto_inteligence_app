@@ -108,27 +108,33 @@ traktowane jak zero).
 EMA_n: rekurencja y_t = y_{t-1} + α (x_t − y_{t-1}), α = 2 / (n + 1), start od średniej
 prostej pierwszych n wartości (jak w TA-Lib). Wygładzanie Wildera: to samo z α = 1 / n.
 
-| Cecha               | Wzór                                                                                          | W   |
-| ------------------- | --------------------------------------------------------------------------------------------- | --- |
-| `ret_log_1h`        | ln(c_t / c_{t-1})                                                                             | 2   |
-| `ret_log_4h`        | ln(c_t / c_{t-4})                                                                             | 5   |
-| `ret_log_24h`       | ln(c_t / c_{t-24})                                                                            | 25  |
-| `ret_log_168h`      | ln(c_t / c_{t-168})                                                                           | 169 |
-| `vol_realized_24h`  | sqrt(Σ r_i², 24 ostatnich godzin)                                                             | 25  |
-| `vol_parkinson_24h` | sqrt(Σ ln(h_i / l_i)² / (4 ln 2 · 24)), 24 h                                                  | 24  |
-| `atr_14_rel`        | ATR_14 / c_t; TR_t = max(h − l, \|h − c_{t-1}\|, \|l − c_{t-1}\|), ATR = Wilder(TR, 14)       | 15  |
-| `rsi_14`            | 100 · G / (G + L), G i L: Wilder(14) zysków i strat godzinowych; brak ruchu: 50               | 15  |
-| `macd_rel`          | (EMA_12(c) − EMA_26(c)) / c_t                                                                 | 26  |
-| `macd_hist_rel`     | (MACD − EMA_9(MACD)) / c_t                                                                    | 34  |
-| `adx_14`            | ADX Wildera (14): +DM, −DM i TR z sumami jak w TA-Lib, DX = 100 · \|DI⁺ − DI⁻\| / (DI⁺ + DI⁻) | 28  |
-| `ema_20_dist`       | c_t / EMA_20(c) − 1                                                                           | 20  |
-| `ema_50_slope_24h`  | EMA_50(c)_t / EMA_50(c)_{t-24} − 1                                                            | 74  |
-| `bb_pctb_20`        | (c − (m − 2σ)) / (4σ), m i σ: średnia i odchylenie (populacyjne) c z 20 h                     | 20  |
-| `bb_width_20`       | 4σ / m (20 h)                                                                                 | 20  |
-| `zscore_close_168h` | (c − m) / σ (168 h)                                                                           | 168 |
-| `donchian_pos_168h` | (c − min l) / (max h − min l), 168 h                                                          | 168 |
-| `volume_rel_168h`   | v_t / średnia v z 168 h                                                                       | 168 |
-| `corr_btc_168h`     | współczynnik Pearsona r pary i r BTC z 168 h (oba szeregi bez luk w oknie)                    | 169 |
+| Cecha               | Wzór                                                                                          | W   | Źródła (`candles_ref` 1 h) |
+| ------------------- | --------------------------------------------------------------------------------------------- | --- | -------------------------- |
+| `ret_log_1h`        | ln(c_t / c_{t-1})                                                                             | 2   | para                       |
+| `ret_log_4h`        | ln(c_t / c_{t-4})                                                                             | 5   | para                       |
+| `ret_log_24h`       | ln(c_t / c_{t-24})                                                                            | 25  | para                       |
+| `ret_log_168h`      | ln(c_t / c_{t-168})                                                                           | 169 | para                       |
+| `vol_realized_24h`  | sqrt(Σ r_i², 24 ostatnich godzin)                                                             | 25  | para                       |
+| `vol_parkinson_24h` | sqrt(Σ ln(h_i / l_i)² / (4 ln 2 · 24)), 24 h                                                  | 24  | para                       |
+| `atr_14_rel`        | ATR_14 / c_t; TR_t = max(h − l, \|h − c_{t-1}\|, \|l − c_{t-1}\|), ATR = Wilder(TR, 14)       | 15  | para                       |
+| `rsi_14`            | 100 · G / (G + L), G i L: Wilder(14) zysków i strat godzinowych; brak ruchu: 50               | 15  | para                       |
+| `macd_rel`          | (EMA_12(c) − EMA_26(c)) / c_t                                                                 | 26  | para                       |
+| `macd_hist_rel`     | (MACD − EMA_9(MACD)) / c_t                                                                    | 34  | para                       |
+| `adx_14`            | ADX Wildera (14): +DM, −DM i TR z sumami jak w TA-Lib, DX = 100 · \|DI⁺ − DI⁻\| / (DI⁺ + DI⁻) | 28  | para                       |
+| `ema_20_dist`       | c_t / EMA_20(c) − 1                                                                           | 20  | para                       |
+| `ema_50_slope_24h`  | EMA_50(c)_t / EMA_50(c)_{t-24} − 1                                                            | 74  | para                       |
+| `bb_pctb_20`        | (c − (m − 2σ)) / (4σ), m i σ: średnia i odchylenie (populacyjne) c z 20 h                     | 20  | para                       |
+| `bb_width_20`       | 4σ / m (20 h)                                                                                 | 20  | para                       |
+| `zscore_close_168h` | (c − m) / σ (168 h)                                                                           | 168 | para                       |
+| `donchian_pos_168h` | (c − min l) / (max h − min l), 168 h                                                          | 168 | para                       |
+| `volume_rel_168h`   | v_t / średnia v z 168 h                                                                       | 168 | para                       |
+| `corr_btc_168h`     | współczynnik Pearsona r pary i r BTC z 168 h (oba szeregi bez luk w oknie)                    | 169 | para i BTC/kwotowanie      |
+
+MACD w `fs-1p` to EMA_12 − EMA_26 z EMA zaczynającymi się jak w TA-Lib (funkcja `talib.EMA`).
+Funkcja `talib.MACD` zaczyna szybką EMA inaczej (od świecy, w której startuje wolna), więc
+na początku odcinka (od początku danych albo po luce) obie definicje różnią się o rząd
+1e-4..1e-2 w skali `macd_rel`; różnica wygasa i po 130 h jest < 1e-9 (test
+`test_macd_definition_vs_talib_macd_function`, audyt E5 28.11.2026).
 
 **Implementacja.** Polars (wektorowo, osobno dla każdego odcinka); jedna funkcja liczy
 pełne przeliczenie historii i cechy w chwili `as_of` (na żywo po `candle.closed`), więc obie
@@ -142,13 +148,26 @@ z pełnego przeliczenia, dla wszystkich 19 cech; do tego replay z `known_at`, ni
 wyniku przy zmianie danych z przyszłości i testy mutacyjne (przesunięcie w złą stronę,
 normalizacja całą serią, okno wycentrowane: wykryte). Wartości referencyjne liczone
 niezależnie dwiema implementacjami: TA-Lib (C) i czystym Pythonem, na danych syntetycznych
-i prawdziwej cenie z kaset E4 (5 par × 2000 h): |różnica| ≤ 1e-9 · max(1, |wzorzec|), cecha
-ma wartość dokładnie tam, gdzie wzorzec (największa zaobserwowana różnica ok. 2e-12, %B
+i prawdziwej cenie z kaset E4 (5 par × 2000 h): różnica bezwzględna < 1e-9 dla każdej cechy
+(od audytu E5 28.11.2026; wcześniej 1e-9 · max(1, |wzorzec|)), cecha ma wartość dokładnie
+tam, gdzie wzorzec (największa zaobserwowana różnica ok. 2e-12, %B
 przez sumy kwadratów w TA-Lib); do tego przykłady policzone ręcznie. Dwa pełne przeliczenia
 historii (także w osobnym procesie z jednym wątkiem Polars i po zapisie do Postgresa) dają
-ten sam skrót SHA-256 bitów wartości.
+ten sam skrót SHA-256 bitów wartości. Dowód: przebieg CI na `main` 46053939823 (job
+„8 bramka G5p (ubuntu-latest)” 6/6; `docs/gates/G5p.passed.json`); połowa z 1000 chwil
+leży dokładnie na pełnej godzinie (przypadek na żywo), połowa dowolnie (od audytu E5).
+Niezależność wzorców: TA-Lib jest niezależną implementacją arytmetyki wskaźników; dla
+zwrotów, zmienności, z-score, Donchiana i wolumenu wzorzec z TA-Lib jest złożony z jej
+funkcji podstawowych według tych samych wzorów, a wersję w czystym Pythonie napisał ten sam
+autor według tych samych konwencji, więc same wzory potwierdzają przykłady policzone ręcznie.
 
 **Ograniczenia.** Jedno odejście od TA-Lib: RSI przy płaskiej cenie = 50 (TA-Lib: 0).
+Replay z `known_at` jest zachowawczy, ale nie w pełni wierny: E4 przy aktualizacji ceny
+referencyjnej (np. gdy druga giełda dośle świecę) nadpisuje `ingested_at` w `candles_ref`
+(`marketdata/_impl/pgstore.py`, upsert), więc wcześniejsza wersja świecy znika i replay
+sprzed aktualizacji widzi lukę zamiast ceny z jednej giełdy. Przyszłości nie widać, ale
+widok nie jest dokładnie „tak, jak wiedzieliśmy wtedy”; rozwiązanie (np. `first_ingested_at`
+albo wersje `candles_ref`) do decyzji właściciela przed uruchomieniem workera w E7.
 Cechy rekurencyjne zależą od początku odcinka (po luce startują od nowa), a pełne
 przeliczenie czyta całą historię pary (20 par × ok. 34 tys. godzin; dla 150 par potrzebny
 stan przyrostowy: produkt). Cechy z danych pełnego E4 (funding, OI, order book, dominacja

@@ -37,6 +37,10 @@ na początku rozmowy wystarczy poprosić o przeczytanie `CLAUDE.md` i tego pliku
   `(asset_id, quote_asset_id)` + `status`, `known_at` tylko w replay, worker na staging
   w E7, korelacja BTC z BTC = `not_applicable`. Worker nie działa jeszcze na staging
   (tabela `feature_values` na staging pusta do E7).
+  Audyt E5 (28.11.2026, PR z gałęzi `claude/E5-audyt-poprawki`): próg wartości
+  referencyjnych bezwzględny < 1e-9 (wcześniej względny), połowa chwil testu point-in-time
+  na pełnej godzinie, test MACD vs `talib.MACD`, opis ograniczenia `ingested_at` z E4,
+  ADR-0003 (correlation_id, filtr typów), lekcje.
 
 - **E4 (ścieżka pracy):** zakres pracy zakończony, G4p zaliczona 27.11.2026
   (`docs/gates/G4p.passed.json`, dowód mixed: CI 45973429769 + `data-report.yml`
@@ -188,6 +192,11 @@ Decyzje właściciela do planu (22.11.2026):
 
 ## Otwarte sprawy
 
+- **Przed workerem cech na staging (E7), decyzja właściciela:** upsert ceny referencyjnej
+  w E4 nadpisuje `ingested_at` (`marketdata/_impl/pgstore.py`), więc replay z `known_at`
+  widzi poprawioną świecę jako lukę przed jej aktualizacją (bez przecieku, ale niewiernie).
+  Opcje: kolumna `first_ingested_at` w `candles_ref` (rekomendacja) albo wersje świec
+  (audyt E5 28.11.2026, `docs/gates/G5p.md`).
 - E3 (zakończony): infrastruktura utworzona przez właściciela (plan → zgoda → uruchomienie):
   `oci-trwale`, `oci`, `cloudflare`, `observability`; tokeny R2 (zapis: pgBackRest, odczyt:
   test kopii), `staging.enc.yaml`, sekrety środowisk `staging` i `staging-readonly`, dwa
