@@ -98,7 +98,8 @@ conn.execute("SELECT count(*) FROM candles_ref")
 conn.execute("RESET ROLE")
 conn.execute("SET default_transaction_read_only = off")
 for sql in ("INSERT INTO assets (symbol, name) VALUES ('ZZ', 'z')", "SET ROLE postgres",
-            "SET ROLE goatcash_app", 'SELECT * FROM "user"'):
+            "SET ROLE goatcash_app", 'SELECT * FROM "user"', "SELECT * FROM alert_rules",
+            "SELECT * FROM audit_log"):
     try:
         conn.execute(sql)
     except psycopg.errors.Error:

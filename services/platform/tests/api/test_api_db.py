@@ -4,8 +4,8 @@
   samych danych (aktywa, świece 1h/4h/1d przy kilku rozmiarach strony, przegląd rynku),
   więc testy wartości referencyjnych z `test_api_market.py` dotyczą też bazy;
 - `assets.public_id` z migracji 0005 = `asset_public_id` w Pythonie;
-- konto logowania API (jak `goatcash_api` z `ensure-api-role.sh`: LOGIN, członek
-  `goatcash_readonly`, sesja tylko do odczytu) nie zapisuje, także po `RESET ROLE`, nie
+- konto logowania API (jak `goatcash_api` z `ensure-api-role.sh`: LOGIN, bez członkostw,
+  SELECT tylko na 4 tabelach rynkowych, sesja tylko do odczytu) nie zapisuje, także po `RESET ROLE`, nie
   przełącza się na superużytkownika i nie czyta danych użytkowników;
 - Schemathesis na aplikacji z czytnikiem w Postgresie: 0 odpowiedzi niezgodnych, 0 błędów 5xx.
 Uruchomienie: `make api-db-test` (Docker). Lokalnie bez Dockera: `GOATCASH_TEST_DB_URL`
@@ -120,8 +120,9 @@ def api_url(db_url: str) -> str:
         # Jak goatcash_api w infra/compose/staging/ensure-api-role.sh (ten sam zestaw atrybutów).
         admin.execute(
             f"CREATE ROLE {API_ROLE} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION "
-            f"NOBYPASSRLS INHERIT IN ROLE goatcash_readonly PASSWORD '{API_PASSWORD}'"
+            f"NOBYPASSRLS INHERIT PASSWORD '{API_PASSWORD}'"
         )
+        admin.execute(f"GRANT SELECT ON assets, instruments, candles_ref, dq_status TO {API_ROLE}")
         admin.execute(f"ALTER ROLE {API_ROLE} SET default_transaction_read_only = on")
     params = conninfo_to_dict(db_url.replace("postgresql+psycopg://", "postgresql://"))
     params.update(user=API_ROLE, password=API_PASSWORD)
@@ -190,6 +191,11 @@ def test_public_id_column_matches_python(db_url: str) -> None:
         "CREATE TABLE api_probe (x int)",
         'SELECT * FROM "user"',
         "SELECT * FROM session",
+        "SELECT * FROM alert_rules",
+        "SELECT * FROM strategies",
+        "SELECT * FROM audit_log",
+        "SELECT * FROM event_outbox",
+        "SELECT * FROM feature_values",
         "SET ROLE postgres",
         "SET ROLE goatcash_app",
     ],
@@ -213,7 +219,7 @@ def test_api_account_attributes(api_url: str) -> None:
             "SELECT b.rolname FROM pg_auth_members m JOIN pg_roles b ON b.oid = m.roleid "
             "JOIN pg_roles u ON u.oid = m.member WHERE u.rolname = current_user"
         ).fetchall()
-        assert [g[0] for g in groups] == ["goatcash_readonly"]
+        assert groups == []  # bez członkostw: tylko SELECT na 4 tabelach rynkowych
         assert conn.execute("SHOW default_transaction_read_only").fetchone() == ("on",)
 
 

@@ -39,7 +39,8 @@ takie same. Publiczne identyfikatory API są więc stabilne także po cofnięciu
 5. **D5:** jedno kwotowanie z uniwersum (USDT), bez parametru w API.
 6. **Konto bazy procesu api:** api wystawione do internetu nie łączy się kontem `postgres`
    z `SET ROLE` (`RESET ROLE` przywraca superużytkownika), tylko osobnym kontem logowania
-   `goatcash_api` (członek wyłącznie `goatcash_readonly`, sesja tylko do odczytu, limit
+   `goatcash_api` (bez członkostw, SELECT tylko na `assets`, `instruments`, `candles_ref`
+   i `dq_status` (recenzja E6, D2), sesja tylko do odczytu, limit
    20 połączeń, `statement_timeout` 5 s), zakładanym przez `ensure-api-role.sh` przy każdym
    wdrożeniu. Hasło nie jest w SOPS: właściciel nie ma dostępu do konsoli (28.11.2026), więc
    `deploy.sh` tworzy je na serwerze przy pierwszym wdrożeniu (`env/api-read.env`, tryb 600)

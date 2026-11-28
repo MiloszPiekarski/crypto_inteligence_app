@@ -256,7 +256,7 @@ def _ms(value: object) -> int:
 class PostgresReader:
     """`MarketReader` w Postgresie: jedno połączenie (autocommit, tylko do odczytu).
 
-    Konto procesu api ma tylko uprawnienia `goatcash_readonly` (konto `goatcash_api`,
+    Konto procesu api (`goatcash_api`) ma tylko SELECT na tabelach rynkowych (konto
     `infra/compose/staging/ensure-api-role.sh`); sesja dodatkowo działa z
     `default_transaction_read_only`. Połączenie jest współdzielone przez wątki (psycopg
     szereguje zapytania) i odtwarzane po zerwaniu.
