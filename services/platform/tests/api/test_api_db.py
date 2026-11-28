@@ -5,8 +5,8 @@
   więc testy wartości referencyjnych z `test_api_market.py` dotyczą też bazy;
 - `assets.public_id` z migracji 0005 = `asset_public_id` w Pythonie;
 - konto logowania API (jak `goatcash_api` z `ensure-api-role.sh`: LOGIN, bez członkostw,
-  SELECT tylko na 4 tabelach rynkowych, sesja tylko do odczytu) nie zapisuje, także po `RESET ROLE`, nie
-  przełącza się na superużytkownika i nie czyta danych użytkowników;
+  SELECT tylko na 4 tabelach rynkowych, sesja tylko do odczytu) nie zapisuje, także po
+  `RESET ROLE`, nie przełącza się na superużytkownika i nie czyta danych użytkowników;
 - Schemathesis na aplikacji z czytnikiem w Postgresie: 0 odpowiedzi niezgodnych, 0 błędów 5xx.
 Uruchomienie: `make api-db-test` (Docker). Lokalnie bez Dockera: `GOATCASH_TEST_DB_URL`
 (baza po `alembic upgrade head`, konto z prawem tworzenia ról).
