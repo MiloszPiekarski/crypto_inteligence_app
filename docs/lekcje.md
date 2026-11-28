@@ -185,3 +185,28 @@ jak tego unikamy.
   lokalnie, a co dopiero w CI.
 - Tryb leniwy Polars (eliminacja wspólnych podwyrażeń) okazał się 3x wolniejszy na małych
   ramkach niż tryb natychmiastowy → optymalizację mierzymy, zanim ją zostawimy.
+
+## E6
+
+- Schemathesis z losowym UUID prawie zawsze dostawał 404, więc wstrzyknięty błąd 500
+  w endpointcie świec przechodził niezauważony → fuzzing sprawdzamy mutacją; generator
+  dostaje identyfikatory istniejących zasobów (hak `before_generate_path_parameters`).
+- Pętla paginacji `while True` w teście zawiesiła test mutacyjny (kursor `<=` nie przesuwał
+  pozycji) → pętle w testach mają górny limit i jawny `pytest.fail`.
+- Kursor z 15 cyframi przechodził walidację, a w Postgresie dawał 500 (rok poza zakresem
+  `datetime`), bo czytnik w pamięci nie konwertował znacznika → walidacja wejścia
+  w granicach typu, który i tak powstanie dalej; test na czytniku z bazą (recenzja).
+- Hasło roli w argumentach `psql -v` (widoczne w `ps`) i w tekście `ALTER ROLE` (log
+  serwera przy błędzie, `pg_stat_statements`), wzorzec z E3 → hasła do `psql` przez stdin
+  (`\set`), sesja z `log_min_error_statement = panic` i `track_utility = off` (recenzja E6).
+- Rola `goatcash_readonly` z E2 widziała tabele z `user_id`; konto procesu wystawionego
+  do internetu dostało ją „bo jest tylko do odczytu” → konto procesu publicznego ma SELECT
+  tylko na tabelach, które czyta, z asercją przy każdym wdrożeniu.
+- Plan „właściciel dopisze hasło do SOPS” zakładał dostęp do konsoli; właściciel go nie
+  miał → sekret, którego nikt nie musi znać (hasło konta wewnętrznego), generujemy na
+  serwerze, a nie w repo.
+- Commit podpisany przez GitHuba z sesji: REST `git/commits` blokuje proxy, a narzędzia MCP
+  wymagają pełnej treści plików (PR E6: ok. 460 KB) → podpis zostaje po stronie właściciela;
+  PR z dużym plikiem blokady planujemy z tym ograniczeniem.
+- Commit poszedł mimo błędu `pre-commit`, bo łańcuch `&&` zaczynał się po komendzie
+  z `| grep` → commit tylko po jawnie sprawdzonym kodzie wyjścia pre-commit.
