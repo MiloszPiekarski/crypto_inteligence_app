@@ -4,7 +4,8 @@
 #
 # Wszystkie sprawdzenia działają w CI (w G6p nie ma części „staging”), więc dowód G6p jest
 # typu `ci`: przebieg ci.yml na main z zielonym jobem „8 bramka G6p (ubuntu-latest)”.
-# Do zamknięcia E6 bramka jest w jobie `gate-next` (poza ci-ok).
+# Od zamknięcia E6 job „8 bramka G6p” jest w macierzy joba `gate` i w `ci-ok` (ochrona
+# przed regresją), jak G1–G5p.
 gate: G6p
 stage: E6
 criteria: >-

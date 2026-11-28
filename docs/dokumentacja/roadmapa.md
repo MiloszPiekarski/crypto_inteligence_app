@@ -475,6 +475,25 @@ Etap kończy się, gdy użytkownik może założyć konto, włączyć 2FA i pobr
 
 W ścieżce pracy nie ma kont, logowania ani danych użytkowników.
 
+**Decyzje właściciela 28.11.2026 (doprecyzowanie zakresu w ścieżce pracy, zapis jawny;
+szczegóły i dowody: `docs/gates/G6p.md`):**
+
+1. **D1, ścieżka świec:** `GET /v1/assets/{asset_id}/candles` (kontrakt OpenAPI z E2)
+   zamiast `/v1/candles` z punktu 2 (świece zawsze dotyczą jednego aktywa).
+2. **D2, identyfikator aktywa:** publiczny UUID `assets.public_id` (migracja 0005, kolumna
+   generowana z symbolu); wewnętrzny `asset_id` nie wychodzi na zewnątrz.
+3. **D3, interwały:** `1h` z `candles_ref`, `4h` i `1d` z pełnych okresów UTC świec 1h
+   (okres z brakującą świecą nie jest zwracany); `1m`, `5m`, `15m` usunięte z kontraktu
+   do ścieżki produktu (dane minutowe nie są zbierane).
+4. **D4, `/v1/market/overview`:** ostatnie zamknięcie, zmiana i wolumen 24 h, najgorszy
+   status DQ giełd pary.
+5. **D5, kwotowanie:** jedno kwotowanie z uniwersum (USDT), bez parametru w API.
+6. **Konto bazy procesu api:** osobne konto logowania `goatcash_api` z SELECT tylko na
+   tabelach rynkowych (nie konto `postgres` z `SET ROLE`); hasło tworzone na serwerze przez
+   `deploy.sh`, bez SOPS. Zmiana sekretów przeszła niezależną recenzję (PR #137).
+7. **Cache:** unieważnianie przez `XREAD` w każdej instancji api; niedostępny Valkey
+   oznacza odpowiedzi prosto z bazy, nigdy nieaktualne dane z cache.
+
 **Dokończenie w ścieżce produktu:** Better Auth (e-mail i hasło, Google OAuth, TOTP, passkeys), JWT/JWKS, role
 i `require_owner`, limity sliding window z nagłówkami `RateLimit-*`, profil, zgody i RODO,
 audyt, panel administratora, WebSocket `/v1/stream`; testy: autoryzacja, IDOR, przepływy
