@@ -10,15 +10,17 @@ Otwarta platforma analityczna rynku kryptowalut: agenci analityczni, prognozy ro
 w Forecast Ledger, kalibracja i samouczenie z twardymi granicami, a w dalszych etapach
 bot handlowy w trybach o rosnącej autonomii.
 
-> **Status:** etapy **E0–E4** zakończone (bramki G0–G3 i bramka pracy G4p zaliczone: konta
-> i narzędzia; repozytorium, CI i sekrety; architektura, model danych i kontrakty;
+> **Status:** etapy **E0–E5** zakończone (bramki G0–G3 i bramki pracy G4p i G5p zaliczone:
+> konta i narzędzia; repozytorium, CI i sekrety; architektura, model danych i kontrakty;
 > infrastruktura staging odtwarzalna od zera, z kopiami i alertami; dane rynkowe: świece 1 h
 > z OKX i Bybit dla 20 par od 2023-01-01, kontrola jakości, detektor luk i cena
-> referencyjna, pobierane co godzinę na staging). Etapy od E4 są realizowane w **ścieżce
-> pracy inżynierskiej** (zakres okrojony, bramki pracy `G<nr>p`), a pełny produkt (roadmapa
-> E0–E18) po obronie pracy (ADR-0008). Następny: **E5** (magazyn danych i point-in-time
-> feature store). Każdy etap kończy się bramką jakości sprawdzaną automatycznie. Bieżący
-> stan: `docs/stan-pracy.md`.
+> referencyjna, pobierane co godzinę na staging; point-in-time feature store: 19 cech
+> `fs-1p` w Polars za `MarketView(as_of)`, sprawdzonych z TA-Lib i niezależną
+> implementacją, bez zaglądania w przyszłość na 1000 losowych chwil i z przeliczeniem
+> identycznym bit w bit). Etapy od E4 są realizowane w **ścieżce pracy inżynierskiej**
+> (zakres okrojony, bramki pracy `G<nr>p`), a pełny produkt (roadmapa E0–E18) po obronie
+> pracy (ADR-0008). Następny: **E6** (backend API tylko do odczytu). Każdy etap kończy się
+> bramką jakości sprawdzaną automatycznie. Bieżący stan: `docs/stan-pracy.md`.
 
 ## Struktura
 

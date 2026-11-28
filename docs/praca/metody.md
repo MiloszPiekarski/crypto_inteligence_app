@@ -69,7 +69,7 @@ wskazuje źródła błędu jednoznacznie, stąd porównanie z własną historią
 przez REST (bez danych bieżących z websocketów); świece zamknięte z opóźnieniem do ok. 2 min
 po pełnej godzinie; pełny zakres (150 par, 4 giełdy, 72 h ciągłej pracy) w ścieżce produktu.
 
-## 2. Wskaźniki techniczne i zmienność (E5, G5p) ⬜
+## 2. Wskaźniki techniczne i zmienność (E5, G5p) ✅
 
 `MarketView(as_of)` i zasada point-in-time; cechy `fs-1p`: zwroty logarytmiczne, zmienność
 zrealizowana i Parkinsona, ATR, RSI, MACD, ADX, EMA i nachylenie, wstęgi Bollingera,
@@ -85,7 +85,75 @@ zapisane najpóźniej w `known_at` (`ingested_at ≤ known_at`), czyli świecę 
 później traktuje jak lukę. Pełne przeliczenie historii działa bez `known_at`, bo historia
 od 2023 r. została pobrana w listopadzie 2026 r. i warunek `ingested_at ≤ as_of` dawałby
 dla przeszłości pusty widok. Widok sprawdza dane ze źródła drugi raz i zgłasza błąd, gdy
-źródło zwróci wiersz spoza widoku. Wzory i okna cech: przy domknięciu E5.
+źródło zwróci wiersz spoza widoku.
+
+**Dane wejściowe.** Świece 1 h ceny referencyjnej (`candles_ref`, mediana OKX i Bybit z
+sekcji 1). Świeca `ts` jest dostępna od chwili `ts + 1 h`; cechy w chwili `as_of` liczone
+są ze świec zamkniętych najpóźniej w `as_of`, a wynik ma `data_cutoff` = zamknięcie
+ostatniej użytej świecy. Oznaczenia: c, h, l, v: zamknięcie, szczyt, dołek, wolumen
+świecy t; r_t = ln(c_t / c_{t-1}).
+
+**Odcinki, rozgrzewka i braki danych.** Każda para jest dzielona na ciągłe odcinki kolejnych
+godzin. Cecha w chwili t zależy tylko od świec swojego odcinka do t włącznie, więc nie
+zależy od przyszłości ani od danych sprzed luki. Każda cecha deklaruje okno W (liczbę
+świec do pierwszej wartości). Wartość jest liczbą tylko przy statusie `ok`; w pozostałych
+przypadkach jest NaN ze statusem: `warmup` (mniej niż W świec od początku danych pary),
+`missing_data` (brak świecy w tej godzinie albo mniej niż W świec od luki; bez interpolacji,
+także świeca odrzucona przez DQ obu giełd jest luką), `not_applicable` (korelacja BTC
+z samym BTC, decyzja właściciela 27.11.2026) i `undefined` (zero w mianowniku: płaska cena
+albo zerowy wolumen w oknie; odchylenie standardowe względnie mniejsze niż 1e-12 średniej
+traktowane jak zero).
+
+**Cechy `fs-1p` (19; wersja = pierwsze 16 znaków SHA-256 definicji, `66ce07b92a443614`).**
+EMA_n: rekurencja y_t = y_{t-1} + α (x_t − y_{t-1}), α = 2 / (n + 1), start od średniej
+prostej pierwszych n wartości (jak w TA-Lib). Wygładzanie Wildera: to samo z α = 1 / n.
+
+| Cecha               | Wzór                                                                                          | W   |
+| ------------------- | --------------------------------------------------------------------------------------------- | --- |
+| `ret_log_1h`        | ln(c_t / c_{t-1})                                                                             | 2   |
+| `ret_log_4h`        | ln(c_t / c_{t-4})                                                                             | 5   |
+| `ret_log_24h`       | ln(c_t / c_{t-24})                                                                            | 25  |
+| `ret_log_168h`      | ln(c_t / c_{t-168})                                                                           | 169 |
+| `vol_realized_24h`  | sqrt(Σ r_i², 24 ostatnich godzin)                                                             | 25  |
+| `vol_parkinson_24h` | sqrt(Σ ln(h_i / l_i)² / (4 ln 2 · 24)), 24 h                                                  | 24  |
+| `atr_14_rel`        | ATR_14 / c_t; TR_t = max(h − l, \|h − c_{t-1}\|, \|l − c_{t-1}\|), ATR = Wilder(TR, 14)       | 15  |
+| `rsi_14`            | 100 · G / (G + L), G i L: Wilder(14) zysków i strat godzinowych; brak ruchu: 50               | 15  |
+| `macd_rel`          | (EMA_12(c) − EMA_26(c)) / c_t                                                                 | 26  |
+| `macd_hist_rel`     | (MACD − EMA_9(MACD)) / c_t                                                                    | 34  |
+| `adx_14`            | ADX Wildera (14): +DM, −DM i TR z sumami jak w TA-Lib, DX = 100 · \|DI⁺ − DI⁻\| / (DI⁺ + DI⁻) | 28  |
+| `ema_20_dist`       | c_t / EMA_20(c) − 1                                                                           | 20  |
+| `ema_50_slope_24h`  | EMA_50(c)_t / EMA_50(c)_{t-24} − 1                                                            | 74  |
+| `bb_pctb_20`        | (c − (m − 2σ)) / (4σ), m i σ: średnia i odchylenie (populacyjne) c z 20 h                     | 20  |
+| `bb_width_20`       | 4σ / m (20 h)                                                                                 | 20  |
+| `zscore_close_168h` | (c − m) / σ (168 h)                                                                           | 168 |
+| `donchian_pos_168h` | (c − min l) / (max h − min l), 168 h                                                          | 168 |
+| `volume_rel_168h`   | v_t / średnia v z 168 h                                                                       | 168 |
+| `corr_btc_168h`     | współczynnik Pearsona r pary i r BTC z 168 h (oba szeregi bez luk w oknie)                    | 169 |
+
+**Implementacja.** Polars (wektorowo, osobno dla każdego odcinka); jedna funkcja liczy
+pełne przeliczenie historii i cechy w chwili `as_of` (na żywo po `candle.closed`), więc obie
+drogi dają te same liczby. Zapis w `feature_values` (klucz: zbiór cech, para aktywów, cecha,
+`as_of`; migracja 0004) z wykryciem zmiany bit w bit; zdarzenie `features.ready` v2 tylko
+przy zmianie (`docs/gates/G5p.md`).
+
+**Weryfikacja (G5p, `docs/gates/G5p.md`).** Brak zaglądania w przyszłość: dla 1000 losowych
+chwil (także w środku godziny) cechy z danych obciętych do t są bit w bit równe cechom
+z pełnego przeliczenia, dla wszystkich 19 cech; do tego replay z `known_at`, niezmienność
+wyniku przy zmianie danych z przyszłości i testy mutacyjne (przesunięcie w złą stronę,
+normalizacja całą serią, okno wycentrowane: wykryte). Wartości referencyjne liczone
+niezależnie dwiema implementacjami: TA-Lib (C) i czystym Pythonem, na danych syntetycznych
+i prawdziwej cenie z kaset E4 (5 par × 2000 h): |różnica| ≤ 1e-9 · max(1, |wzorzec|), cecha
+ma wartość dokładnie tam, gdzie wzorzec (największa zaobserwowana różnica ok. 2e-12, %B
+przez sumy kwadratów w TA-Lib); do tego przykłady policzone ręcznie. Dwa pełne przeliczenia
+historii (także w osobnym procesie z jednym wątkiem Polars i po zapisie do Postgresa) dają
+ten sam skrót SHA-256 bitów wartości.
+
+**Ograniczenia.** Jedno odejście od TA-Lib: RSI przy płaskiej cenie = 50 (TA-Lib: 0).
+Cechy rekurencyjne zależą od początku odcinka (po luce startują od nowa), a pełne
+przeliczenie czyta całą historię pary (20 par × ok. 34 tys. godzin; dla 150 par potrzebny
+stan przyrostowy: produkt). Cechy z danych pełnego E4 (funding, OI, order book, dominacja
+BTC, Fear & Greed, TVL), eksport Parquet, test live vs replay przez 7 dni i wydajność
+150 par: ścieżka produktu. Liczenie na staging (worker) od E7 (decyzja 27.11.2026).
 
 ## 3. Agenci analityczni (E7, G7p) ⬜
 

@@ -1,0 +1,9 @@
+{
+  "gate": "G5p",
+  "type": "ci",
+  "run_id": 46053939823,
+  "commit": "aab1d77c323059d493c4debde007756076721e63",
+  "job": "8 bramka G5p (ubuntu-latest)",
+  "url": "https://github.com/MiloszPiekarski/crypto_inteligence_app/actions/runs/46053939823",
+  "recorded_at": "2026-11-27T19:14:54Z"
+}
