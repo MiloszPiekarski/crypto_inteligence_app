@@ -112,7 +112,14 @@ def _expected(
 
 
 FULL = _history(SOURCE, END_MS + 3 * H)  # siatka do najpóźniejszej losowanej chwili
-moments = st.integers(min_value=T0, max_value=END_MS + 2 * H)  # także chwile w środku godziny
+# Połowa chwil dokładnie na pełnej godzinie (przypadek na żywo: candle.closed, świeca
+# zamknięta dokładnie w as_of), połowa dowolnie, także w środku godziny. Audyt E5
+# (28.11.2026): sama strategia dowolnych ms dawała 6/1000 chwil na pełnej godzinie, a mutacji
+# brzegu (świeca zamknięta w as_of odrzucona) ten test nie wykrywał.
+moments = st.one_of(
+    st.integers(min_value=0, max_value=N_HOURS + 2).map(lambda h: T0 + h * H),
+    st.integers(min_value=T0, max_value=END_MS + 2 * H),
+)
 pairs = st.sampled_from(PAIRS)
 
 
@@ -134,11 +141,13 @@ def test_point_in_time_1000_moments_all_features() -> None:
     seen: Counter[str] = Counter()
     statuses: Counter[str] = Counter()
     calls = [0]
+    aligned = [0]
 
     @PIT
     @given(t=moments, pair=pairs)
     def run(t: int, pair: Pair) -> None:
         calls[0] += 1
+        aligned[0] += t % H == 0
         live = features_at(MarketView(SOURCE, t), pair)
         expected = _expected(FULL, pair, t)
         assert vector_mismatches(live, expected) == [], (pair, t)
@@ -155,6 +164,7 @@ def test_point_in_time_1000_moments_all_features() -> None:
 
     run()
     assert calls[0] >= 1000
+    assert aligned[0] >= 300, aligned  # przypadek na żywo (as_of na pełnej godzinie)
     # 100% cech sprawdzone na prawdziwych wartościach (nie tylko na NaN): każda cecha ma
     # status ok w wielu z 1000 chwil; korelacja nie dotyczy BTC (1/3 chwil).
     assert set(seen) == set(FEATURE_NAMES)

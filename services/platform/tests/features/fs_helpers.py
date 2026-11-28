@@ -27,14 +27,15 @@ BTC = Pair("BTC", "USDT")
 ETH = Pair("ETH", "USDT")
 SOL = Pair("SOL", "USDT")
 
-# Tolerancja wartości referencyjnych (G5p, testy.md 3a): |nasza - wzorcowa| < 1e-9,
-# względnie dla wartości > 1 co do modułu (RSI i ADX w skali 0..100, reszta cech
-# bezwymiarowa rzędu 1e-4..1): |a - b| <= 1e-9 * max(1, |b|).
+# Tolerancja wartości referencyjnych dokładnie jak w kryterium G5p (testy.md 3a): różnica
+# bezwzględna < 1e-9, dla każdej cechy (także RSI i ADX w skali 0..100). Audyt E5
+# (28.11.2026): wcześniejszy próg 1e-9 · max(1, |wzorzec|) przepuszczał odchylenie RSI
+# o 1,5e-8. Zmierzone różnice wobec TA-Lib i czystego Pythona: ok. 1e-13..2e-12.
 TOLERANCE = 1e-9
 
 
 def close_enough(ours: float, ref: float) -> bool:
-    return abs(ours - ref) <= TOLERANCE * max(1.0, abs(ref))
+    return abs(ours - ref) < TOLERANCE
 
 
 def bits(x: float) -> bytes:

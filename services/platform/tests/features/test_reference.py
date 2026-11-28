@@ -278,3 +278,21 @@ def test_hand_computed_correlation() -> None:
     inverse = _bars([1e4 / c for c in btc_closes])
     assert _last(pair, btc)["corr_btc_168h"][0] == pytest.approx(1.0, abs=1e-12)
     assert _last(inverse, btc)["corr_btc_168h"][0] == pytest.approx(-1.0, abs=1e-12)
+
+
+@pytest.mark.parametrize("seed", [1, 2, 3, 4, 5])
+def test_macd_definition_vs_talib_macd_function(seed: int) -> None:
+    # `macd_rel` to (EMA12 - EMA26) / c z EMA zaczynającymi się jak w TA-Lib (średnia
+    # prosta pierwszych n wartości); funkcja talib.MACD zaczyna szybką EMA inaczej (od
+    # świecy, w której startuje wolna). Różnica jest więc tylko na początku odcinka i wygasa:
+    # po 130 h od początku danych (albo od luki) jest < 1e-9, a na starcie rzędu 1e-4..1e-2.
+    # Audyt E5 (28.11.2026), definicja w docs/praca/metody.md, sekcja 2.
+    bars = gbm_bars(700, seed=seed, price=2_500.0, sigma=0.02)
+    pair = Pair("X", "USDT")
+    frame = pair_frame(MarketView(InMemoryRefSource({pair: bars}), bars[-1].ts_ms + H), pair)
+    c = np.array([b.close for b in bars])
+    macd_talib, _signal, _hist = talib.MACD(c, 12, 26, 9)
+    ours = np.array(frame["macd_rel"].to_list())
+    diff = np.abs(ours - macd_talib / c)
+    assert np.nanmax(diff[33:60]) > 1e-6  # różnica na starcie jest (definicje nie są te same)
+    assert np.nanmax(diff[130:]) < 1e-9  # i wygasa: dalej obie definicje są zgodne

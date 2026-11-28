@@ -14,10 +14,10 @@ criteria: >-
   historii identyczne bit w bit
 checks:
   - id: point-in-time
-    name: "brak zaglądania w przyszłość: 19 cech, 1000 losowych chwil bit w bit, replay known_at, mutacje wykryte (F-07)"
+    name: "brak zaglądania w przyszłość: 19 cech, 1000 losowych chwil (połowa na pełnej godzinie) bit w bit, replay known_at, mutacje wykryte (F-07)"
     run: make -s features-pit-test
   - id: reference
-    name: "wartości referencyjne: TA-Lib i czysty Python (|różnica| <= 1e-9 · max(1, |wzorzec|)), przykłady ręczne, ceny OKX i Bybit"
+    name: "wartości referencyjne: TA-Lib i czysty Python (|różnica| < 1e-9), przykłady ręczne, ceny OKX i Bybit, MACD vs talib.MACD"
     run: make -s features-reference-test
   - id: gaps
     name: "luka i zła DQ: NaN ze statusem, po luce pełne okno nowych danych, mutacja interpolacji wykryta"
